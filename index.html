@@ -219,10 +219,10 @@
         </div>
         <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70">
           <span class="font-bold text-slate-600">클릭 단계:</span>
-          <span class="text-indigo-600 font-semibold"><span class="w-4 h-4 rounded bg-indigo-600 text-white inline-flex items-center justify-center text-[10px]">✔</span> 1번: 완수</span>
-          <span class="text-slate-300">|</span>
-          <span class="text-amber-600 font-semibold"><span class="w-4 h-4 rounded bg-amber-400 text-slate-900 inline-flex items-center justify-center text-[10px]">⚡</span> 2번: 2분실행</span>
-          <span class="text-slate-300">|</span>
+          <span class="text-amber-600 font-semibold"><span class="w-4 h-4 rounded bg-amber-400 text-slate-900 inline-flex items-center justify-center text-[10px]">⚡</span> 1번: 2분 최소실행</span>
+          <span class="text-slate-300">➔</span>
+          <span class="text-indigo-600 font-semibold"><span class="w-4 h-4 rounded bg-indigo-600 text-white inline-flex items-center justify-center text-[10px]">✔</span> 2번: 100% 완수</span>
+          <span class="text-slate-300">➔</span>
           <span class="text-slate-400">3번: 해제</span>
         </div>
       </div>
@@ -356,7 +356,7 @@
       '생활습관': 'bg-teal-50 text-teal-700 border-teal-200'
     };
 
-    const STATE_LABEL = { 0: '미실행', 1: '2분 실행', 2: '완수' };
+    const STATE_LABEL = { 0: '미실행', 1: '2분 최소실행', 2: '100% 완수' };
 
     const pad = n => String(n).padStart(2, '0');
     function formatDateKey(date) {
@@ -511,7 +511,7 @@
       try {
         const list = sanitizeHabitList(JSON.parse(raw));
         if (list) return list;
-      } catch (e) { /* 무시 */ }
+      } catch (e) { /* 아래에서 복구 */ }
       storage.set(STORAGE_KEY + '_corrupt_backup', raw);
       setTimeout(() => showToast('저장 데이터가 손상되어 샘플로 복구했습니다.'), 300);
       return createSampleHabits();
@@ -521,7 +521,7 @@
       const ok = storage.set(STORAGE_KEY, JSON.stringify(habits));
       if (!ok && !saveWarned) {
         saveWarned = true;
-        showToast('브라우저 저장 공간이 부족합니다.');
+        showToast('브라우저에 저장할 수 없습니다.');
       }
     }
 
@@ -559,12 +559,14 @@
 
     const findHabit = id => habits.find(h => h.id === id);
 
+    // ★ 1번 클릭: 2분 최소실행(1) -> 2번 클릭: 100% 완수(2) -> 3번 클릭: 해제(0)
     function cycleDateCheck(habitId, dateKey) {
       if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
       const habit = findHabit(habitId);
       if (!habit) return;
       const current = getLogState(habit.logs, dateKey);
-      setLog(habit, dateKey, current === 0 ? 2 : current === 2 ? 1 : 0);
+      const next = current === 0 ? 1 : current === 1 ? 2 : 0;
+      setLog(habit, dateKey, next);
       saveData();
       renderAll();
     }
@@ -636,11 +638,11 @@
       habits.forEach(h => currentWeekKeys.forEach(k => delete h.logs[k]));
       saveData();
       renderAll();
-      showToast('이번 주 기록을 초기화했습니다.');
+      showToast('초기화되었습니다.');
     }
 
     function loadDefaultHabits() {
-      if (!confirm('기본 샘플 데이터로 복원하시겠습니까?')) return;
+      if (!confirm('샘플 데이터로 복원하시겠습니까?')) return;
       habits = createSampleHabits();
       selectedHeatmapHabitId = 'ALL';
       saveData();
@@ -663,6 +665,18 @@
 
     function selectHeatmapFilter(habitId) {
       selectedHeatmapHabitId = habitId === 'ALL' || findHabit(habitId) ? habitId : 'ALL';
+      renderAll();
+    }
+
+    function refreshDates() {
+      const prevToday = todayKey;
+      const prevYear = today.getFullYear(), prevMonth = today.getMonth();
+      computeDates();
+      if (todayKey === prevToday) return;
+      if (viewYear === prevYear && viewMonth === prevMonth) {
+        viewYear = today.getFullYear();
+        viewMonth = today.getMonth();
+      }
       renderAll();
     }
 
@@ -753,20 +767,26 @@
           const state = weekStates[idx];
           const isToday = dKey === todayKey;
           const future = isFutureKey(dKey);
-          let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-indigo-300 hover:text-indigo-400';
+          let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500';
           let iconHtml = `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
+          let nextHint = '1번 클릭: ⚡ 2분 최소실행';
           if (future) {
             btnStyle = 'bg-slate-50 border-dashed border-slate-200 text-slate-200';
-          } else if (state === 2) {
-            btnStyle = 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200';
-            iconHtml = `<i class="fa-solid fa-check" aria-hidden="true"></i>`;
+            nextHint = '예정';
           } else if (state === 1) {
             btnStyle = 'bg-amber-400 border-amber-500 text-slate-900 shadow-sm shadow-amber-100';
             iconHtml = `<i class="fa-solid fa-bolt text-xs" aria-hidden="true"></i>`;
+            nextHint = '현재: ⚡ 2분 최소실행 (클릭 시 ✔ 100% 완수)';
+          } else if (state === 2) {
+            btnStyle = 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200';
+            iconHtml = `<i class="fa-solid fa-check" aria-hidden="true"></i>`;
+            nextHint = '현재: ✔ 100% 완수 (클릭 시 해제)';
           }
+          const label = `${safeName} ${DAYS_KR[idx]}요일 ${future ? '예정' : STATE_LABEL[state]}`;
           return `
             <td class="py-3.5 px-2 text-center ${isToday ? 'today-col' : ''}">
               <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
+                aria-label="${label}" title="${nextHint}"
                 class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
                 ${iconHtml}
               </button>
@@ -788,6 +808,10 @@
                 <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡ 2분 규칙</span>
                 <span>${escapeHtml(habit.twoMinRule)}</span>
               </p>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 pt-0.5">
+                <span>📍 <b>신호:</b> ${escapeHtml(habit.cue || '-')}</span>
+                <span>🎁 <b>보상:</b> ${escapeHtml(habit.reward || '-')}</span>
+              </div>
             </td>
             ${dayCells}
             <td class="py-3.5 px-3 text-center">
@@ -799,9 +823,9 @@
             <td class="py-3.5 px-4">
               <div class="flex items-center justify-between text-xs font-bold mb-1">
                 <span class="${orbitRate === 100 ? 'text-emerald-600' : 'text-slate-700'}">${orbitRate}% 궤도유지</span>
-                <span class="text-[11px] text-slate-400">✔${fullDays} · ⚡${minDays}</span>
+                <span class="text-[11px] text-slate-400">⚡${minDays} · ✔${fullDays}</span>
               </div>
-              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex" role="progressbar" aria-label="${safeName} 주간 궤도 유지율" aria-valuenow="${orbitRate}" aria-valuemin="0" aria-valuemax="100">
                 <div class="h-full bg-indigo-600 transition-all duration-300" style="width:${fullPct}%"></div>
                 <div class="h-full bg-amber-400 transition-all duration-300" style="width:${minPct}%"></div>
               </div>
@@ -824,15 +848,15 @@
       document.getElementById('mini-summary-month').textContent = `${viewMonth + 1}월 기준`;
       document.getElementById('heatmap-help').textContent = isAll
         ? '날짜를 누르면 미기록 습관만 완수로 채웁니다.'
-        : '날짜를 누를 때마다 완수 → 2분실행 → 해제 순으로 바뀝니다.';
+        : '날짜를 누를 때마다 1번: 2분 최소실행(⚡) → 2번: 100% 완수(✔) → 해제 순으로 바뀝니다.';
 
       const tabClass = active => active
         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
-      let tabsHtml = `<button type="button" data-action="filter" data-id="ALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${tabClass(isAll)}">🌱 전체 통합 잔디 (${habits.length})</button>`;
+      let tabsHtml = `<button type="button" role="tab" aria-selected="${isAll}" data-action="filter" data-id="ALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${tabClass(isAll)}">🌱 전체 통합 잔디 (${habits.length})</button>`;
       habits.forEach(h => {
         const active = selectedHeatmapHabitId === h.id;
-        tabsHtml += `<button type="button" data-action="filter" data-id="${escapeHtml(h.id)}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border truncate max-w-[230px] ${tabClass(active)}">${escapeHtml(h.name)}</button>`;
+        tabsHtml += `<button type="button" role="tab" aria-selected="${active}" data-action="filter" data-id="${escapeHtml(h.id)}" title="${escapeHtml(h.name)}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border truncate max-w-[230px] ${tabClass(active)}">${escapeHtml(h.name)}</button>`;
       });
       document.getElementById('heatmap-filter-tabs').innerHTML = tabsHtml;
 
@@ -904,7 +928,7 @@
           <div class="bg-white p-3 rounded-xl border border-slate-200/70 space-y-1.5">
             <div class="flex items-center justify-between text-xs">
               <span class="font-bold text-slate-700 truncate pr-2">${escapeHtml(h.name)}</span>
-              <span class="font-extrabold text-emerald-600 shrink-0">✔${monthFull} · ⚡${monthMin} (${rateText})</span>
+              <span class="font-extrabold text-emerald-600 shrink-0">⚡${monthMin} · ✔${monthFull} (${rateText})</span>
             </div>
             <div class="flex flex-wrap gap-1 pt-0.5">${squares}</div>
           </div>`;
@@ -949,7 +973,7 @@
     }
 
     function exportToExcel() {
-      if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 로드하지 못했습니다.'); return; }
+      if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 불러오지 못했습니다.'); return; }
       if (habits.length === 0) { showToast('데이터가 없습니다.'); return; }
       const mark = st => (st === 2 ? 'O' : st === 1 ? '△' : '-');
       const wb = XLSX.utils.book_new();
@@ -966,8 +990,7 @@
           ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes];
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([weeklyHeader, ...weeklyRows]), '주간시스템');
-      XLSX.writeFile(wb, `${todayKey}-아토믹해빗-대시보드.xlsx`);
-      showToast('엑셀 파일을 내보냈습니다.');
+      XLSX.writeFile(wb, `아토믹해빗_대시보드_${todayKey}.xlsx`);
     }
 
     function exportBackupJson() {
@@ -975,11 +998,8 @@
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${todayKey}-아토믹해빗-백업.json`;
-      a.click();
+      a.href = url; a.download = `아토믹해빗_백업_${todayKey}.json`; a.click();
       URL.revokeObjectURL(url);
-      showToast('백업 파일을 저장했습니다.');
     }
 
     function importBackupJson(event) {
@@ -1005,8 +1025,8 @@
       if (!btn || btn.disabled) return;
       const id = btn.dataset.id;
       switch (btn.dataset.action) {
-        case 'cycle': cycleDateCheck(id, btn.dataset.date); break;
-        case 'cell': handleHeatmapCellClick(btn.dataset.date); break;
+        case 'cycle': refreshDates(); cycleDateCheck(id, btn.dataset.date); break;
+        case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
         case 'filter': selectHeatmapFilter(id); break;
         case 'up': moveHabit(id, -1); break;
         case 'down': moveHabit(id, 1); break;
@@ -1037,6 +1057,7 @@
 
     document.getElementById('add-habit-form').addEventListener('submit', e => {
       e.preventDefault();
+      refreshDates();
       const name = cleanText(document.getElementById('habit-name').value, '');
       if (!name) return;
       habits.push({
@@ -1056,6 +1077,9 @@
       renderAll();
       showToast('추가되었습니다.');
     });
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDates(); });
+    setInterval(refreshDates, 60 * 1000);
 
     function init() {
       const options = renderCategoryOptions();
