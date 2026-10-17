@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아토믹 해빗(Atomic Habit) 시스템 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 엑셀(.xlsx) 생성을 위한 SheetJS 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+    }
+    .check-btn, .grass-cell {
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .check-btn:not(:disabled):active, .grass-cell:not(:disabled):active {
+      transform: scale(0.90);
+    }
+    .check-btn:disabled, .grass-cell:disabled { cursor: not-allowed; }
+    .icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+    .today-col {
+      background-color: rgba(238, 242, 255, 0.7);
+    }
+    .grass-lv-0 { background-color: #f1f5f9; border-color: #e2e8f0; color: #94a3b8; }
+    .grass-lv-min { background-color: #fef3c7; border-color: #fde68a; color: #92400e; }
+    .grass-lv-1 { background-color: #d1fae5; border-color: #a7f3d0; color: #065f46; }
+    .grass-lv-2 { background-color: #6ee7b7; border-color: #34d399; color: #064e3b; }
+    .grass-lv-3 { background-color: #10b981; border-color: #059669; color: #ffffff; }
+    .grass-lv-4 { background-color: #047857; border-color: #065f46; color: #ffffff; }
+    .grass-future { background-color: #ffffff; border-color: #e2e8f0; border-style: dashed; color: #cbd5e1; }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+    .never-miss-badge {
+      animation: pulse-soft 2s infinite;
+    }
+    #toast { transition: opacity 0.25s, transform 0.25s; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen p-4 md:p-8">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- 상단 헤더 -->
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-sm">
+            <i class="fa-solid fa-atom text-xl" aria-hidden="true"></i>
+          </span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">아토믹 해빗(Atomic Habit) 시스템 대시보드</h1>
+              <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">1% 복리 시스템</span>
+            </div>
+            <p id="current-date-display" class="text-xs sm:text-sm text-slate-500 mt-1 font-medium"></p>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" onclick="exportToExcel()" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
+          <i class="fa-solid fa-file-excel text-sm" aria-hidden="true"></i> 엑셀(.xlsx) 내보내기
+        </button>
+        <button type="button" onclick="exportBackupJson()" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5" title="데이터 백업 파일 저장">
+          <i class="fa-solid fa-download" aria-hidden="true"></i> 백업 저장
+        </button>
+        <label class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer" title="백업 파일 불러오기">
+          <i class="fa-solid fa-upload" aria-hidden="true"></i> 백업 복원
+          <input type="file" id="import-json-input" accept=".json,application/json" class="hidden" onchange="importBackupJson(event)">
+        </label>
+        <button type="button" onclick="resetCurrentWeek()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 이번 주 초기화
+        </button>
+        <button type="button" onclick="loadDefaultHabits()" class="px-3.5 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition flex items-center gap-1.5">
+          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> 샘플 복원
+        </button>
+      </div>
+    </header>
+
+    <!-- 핵심 지표 (KPI) 카드 5종 -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" aria-label="요약 지표">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">오늘의 궤도 유지율</p>
+          <p id="stat-today" class="text-2xl font-extrabold text-slate-900 mt-1">0%</p>
+          <p id="stat-today-sub" class="text-xs text-slate-500 mt-1">완수 0 · 2분실행 0</p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-compass" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1">
+            <i class="fa-solid fa-bolt text-amber-400" aria-hidden="true"></i> 1% 복리 성장 지수
+          </p>
+          <p id="stat-compound" class="text-2xl font-extrabold text-amber-300 mt-1">1.00배</p>
+          <p id="stat-compound-sub" class="text-[11px] text-slate-300 mt-1">잠재력 잠복기 돌파 0%</p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-white/10 text-amber-300 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">정체성 누적 투표함</p>
+          <p id="stat-votes" class="text-2xl font-extrabold text-purple-700 mt-1">총 0표</p>
+          <p id="stat-votes-sub" class="text-xs text-slate-500 mt-1 truncate max-w-[140px]">나를 증명하는 투표</p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-check-to-slot" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">최고 연속 스트릭</p>
+          <p id="stat-best-streak" class="text-2xl font-extrabold text-slate-900 mt-1">0일</p>
+          <p class="text-xs text-amber-600 font-semibold mt-1">⚡ 2분 최소실행 방어 포함</p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-fire-flame-curved" aria-hidden="true"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">두 번 거르기 방지</p>
+          <p id="stat-alert-count" class="text-2xl font-extrabold text-rose-600 mt-1">0건</p>
+          <p id="stat-alert-sub" class="text-xs text-slate-500 mt-1">어제 미달성 긴급 항목</p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- 정체성 투표 보드 & 잠복기 돌파 게이지 -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-id-badge text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표 현황
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">"습관을 반복할 때마다 당신의 정체성에 한 표를 던지세요."</p>
+          </div>
+          <span class="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · 2분실행 0.5표</span>
+        </div>
+        <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"></div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between space-y-3">
+        <div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 돌파 게이지
+            </h2>
+            <span id="valley-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">실망의 계곡</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">임계점 목표: 누적 100회 실천</p>
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-bold">
+            <span id="valley-temp-text" class="text-indigo-600">현재 온도: -10.0°C</span>
+            <span id="valley-count-text" class="text-slate-600">0 / 100회</span>
+          </div>
+          <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100" id="valley-progress-wrap">
+            <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-rose-500 transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <p id="valley-quote" class="text-[11px] text-slate-500 font-medium pt-1">💡 변화가 차곡차곡 쌓이고 있습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 새 아토믹 해빗 추가 폼 -->
+    <section class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-600" aria-hidden="true"></i> 새로운 아토믹 해빗(시스템) 설계하기
+        </h2>
+        <span class="text-xs text-slate-400">의지력 대신 시스템으로 설계하세요</span>
+      </div>
+      <form id="add-habit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+        <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        <input type="text" id="habit-identity" maxlength="100" aria-label="정체성" placeholder="🪪 정체성 (예: 냉철한 투자자)" required
+          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="habit-name" maxlength="100" aria-label="본래 목표" placeholder="🎯 본래 목표 (예: 거시경제 지표 스크랩)" required
+          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <input type="text" id="habit-twomin" maxlength="100" aria-label="2분 최소규칙" placeholder="⚡ 2분 최소규칙 (예: 헤드라인 1줄 읽기)" required
+          class="px-3 py-2.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <input type="text" id="habit-cue" maxlength="100" aria-label="환경 신호" placeholder="📍 환경 신호 (예: 출근 직후 아이패드 켜기)"
+          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="flex gap-2">
+          <input type="text" id="habit-reward" maxlength="100" aria-label="즉각 보상" placeholder="🎁 즉각 보상 (예: 커피 한 잔)"
+            class="flex-1 min-w-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition shrink-0 flex items-center gap-1">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> 추가
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 1. 주간 시스템 실행 보드 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-600" aria-hidden="true"></i> 주간 시스템 실행 보드 (3.5도 궤도 유지 트래커)
+          </h2>
+          <p id="week-range-label" class="text-xs text-slate-400 mt-0.5"></p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70">
+          <span class="font-bold text-slate-600">클릭 단계:</span>
+          <span class="text-indigo-600 font-semibold"><span class="w-4 h-4 rounded bg-indigo-600 text-white inline-flex items-center justify-center text-[10px]">✔</span> 1번: 완수</span>
+          <span class="text-slate-300">|</span>
+          <span class="text-amber-600 font-semibold"><span class="w-4 h-4 rounded bg-amber-400 text-slate-900 inline-flex items-center justify-center text-[10px]">⚡</span> 2번: 2분실행</span>
+          <span class="text-slate-300">|</span>
+          <span class="text-slate-400">3번: 해제</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[960px]">
+          <thead>
+            <tr id="week-table-head" class="border-b border-slate-200/80 bg-slate-50/70 text-xs font-semibold text-slate-500"></tr>
+          </thead>
+          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2. 월간 아토믹 히트맵 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
+            <i class="fa-solid fa-border-all text-emerald-600" aria-hidden="true"></i> 월간 아토믹 히트맵 (잔디 심기)
+          </h2>
+          <p id="heatmap-help" class="text-xs text-slate-400 mt-0.5"></p>
+        </div>
+        <div class="flex items-center gap-2 self-start md:self-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200/80">
+          <button type="button" onclick="changeMonth(-1)" aria-label="이전 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></button>
+          <span id="heatmap-month-label" class="text-sm font-bold text-slate-800 px-3 min-w-[110px] text-center" aria-live="polite"></span>
+          <button type="button" onclick="changeMonth(1)" aria-label="다음 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></button>
+          <button type="button" onclick="goTodayMonth()" class="text-xs font-semibold text-indigo-600 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition">이번 달</button>
+        </div>
+      </div>
+      <div id="heatmap-filter-tabs" class="flex flex-wrap gap-2" role="tablist" aria-label="히트맵 습관 선택"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div class="lg:col-span-2 bg-slate-50/60 p-4 rounded-2xl border border-slate-200/70">
+          <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-slate-400" aria-hidden="true">
+            <div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-indigo-500">토</div><div class="text-rose-500">일</div>
+          </div>
+          <div id="heatmap-calendar-grid" class="grid grid-cols-7 gap-2"></div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-200/60 text-xs text-slate-500">
+            <span class="font-medium">💡 오늘 이후 날짜는 기록할 수 없습니다.</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span>미실행</span>
+              <span class="w-4 h-4 rounded grass-lv-0 border inline-block"></span>
+              <span class="w-4 h-4 rounded grass-lv-min border inline-flex text-[9px] font-bold items-center justify-center">⚡</span>
+              <span class="w-4 h-4 rounded grass-lv-1 border inline-block"></span>
+              <span class="w-4 h-4 rounded grass-lv-2 border inline-block"></span>
+              <span class="w-4 h-4 rounded grass-lv-3 border inline-block"></span>
+              <span class="w-4 h-4 rounded grass-lv-4 border inline-block"></span>
+              <span>완벽</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-slate-50/60 p-4 rounded-2xl border border-slate-200/70 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">습관별 월간 요약</h3>
+            <span id="mini-summary-month" class="text-xs font-semibold text-emerald-600"></span>
+          </div>
+          <div id="habit-monthly-bars" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 습관 수정 모달(팝업) -->
+  <div id="edit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="edit-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-indigo-600" aria-hidden="true"></i> 아토믹 해빗 수정하기
+        </h3>
+        <button type="button" onclick="closeEditModal()" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+      </div>
+      <form id="edit-habit-form" class="space-y-3">
+        <input type="hidden" id="edit-habit-id">
+        <div>
+          <label for="edit-category" class="block text-xs font-bold text-slate-600 mb-1">카테고리</label>
+          <select id="edit-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"></select>
+        </div>
+        <div>
+          <label for="edit-identity" class="block text-xs font-bold text-slate-600 mb-1">🪪 정체성 (Identity)</label>
+          <input type="text" id="edit-identity" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        </div>
+        <div>
+          <label for="edit-name" class="block text-xs font-bold text-slate-600 mb-1">🎯 본래 목표 (습관명)</label>
+          <input type="text" id="edit-name" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        </div>
+        <div>
+          <label for="edit-twomin" class="block text-xs font-bold text-slate-600 mb-1">⚡ 2분 최소규칙</label>
+          <input type="text" id="edit-twomin" maxlength="100" required class="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs">
+        </div>
+        <div>
+          <label for="edit-cue" class="block text-xs font-bold text-slate-600 mb-1">📍 환경 신호 (Cue)</label>
+          <input type="text" id="edit-cue" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        </div>
+        <div>
+          <label for="edit-reward" class="block text-xs font-bold text-slate-600 mb-1">🎁 즉각 보상 (Reward)</label>
+          <input type="text" id="edit-reward" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
+          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">수정 완료</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 알림 토스트 -->
+  <div id="toast" role="status" aria-live="polite"
+       class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none translate-y-2 z-[60] max-w-[90vw] text-center"></div>
+
+  <script>
+    'use strict';
+
+    // ===== 상수 =====
+    const STORAGE_KEY = 'atomic_habit_system_dashboard_v3'; // 기존 데이터를 그대로 읽도록 키 유지
+    const DAYS_KR = ['월', '화', '수', '목', '금', '토', '일'];
+    const TEXT_MAX = 100;
+
+    const CATEGORY_LABELS = {
+      '경제/재테크': '📈 경제/재테크',
+      '운동/건강': '🏃 운동/건강',
+      '학습/독서': '📚 학습/독서',
+      '생산성/정리': '⚡ 생산성/정리',
+      '생활습관': '🌱 생활습관'
+    };
+    const CATEGORIES = Object.keys(CATEGORY_LABELS);
+
+    const categoryStyles = {
+      '경제/재테크': 'bg-blue-50 text-blue-700 border-blue-200',
+      '운동/건강': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      '학습/독서': 'bg-purple-50 text-purple-700 border-purple-200',
+      '생산성/정리': 'bg-amber-50 text-amber-700 border-amber-200',
+      '생활습관': 'bg-teal-50 text-teal-700 border-teal-200'
+    };
+
+    const STATE_LABEL = { 0: '미실행', 1: '2분 실행', 2: '완수' };
+
+    // ===== 공통 유틸 =====
+    const pad = n => String(n).padStart(2, '0');
+    function formatDateKey(date) {
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+    function parseDateKey(key) {
+      const [y, m, d] = key.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const isDateKey = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const keyLabel = key => { const d = parseDateKey(key); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+      ));
+    }
+    const newId = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+    // localStorage 접근 실패(시크릿 모드 등) 대비
+    const storage = {
+      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+    };
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('opacity-0', 'translate-y-2'), 2800);
+    }
+
+    // ===== 날짜 상태 (자정이 지나면 refreshDates로 갱신) =====
+    let today, todayKey, yesterdayKey, currentWeekDates, currentWeekKeys;
+
+    function computeDates() {
+      today = new Date();
+      todayKey = formatDateKey(today);
+      const y = new Date(today);
+      y.setDate(today.getDate() - 1);
+      yesterdayKey = formatDateKey(y);
+
+      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      currentWeekDates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        return d;
+      });
+      currentWeekKeys = currentWeekDates.map(formatDateKey);
+    }
+    computeDates();
+
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
+    let selectedHeatmapHabitId = 'ALL';
+    let habits = [];
+    let saveWarned = false;
+
+    const isFutureKey = key => key > todayKey;
+
+    // ===== 데이터 검증·정규화 =====
+    function normalizeLogValue(v) {
+      if (v === true || v === 2) return 2;
+      if (v === 1) return 1;
+      return 0;
+    }
+    function cleanText(v, fallback) {
+      const s = typeof v === 'string' ? v.trim().slice(0, TEXT_MAX) : '';
+      return s || fallback;
+    }
+    function sanitizeHabit(h) {
+      if (!h || typeof h !== 'object') return null;
+      const name = cleanText(h.name, '');
+      if (!name) return null;
+      const logs = {};
+      if (h.logs && typeof h.logs === 'object') {
+        Object.keys(h.logs).forEach(k => {
+          const v = normalizeLogValue(h.logs[k]);
+          if (isDateKey(k) && v > 0) logs[k] = v;
+        });
+      }
+      const logKeys = Object.keys(logs).sort();
+      let createdAt = isDateKey(h.createdAt) ? h.createdAt : (logKeys[0] || todayKey);
+      if (logKeys[0] && logKeys[0] < createdAt) createdAt = logKeys[0];
+      return {
+        id: (h.id !== undefined && h.id !== null && h.id !== '') ? String(h.id) : newId(),
+        name,
+        category: CATEGORIES.includes(h.category) ? h.category : '생활습관',
+        identity: cleanText(h.identity, '성장하는 사람'),
+        twoMinRule: cleanText(h.twoMinRule, '2분만 시작하기'),
+        cue: cleanText(h.cue, ''),
+        reward: cleanText(h.reward, ''),
+        createdAt,
+        logs
+      };
+    }
+    // 배열(기존 형식) 또는 { habits: [...] }(새 백업 형식) 모두 허용
+    function sanitizeHabitList(parsed) {
+      const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.habits) ? parsed.habits : null);
+      if (!arr) return null;
+      const list = arr.map(sanitizeHabit).filter(Boolean);
+      const seen = new Set();
+      list.forEach(h => { if (seen.has(h.id)) h.id = newId(); seen.add(h.id); });
+      return list;
+    }
+
+    function getLogState(logs, dateKey) {
+      return normalizeLogValue(logs[dateKey]);
+    }
+
+    // 기록이 습관 생성일보다 앞서면 생성일을 당겨서 달성률이 100%를 넘지 않게 함
+    function setLog(habit, dateKey, value) {
+      if (value > 0) {
+        habit.logs[dateKey] = value;
+        if (dateKey < habit.createdAt) habit.createdAt = dateKey;
+      } else {
+        delete habit.logs[dateKey];
+      }
+    }
+
+    // 해당 기간 중 습관이 존재했고 오늘 이전인 날 수 (달성률 분모)
+    function countEligibleDays(habit, keys) {
+      return keys.filter(k => k <= todayKey && k >= habit.createdAt).length;
+    }
+
+    function createSampleHabits() {
+      const baseList = [
+        { name: '거시경제 지표 및 증시 브리핑 정리', category: '경제/재테크', identity: '냉철한 거시경제 분석가',
+          twoMinRule: '환율·반도체 지수 차트 1분 확인하기', cue: '아침 커피 내린 직후 아이패드 켜기', reward: '좋아하는 원두 커피 한 잔 음미', freq: 0.85 },
+        { name: '야외 러닝 또는 유산소 30분', category: '운동/건강', identity: '에너제틱한 러너',
+          twoMinRule: '운동화 끈 묶고 현관문 밖으로 나가기', cue: '현관 가장 잘 보이는 곳에 러닝화 배치', reward: '샤워 후 시원한 탄산수 한 잔', freq: 0.70 },
+        { name: '외국어 원서 / 경제 서적 20페이지 독서', category: '학습/독서', identity: '지적인 독서가',
+          twoMinRule: '책 1페이지 펼치고 첫 문장 소리 내어 읽기', cue: '잠들기 전 베개 위에 책 올려두기', reward: '인상 깊은 문장 노트에 수집하는 즐거움', freq: 0.80 }
+      ];
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      const createdAt = formatDateKey(new Date(y, m, 1));
+
+      return baseList.map((item, idx) => {
+        const logs = {};
+        for (let day = 1; day <= today.getDate(); day++) {
+          const dKey = formatDateKey(new Date(y, m, day));
+          const pseudo = ((day * 7 + idx * 13) % 10) / 10;
+          if (pseudo < item.freq - 0.15) logs[dKey] = 2;
+          else if (pseudo < item.freq + 0.05) logs[dKey] = 1;
+        }
+        const { freq, ...rest } = item;
+        return { id: newId(), ...rest, createdAt, logs };
+      });
+    }
+
+    function loadHabits() {
+      const raw = storage.get(STORAGE_KEY);
+      if (raw === null) return createSampleHabits();
+      try {
+        const list = sanitizeHabitList(JSON.parse(raw));
+        if (list) return list;
+      } catch (e) { /* 아래에서 복구 */ }
+      storage.set(STORAGE_KEY + '_corrupt_backup', raw); // 손상 데이터 보존
+      setTimeout(() => showToast('저장 데이터가 손상되어 샘플로 복구했습니다. (원본은 별도 보관)'), 300);
+      return createSampleHabits();
+    }
+
+    function saveData() {
+      const ok = storage.set(STORAGE_KEY, JSON.stringify(habits));
+      if (!ok && !saveWarned) {
+        saveWarned = true;
+        showToast('브라우저에 저장할 수 없습니다. 백업 저장으로 기록을 보관하세요.');
+      }
+    }
+
+    // ===== 계산 =====
+    function calculateStreak(habit) {
+      let streak = 0;
+      const cursor = new Date(today);
+      if (getLogState(habit.logs, formatDateKey(cursor)) === 0) cursor.setDate(cursor.getDate() - 1);
+      for (let guard = 0; guard < 3660; guard++) {
+        if (getLogState(habit.logs, formatDateKey(cursor)) === 0) break;
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return streak;
+    }
+
+    // 어제·오늘 모두 미실행 — 단, 어제 이전부터 있던 습관만
+    function isNeverMissTwiceRisk(habit) {
+      if (habit.createdAt > yesterdayKey) return false;
+      return getLogState(habit.logs, yesterdayKey) === 0 && getLogState(habit.logs, todayKey) === 0;
+    }
+
+    function countVotes(habit) {
+      let full = 0, min = 0;
+      Object.keys(habit.logs).forEach(k => {
+        const st = getLogState(habit.logs, k);
+        if (st === 2) full++;
+        else if (st === 1) min++;
+      });
+      return { full, min, votes: full + min * 0.5 };
+    }
+
+    function monthKeys(year, month) {
+      const n = new Date(year, month + 1, 0).getDate();
+      return Array.from({ length: n }, (_, i) => formatDateKey(new Date(year, month, i + 1)));
+    }
+
+    // ===== 동작 =====
+    const findHabit = id => habits.find(h => h.id === id);
+
+    function cycleDateCheck(habitId, dateKey) {
+      if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
+      const habit = findHabit(habitId);
+      if (!habit) return;
+      const current = getLogState(habit.logs, dateKey);
+      setLog(habit, dateKey, current === 0 ? 2 : current === 2 ? 1 : 0);
+      saveData();
+      renderAll();
+    }
+
+    // '전체' 모드: 미기록 습관만 완수로 채움(⚡ 기록 보존). 모두 기록된 날은 확인 후 그날 기록 삭제
+    function handleHeatmapCellClick(dateKey) {
+      if (!isDateKey(dateKey) || isFutureKey(dateKey) || habits.length === 0) return;
+      if (selectedHeatmapHabitId !== 'ALL') {
+        cycleDateCheck(selectedHeatmapHabitId, dateKey);
+        return;
+      }
+      const targets = habits.filter(h => h.createdAt <= dateKey);
+      const pool = targets.length ? targets : habits;
+      const missing = pool.filter(h => getLogState(h.logs, dateKey) === 0);
+      if (missing.length > 0) {
+        missing.forEach(h => setLog(h, dateKey, 2));
+        showToast(`${keyLabel(dateKey)}: 미기록 ${missing.length}개 습관을 완수로 기록했습니다.`);
+      } else {
+        if (!confirm(`${keyLabel(dateKey)}의 모든 습관 기록(완수·2분실행)을 지우시겠습니까?`)) return;
+        pool.forEach(h => setLog(h, dateKey, 0));
+        showToast(`${keyLabel(dateKey)} 기록을 지웠습니다.`);
+      }
+      saveData();
+      renderAll();
+    }
+
+    function moveHabit(habitId, dir) {
+      const i = habits.findIndex(h => h.id === habitId);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= habits.length) return;
+      [habits[i], habits[j]] = [habits[j], habits[i]];
+      saveData();
+      renderAll();
+    }
+
+    function deleteHabit(habitId) {
+      const habit = findHabit(habitId);
+      if (!habit) return;
+      if (!confirm(`'${habit.name}' 습관 시스템을 삭제하시겠습니까?\n모든 기록이 함께 삭제됩니다.`)) return;
+      habits = habits.filter(h => h.id !== habitId);
+      if (selectedHeatmapHabitId === habitId) selectedHeatmapHabitId = 'ALL';
+      saveData();
+      renderAll();
+      showToast('습관 시스템을 삭제했습니다.');
+    }
+
+    function openEditModal(habitId) {
+      const habit = findHabit(habitId);
+      if (!habit) return;
+      document.getElementById('edit-habit-id').value = habit.id;
+      document.getElementById('edit-category').value = habit.category;
+      document.getElementById('edit-identity').value = habit.identity || '';
+      document.getElementById('edit-name').value = habit.name;
+      document.getElementById('edit-twomin').value = habit.twoMinRule || '';
+      document.getElementById('edit-cue').value = habit.cue || '';
+      document.getElementById('edit-reward').value = habit.reward || '';
+      const modal = document.getElementById('edit-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('edit-name').focus();
+    }
+
+    function closeEditModal() {
+      const modal = document.getElementById('edit-modal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    function resetCurrentWeek() {
+      if (!confirm('이번 주(월~일) 체크 기록을 모두 초기화하시겠습니까?')) return;
+      habits.forEach(h => currentWeekKeys.forEach(k => delete h.logs[k]));
+      saveData();
+      renderAll();
+      showToast('이번 주 기록을 초기화했습니다.');
+    }
+
+    function loadDefaultHabits() {
+      if (!confirm('기본 샘플 데이터로 복원하시겠습니까?\n현재 습관과 모든 기록이 대체됩니다.')) return;
+      habits = createSampleHabits();
+      selectedHeatmapHabitId = 'ALL';
+      saveData();
+      renderAll();
+      showToast('샘플 데이터로 복원했습니다.');
+    }
+
+    function changeMonth(delta) {
+      viewMonth += delta;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      renderAll();
+    }
+
+    function goTodayMonth() {
+      viewYear = today.getFullYear();
+      viewMonth = today.getMonth();
+      renderAll();
+    }
+
+    function selectHeatmapFilter(habitId) {
+      selectedHeatmapHabitId = habitId === 'ALL' || findHabit(habitId) ? habitId : 'ALL';
+      renderAll();
+    }
+
+    // 자정 경과 감지
+    function refreshDates() {
+      const prevToday = todayKey;
+      const prevYear = today.getFullYear(), prevMonth = today.getMonth();
+      computeDates();
+      if (todayKey === prevToday) return;
+      // 보던 달이 '이번 달'이었으면 새 달로 따라감
+      if (viewYear === prevYear && viewMonth === prevMonth) {
+        viewYear = today.getFullYear();
+        viewMonth = today.getMonth();
+      }
+      renderAll();
+    }
+
+    // ===== 렌더링 =====
+    function renderCategoryOptions() {
+      return CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(CATEGORY_LABELS[c])}</option>`).join('');
+    }
+
+    function renderAll() {
+      renderHeaderInfo();
+      renderIdentityCards();
+      renderWeeklyBoard();
+      renderHeatmapSection();
+      updateKPIStats();
+    }
+
+    function renderHeaderInfo() {
+      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+      document.getElementById('current-date-display').textContent =
+        `오늘 기준: ${today.toLocaleDateString('ko-KR', dateOptions)} · 작은 반복이 정체성을 증명합니다`;
+      const s = currentWeekDates[0], e = currentWeekDates[6];
+      document.getElementById('week-range-label').textContent =
+        `이번 주 범위: ${s.getMonth() + 1}.${s.getDate()}(월) ~ ${e.getMonth() + 1}.${e.getDate()}(일) · 오늘 이후 요일은 기록할 수 없습니다`;
+    }
+
+    function renderIdentityCards() {
+      const container = document.getElementById('identity-cards-container');
+      if (habits.length === 0) {
+        container.innerHTML = `<div class="col-span-3 text-xs text-slate-400 py-4 text-center">등록된 정체성이 없습니다.</div>`;
+        return;
+      }
+      container.innerHTML = habits.map(h => {
+        const { full, min, votes } = countVotes(h);
+        const badgeClass = categoryStyles[h.category] || categoryStyles['생활습관'];
+        return `
+          <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass} mb-1">${escapeHtml(h.category)}</span>
+              <p class="text-xs font-extrabold text-slate-800 truncate" title="${escapeHtml(h.identity)}">🪪 "${escapeHtml(h.identity)}"</p>
+              <p class="text-[11px] text-slate-500 truncate mt-0.5">완수 ${full} · 2분실행 ${min}</p>
+            </div>
+            <div class="text-right shrink-0 bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-sm">
+              <span class="block text-[10px] font-bold text-purple-500">투표</span>
+              <span class="text-sm font-extrabold text-purple-700">🗳️ ${votes}표</span>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderWeeklyBoard() {
+      let headHtml = `<th scope="col" class="py-3.5 px-5 w-80">아토믹 해빗 시스템 (정체성 · 2분 규칙)</th>`;
+      currentWeekDates.forEach((d, idx) => {
+        const dKey = currentWeekKeys[idx];
+        const isToday = dKey === todayKey;
+        const dayColor = idx === 5 ? 'text-indigo-600' : idx === 6 ? 'text-rose-500' : '';
+        headHtml += `
+          <th scope="col" class="py-3 px-2 text-center w-14 ${isToday ? 'today-col font-extrabold text-indigo-700' : dayColor}">
+            <div>${DAYS_KR[idx]}</div>
+            <div class="text-[11px] font-normal ${isToday ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${d.getDate()}일</div>
+          </th>`;
+      });
+      headHtml += `
+        <th scope="col" class="py-3.5 px-3 text-center w-28">연속 스트릭</th>
+        <th scope="col" class="py-3.5 px-4 w-40">주간 궤도 유지율</th>
+        <th scope="col" class="py-3.5 px-3 text-center w-36">관리</th>`;
+      document.getElementById('week-table-head').innerHTML = headHtml;
+
+      const tbody = document.getElementById('habit-tbody');
+      if (habits.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">등록된 습관 시스템이 없습니다.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = habits.map((habit, index) => {
+        const id = escapeHtml(habit.id);
+        const safeName = escapeHtml(habit.name);
+        const weekStates = currentWeekKeys.map(k => getLogState(habit.logs, k));
+        const fullDays = weekStates.filter(s => s === 2).length;
+        const minDays = weekStates.filter(s => s === 1).length;
+        const eligible = countEligibleDays(habit, currentWeekKeys);
+        const orbitRate = eligible ? Math.round(((fullDays + minDays) / eligible) * 100) : 0;
+        const fullPct = eligible ? Math.round((fullDays / eligible) * 100) : 0;
+        const minPct = eligible ? Math.min(100 - fullPct, Math.round((minDays / eligible) * 100)) : 0;
+        const streak = calculateStreak(habit);
+        const isRisk = isNeverMissTwiceRisk(habit);
+        const badgeClass = categoryStyles[habit.category] || categoryStyles['생활습관'];
+
+        const dayCells = currentWeekKeys.map((dKey, idx) => {
+          const state = weekStates[idx];
+          const isToday = dKey === todayKey;
+          const future = isFutureKey(dKey);
+          let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-indigo-300 hover:text-indigo-400';
+          let iconHtml = `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
+          if (future) {
+            btnStyle = 'bg-slate-50 border-dashed border-slate-200 text-slate-200';
+          } else if (state === 2) {
+            btnStyle = 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200';
+            iconHtml = `<i class="fa-solid fa-check" aria-hidden="true"></i>`;
+          } else if (state === 1) {
+            btnStyle = 'bg-amber-400 border-amber-500 text-slate-900 shadow-sm shadow-amber-100';
+            iconHtml = `<i class="fa-solid fa-bolt text-xs" aria-hidden="true"></i>`;
+          }
+          const label = `${safeName} ${DAYS_KR[idx]}요일 ${future ? '예정' : STATE_LABEL[state]}`;
+          return `
+            <td class="py-3.5 px-2 text-center ${isToday ? 'today-col' : ''}">
+              <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
+                aria-label="${label}" title="${future ? '예정' : STATE_LABEL[state]}"
+                class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
+                ${iconHtml}
+              </button>
+            </td>`;
+        }).join('');
+
+        const riskBadgeHtml = isRisk ? `<span class="never-miss-badge inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-extrabold rounded-md bg-rose-100 text-rose-700 border border-rose-300 ml-1">🚨 절대 두 번 거르지 마라!</span>` : '';
+
+        return `
+          <tr class="transition ${isRisk ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50/80'}">
+            <td class="py-3.5 px-5 space-y-1">
+              <div class="flex flex-wrap items-center gap-1">
+                <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass}">${escapeHtml(habit.category)}</span>
+                <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🪪 ${escapeHtml(habit.identity)}</span>
+                ${riskBadgeHtml}
+              </div>
+              <p class="font-bold text-slate-900 leading-snug break-words">${safeName}</p>
+              <p class="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡ 2분 규칙</span>
+                <span>${escapeHtml(habit.twoMinRule)}</span>
+              </p>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 pt-0.5">
+                <span>📍 <b>신호:</b> ${escapeHtml(habit.cue || '-')}</span>
+                <span>🎁 <b>보상:</b> ${escapeHtml(habit.reward || '-')}</span>
+              </div>
+            </td>
+            ${dayCells}
+            <td class="py-3.5 px-3 text-center">
+              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${streak >= 3 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
+                <i class="fa-solid fa-fire ${streak >= 3 ? 'text-amber-500' : 'text-slate-400'}" aria-hidden="true"></i>
+                <span>${streak}일 연속</span>
+              </div>
+            </td>
+            <td class="py-3.5 px-4">
+              <div class="flex items-center justify-between text-xs font-bold mb-1">
+                <span class="${orbitRate === 100 ? 'text-emerald-600' : 'text-slate-700'}">${orbitRate}% 궤도유지</span>
+                <span class="text-[11px] text-slate-400" title="오늘까지 ${eligible}일 기준">✔${fullDays} · ⚡${minDays} / ${eligible}일</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex" role="progressbar" aria-label="${safeName} 주간 궤도 유지율" aria-valuenow="${orbitRate}" aria-valuemin="0" aria-valuemax="100">
+                <div class="h-full bg-indigo-600 transition-all duration-300" style="width:${fullPct}%"></div>
+                <div class="h-full bg-amber-400 transition-all duration-300" style="width:${minPct}%"></div>
+              </div>
+            </td>
+            <td class="py-3.5 px-2 text-center whitespace-nowrap">
+              <button type="button" data-action="up" data-id="${id}" ${index === 0 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="위로" aria-label="${safeName} 위로 이동"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+              <button type="button" data-action="down" data-id="${id}" ${index === habits.length - 1 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="아래로" aria-label="${safeName} 아래로 이동"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+              <button type="button" data-action="edit" data-id="${id}" class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="수정" aria-label="${safeName} 수정"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+              <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제" aria-label="${safeName} 삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function renderHeatmapSection() {
+      if (selectedHeatmapHabitId !== 'ALL' && !findHabit(selectedHeatmapHabitId)) selectedHeatmapHabitId = 'ALL';
+      const isAll = selectedHeatmapHabitId === 'ALL';
+
+      document.getElementById('heatmap-month-label').textContent = `${viewYear}년 ${viewMonth + 1}월`;
+      document.getElementById('mini-summary-month').textContent = `${viewMonth + 1}월 기준`;
+      document.getElementById('heatmap-help').textContent = isAll
+        ? '날짜를 누르면 미기록 습관만 완수로 채웁니다. 모두 기록된 날을 누르면 확인 후 그날 기록을 지웁니다.'
+        : '날짜를 누를 때마다 완수 → 2분실행 → 해제 순으로 바뀝니다.';
+
+      // 필터 탭
+      const tabClass = active => active
+        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
+      let tabsHtml = `<button type="button" role="tab" aria-selected="${isAll}" data-action="filter" data-id="ALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${tabClass(isAll)}">🌱 전체 통합 잔디 (${habits.length})</button>`;
+      habits.forEach(h => {
+        const active = selectedHeatmapHabitId === h.id;
+        tabsHtml += `<button type="button" role="tab" aria-selected="${active}" data-action="filter" data-id="${escapeHtml(h.id)}" title="${escapeHtml(h.name)}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border truncate max-w-[230px] ${tabClass(active)}">${escapeHtml(h.name)}</button>`;
+      });
+      document.getElementById('heatmap-filter-tabs').innerHTML = tabsHtml;
+
+      // 달력
+      const keys = monthKeys(viewYear, viewMonth);
+      const firstDay = new Date(viewYear, viewMonth, 1);
+      const startOffset = (firstDay.getDay() + 6) % 7;
+      const targetHabit = isAll ? null : findHabit(selectedHeatmapHabitId);
+
+      let gridHtml = '<div class="h-12" aria-hidden="true"></div>'.repeat(startOffset);
+      keys.forEach((dKey, i) => {
+        const day = i + 1;
+        const isToday = dKey === todayKey;
+        const future = isFutureKey(dKey);
+        let levelClass = 'grass-lv-0', bottomLabel = '-', aria = '';
+
+        if (future) {
+          levelClass = 'grass-future';
+          bottomLabel = '';
+          aria = `${keyLabel(dKey)} 예정`;
+        } else if (isAll) {
+          const pool = habits.filter(h => h.createdAt <= dKey);
+          let fullCnt = 0, minCnt = 0;
+          pool.forEach(h => {
+            const st = getLogState(h.logs, dKey);
+            if (st === 2) fullCnt++;
+            else if (st === 1) minCnt++;
+          });
+          const total = pool.length;
+          const activeCnt = fullCnt + minCnt;
+          const ratio = total > 0 ? activeCnt / total : 0;
+          if (activeCnt > 0 && fullCnt === 0) levelClass = 'grass-lv-min';
+          else if (ratio > 0 && ratio <= 0.34) levelClass = 'grass-lv-1';
+          else if (ratio > 0.34 && ratio <= 0.67) levelClass = 'grass-lv-2';
+          else if (ratio > 0.67 && ratio < 1) levelClass = 'grass-lv-3';
+          else if (ratio === 1 && total > 0) levelClass = 'grass-lv-4';
+          bottomLabel = total > 0 ? `${activeCnt}/${total}` : '-';
+          aria = total > 0
+            ? `${keyLabel(dKey)} ${total}개 중 ${activeCnt}개 실행 (완수 ${fullCnt}, 2분실행 ${minCnt})`
+            : `${keyLabel(dKey)} 등록된 습관 없음`;
+        } else {
+          const st = targetHabit ? getLogState(targetHabit.logs, dKey) : 0;
+          if (st === 2) { levelClass = 'grass-lv-4'; bottomLabel = '✔ 완수'; }
+          else if (st === 1) { levelClass = 'grass-lv-min'; bottomLabel = '⚡ 2분'; }
+          aria = `${keyLabel(dKey)} ${STATE_LABEL[st]}`;
+        }
+
+        gridHtml += `
+          <button type="button" data-action="cell" data-date="${dKey}" ${future ? 'disabled' : ''} aria-label="${escapeHtml(aria)}" title="${escapeHtml(aria)}"
+            class="grass-cell h-12 rounded-xl border p-1.5 flex flex-col justify-between items-center ${levelClass} ${isToday ? 'ring-2 ring-indigo-600 ring-offset-1' : ''}">
+            <span class="text-xs font-bold self-start leading-none">${day}</span>
+            <span class="text-[10px] font-bold opacity-95">${bottomLabel}</span>
+          </button>`;
+      });
+      document.getElementById('heatmap-calendar-grid').innerHTML = gridHtml;
+
+      // 습관별 월간 요약 (분모 = 습관이 있었던 날 중 오늘까지)
+      const barsEl = document.getElementById('habit-monthly-bars');
+      if (habits.length === 0) {
+        barsEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">등록된 습관이 없습니다.</p>`;
+        return;
+      }
+      barsEl.innerHTML = habits.map(h => {
+        let monthFull = 0, monthMin = 0, squares = '';
+        keys.forEach(dKey => {
+          const st = getLogState(h.logs, dKey);
+          let sq = 'bg-slate-200';
+          if (isFutureKey(dKey) || dKey < h.createdAt) sq = 'bg-slate-100';
+          if (st === 2) { monthFull++; sq = 'bg-emerald-500'; }
+          else if (st === 1) { monthMin++; sq = 'bg-amber-400'; }
+          squares += `<span class="w-2.5 h-2.5 rounded-[2px] inline-block ${sq}"></span>`;
+        });
+        const eligible = countEligibleDays(h, keys);
+        const rateText = eligible ? `${Math.round(((monthFull + monthMin) / eligible) * 100)}%` : '-';
+        return `
+          <div class="bg-white p-3 rounded-xl border border-slate-200/70 space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700 truncate pr-2" title="${escapeHtml(h.name)}">${escapeHtml(h.name)}</span>
+              <span class="font-extrabold text-emerald-600 shrink-0" title="${eligible}일 기준">✔${monthFull} · ⚡${monthMin} (${rateText})</span>
+            </div>
+            <div class="flex flex-wrap gap-1 pt-0.5" aria-hidden="true">${squares}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function updateKPIStats() {
+      const totalHabits = habits.length;
+      let todayFull = 0, todayMin = 0, riskCount = 0, bestStreak = 0;
+      let totalActionsCount = 0, totalWeightedVotes = 0;
+
+      habits.forEach(h => {
+        const tState = getLogState(h.logs, todayKey);
+        if (tState === 2) todayFull++;
+        else if (tState === 1) todayMin++;
+        if (isNeverMissTwiceRisk(h)) riskCount++;
+        bestStreak = Math.max(bestStreak, calculateStreak(h));
+        const { full, min, votes } = countVotes(h);
+        totalActionsCount += full + min;
+        totalWeightedVotes += votes;
+      });
+
+      const todayActive = todayFull + todayMin;
+      const todayRate = totalHabits > 0 ? Math.round((todayActive / totalHabits) * 100) : 0;
+      const compoundMultiplier = Math.pow(1.01, totalWeightedVotes);
+      const valleyPercent = Math.min(100, totalActionsCount);
+
+      document.getElementById('stat-today').textContent = `${todayRate}%`;
+      document.getElementById('stat-today-sub').textContent = `완수 ${todayFull} · 2분실행 ${todayMin}`;
+      document.getElementById('stat-compound').textContent = `${compoundMultiplier.toFixed(2)}배`;
+      document.getElementById('stat-compound-sub').textContent = `1.01^${totalWeightedVotes} · +${Math.round((compoundMultiplier - 1) * 100)}%`;
+      document.getElementById('stat-votes').textContent = `총 ${totalWeightedVotes}표`;
+      document.getElementById('stat-votes-sub').textContent = `총 ${totalActionsCount}회 실천`;
+      document.getElementById('stat-best-streak').textContent = `${bestStreak}일`;
+      document.getElementById('stat-alert-count').textContent = `${riskCount}건`;
+      document.getElementById('stat-alert-sub').textContent = riskCount > 0 ? `🚨 2분실행 필요!` : `궤도 순항 중`;
+
+      const currentTemp = (-10 + (totalActionsCount * 0.1)).toFixed(1);
+      document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 임계점 돌파!` : `❄️ 현재 온도: ${currentTemp}°C`;
+      document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 (${valleyPercent}%)`;
+      document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
+      document.getElementById('valley-progress-wrap').setAttribute('aria-valuenow', String(valleyPercent));
+      const badge = document.getElementById('valley-badge');
+      badge.textContent = totalActionsCount >= 100 ? '임계점 돌파' : '실망의 계곡';
+    }
+
+    // ===== 내보내기·백업 =====
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500); // 즉시 해제하면 일부 브라우저에서 다운로드 실패
+    }
+
+    function exportToExcel() {
+      if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.'); return; }
+      if (habits.length === 0) { showToast('내보낼 데이터가 없습니다.'); return; }
+      const mark = st => (st === 2 ? 'O' : st === 1 ? '△' : '-');
+      const wb = XLSX.utils.book_new();
+
+      // 1) 주간 시스템
+      const weeklyHeader = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상',
+        ...currentWeekDates.map((d, i) => `${DAYS_KR[i]} (${d.getMonth() + 1}/${d.getDate()})`),
+        '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표'];
+      const weeklyRows = habits.map(h => {
+        const states = currentWeekKeys.map(k => getLogState(h.logs, k));
+        const active = states.filter(s => s > 0).length;
+        const eligible = countEligibleDays(h, currentWeekKeys);
+        const rate = eligible ? `${Math.round((active / eligible) * 100)}%` : '-';
+        return [h.category, h.identity, h.name, h.twoMinRule, h.cue, h.reward,
+          ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes];
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([weeklyHeader, ...weeklyRows]), '주간시스템');
+
+      // 2) 월간 기록 (히트맵에서 보고 있는 달)
+      const keys = monthKeys(viewYear, viewMonth);
+      const monthHeader = ['목표명', ...keys.map((_, i) => `${i + 1}일`), '완수', '2분실행', '기준일수', '실행률'];
+      const monthRows = habits.map(h => {
+        const states = keys.map(k => getLogState(h.logs, k));
+        const full = states.filter(s => s === 2).length;
+        const min = states.filter(s => s === 1).length;
+        const eligible = countEligibleDays(h, keys);
+        return [h.name, ...states.map((s, i) => (isFutureKey(keys[i]) ? '' : mark(s))), full, min, eligible,
+          eligible ? `${Math.round(((full + min) / eligible) * 100)}%` : '-'];
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([monthHeader, ...monthRows]), `${viewYear}-${pad(viewMonth + 1)} 월간`);
+
+      // 3) 전체 기록 (최신순)
+      const allRows = [];
+      habits.forEach(h => Object.keys(h.logs).forEach(k => {
+        const st = getLogState(h.logs, k);
+        if (st > 0) allRows.push([k, h.name, h.identity, STATE_LABEL[st]]);
+      }));
+      allRows.sort((a, b) => b[0].localeCompare(a[0]) || a[1].localeCompare(b[1]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['날짜', '목표명', '정체성', '상태'], ...allRows]), '전체기록');
+
+      XLSX.writeFile(wb, `${todayKey}-아토믹해빗-대시보드.xlsx`);
+      showToast('엑셀 파일을 내려받았습니다. (주간·월간·전체기록 3개 시트)');
+    }
+
+    function exportBackupJson() {
+      const payload = { app: 'atomic-habit-dashboard', version: 4, exportedAt: new Date().toISOString(), habits };
+      downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `${todayKey}-아토믹해빗-백업.json`);
+      showToast('백업 파일을 내려받았습니다.');
+    }
+
+    function importBackupJson(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        let list = null;
+        try { list = sanitizeHabitList(JSON.parse(e.target.result)); } catch (err) { list = null; }
+        if (!list) { showToast('올바른 백업 파일이 아닙니다.'); return; }
+        const logCount = list.reduce((n, h) => n + Object.keys(h.logs).length, 0);
+        if (!confirm(`습관 ${list.length}개, 기록 ${logCount}건을 불러옵니다.\n현재 데이터는 모두 대체됩니다. 계속하시겠습니까?`)) return;
+        habits = list;
+        selectedHeatmapHabitId = 'ALL';
+        saveData();
+        renderAll();
+        showToast('백업을 복원했습니다.');
+      };
+      reader.onerror = () => showToast('파일을 읽지 못했습니다.');
+      reader.readAsText(file);
+    }
+
+    // ===== 이벤트 바인딩 =====
+    // 동적으로 그리는 버튼은 data-action으로 위임 처리 (인라인 onclick에 사용자 값을 넣지 않음)
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn || btn.disabled) return;
+      const id = btn.dataset.id;
+      switch (btn.dataset.action) {
+        case 'cycle': refreshDates(); cycleDateCheck(id, btn.dataset.date); break;
+        case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
+        case 'filter': selectHeatmapFilter(id); break;
+        case 'up': moveHabit(id, -1); break;
+        case 'down': moveHabit(id, 1); break;
+        case 'edit': openEditModal(id); break;
+        case 'delete': deleteHabit(id); break;
+      }
+    });
+
+    document.getElementById('edit-habit-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const habit = findHabit(document.getElementById('edit-habit-id').value);
+      if (!habit) { closeEditModal(); return; }
+      const name = cleanText(document.getElementById('edit-name').value, '');
+      if (!name) { showToast('목표 이름을 입력해 주세요.'); return; }
+      const category = document.getElementById('edit-category').value;
+      habit.category = CATEGORIES.includes(category) ? category : habit.category;
+      habit.identity = cleanText(document.getElementById('edit-identity').value, '성장하는 사람');
+      habit.name = name;
+      habit.twoMinRule = cleanText(document.getElementById('edit-twomin').value, '2분만 시작하기');
+      habit.cue = cleanText(document.getElementById('edit-cue').value, '');
+      habit.reward = cleanText(document.getElementById('edit-reward').value, '');
+      saveData();
+      renderAll();
+      closeEditModal();
+      showToast('습관 시스템을 수정했습니다.');
+    });
+
+    // 모달: 배경 클릭·Esc로 닫기
+    document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') closeEditModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !document.getElementById('edit-modal').classList.contains('hidden')) closeEditModal();
+    });
+
+    document.getElementById('add-habit-form').addEventListener('submit', e => {
+      e.preventDefault();
+      refreshDates();
+      const name = cleanText(document.getElementById('habit-name').value, '');
+      if (!name) return;
+      if (habits.some(h => h.name === name) && !confirm('같은 이름의 습관이 이미 있습니다. 그래도 추가할까요?')) return;
+      const category = document.getElementById('habit-category').value;
+      habits.push({
+        id: newId(),
+        name,
+        category: CATEGORIES.includes(category) ? category : '생활습관',
+        identity: cleanText(document.getElementById('habit-identity').value, '성장하는 사람'),
+        twoMinRule: cleanText(document.getElementById('habit-twomin').value, '2분만 시작하기'),
+        cue: cleanText(document.getElementById('habit-cue').value, ''),
+        reward: cleanText(document.getElementById('habit-reward').value, ''),
+        createdAt: todayKey,
+        logs: {}
+      });
+      ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
+        .forEach(fid => { document.getElementById(fid).value = ''; });
+      saveData();
+      renderAll();
+      showToast('새 습관 시스템을 추가했습니다.');
+    });
+
+    // 탭 복귀 시 + 1분마다 날짜 변경 확인
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDates(); });
+    setInterval(refreshDates, 60 * 1000);
+
+    // ===== 초기화 =====
+    function init() {
+      const options = renderCategoryOptions();
+      document.getElementById('habit-category').innerHTML = options;
+      document.getElementById('edit-category').innerHTML = options;
+      habits = loadHabits();
+      saveData();
+      renderAll();
+    }
+
+    init();
+  </script>
+</body>
+</html>
