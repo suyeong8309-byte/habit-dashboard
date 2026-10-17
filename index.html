@@ -1,1471 +1,1170 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>아토믹 해빗(Atomic Habit) 시스템 대시보드</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 엑셀(.xlsx) 생성을 위한 SheetJS 라이브러리 -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <style>
-    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    body {
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #f8fafc;
-    }
-    .check-btn, .grass-cell {
-      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .check-btn:not(:disabled):active, .grass-cell:not(:disabled):active {
-      transform: scale(0.90);
-    }
-    .check-btn:disabled, .grass-cell:disabled { cursor: not-allowed; }
-    .icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-    .today-col {
-      background-color: rgba(238, 242, 255, 0.7);
-    }
-    .grass-lv-0 { background-color: #f1f5f9; border-color: #e2e8f0; color: #94a3b8; }
-    .grass-lv-min { background-color: #fef3c7; border-color: #fde68a; color: #92400e; }
-    .grass-lv-1 { background-color: #d1fae5; border-color: #a7f3d0; color: #065f46; }
-    .grass-lv-2 { background-color: #6ee7b7; border-color: #34d399; color: #064e3b; }
-    .grass-lv-3 { background-color: #10b981; border-color: #059669; color: #ffffff; }
-    .grass-lv-4 { background-color: #047857; border-color: #065f46; color: #ffffff; }
-    .grass-future { background-color: #ffffff; border-color: #e2e8f0; border-style: dashed; color: #cbd5e1; }
-    @keyframes pulse-soft {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.65; }
-    }
-    .never-miss-badge {
-      animation: pulse-soft 2s infinite;
-    }
-    #toast { transition: opacity 0.25s, transform 0.25s; }
-    .proof-badge { transition: all 0.15s ease; }
-    .proof-badge:hover { transform: scale(1.15); }
-    .proof-thumb img { transition: transform 0.25s ease; }
-    .proof-thumb:hover img { transform: scale(1.04); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>아토믹 해빗 대시보드</title>
+<script>
+  // ===== Supabase 설정 =====
+  // Supabase 대시보드 → Project Settings → API 에서 두 값을 복사해 넣으세요.
+  // anon(public) 키는 공개용 키라 페이지에 넣어도 됩니다. 데이터는 로그인한 본인만 읽고 쓸 수 있습니다(RLS).
+  // service_role 키는 절대 넣지 마세요.
+  window.HABIT_CONFIG = {
+    supabaseUrl: 'https://kokdqowamxzrpethnlay.supabase.co',
+    supabaseAnonKey: 'sb_publishable_U4m9jwHy1Ile5T6fJbxR2Q_cVYLd4B5'
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<style>
+  /* 단일 라이트 테마: 밝은 슬레이트 바탕 + 인디고 포인트 (기존 대시보드 룩 유지) */
+  :root {
+    color-scheme: light;
+    --bg: #f8fafc;
+    --fg: #1e293b;
+    --font-body: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px 40px;
+  }
+  @media (min-width: 768px) { body { padding-block: 32px 48px; } }
+  h1, h2, h3 { text-wrap: balance; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  button:focus-visible, label:focus-within, select:focus-visible, input:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
+  .check-btn, .grass-cell { transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1); }
+  .check-btn:not(:disabled):active, .grass-cell:not(:disabled):active { transform: scale(0.90); }
+  .check-btn:disabled, .grass-cell:disabled { cursor: not-allowed; }
+  .icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .today-col { background-color: rgba(238, 242, 255, 0.7); }
+  .grass-lv-0 { background-color: #f1f5f9; border-color: #e2e8f0; color: #94a3b8; }
+  .grass-lv-min { background-color: #fef3c7; border-color: #fde68a; color: #92400e; }
+  .grass-lv-1 { background-color: #d1fae5; border-color: #a7f3d0; color: #065f46; }
+  .grass-lv-2 { background-color: #6ee7b7; border-color: #34d399; color: #064e3b; }
+  .grass-lv-3 { background-color: #10b981; border-color: #059669; color: #ffffff; }
+  .grass-lv-4 { background-color: #047857; border-color: #065f46; color: #ffffff; }
+  .grass-future { background-color: #ffffff; border-color: #e2e8f0; border-style: dashed; color: #cbd5e1; }
+  @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+  .never-miss-badge { animation: pulse-soft 2s infinite; }
+  #toast {
+    transition: opacity 0.25s, transform 0.25s;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal-wrap {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .proof-badge { transition: transform 0.15s ease; }
+  .proof-badge:hover { transform: scale(1.15); }
+  .proof-thumb img { transition: transform 0.25s ease; }
+  .proof-thumb:hover img { transform: scale(1.04); }
+  [hidden] { display: none !important; }
+  /* 로그인 전에는 헤더·로그인·안내만 보이기 */
+  body[data-auth="out"] .max-w-7xl > section:not(#auth-section):not(#store-banner) { display: none; }
+  body[data-auth="out"] header [data-action]:not([data-action="logout"]),
+  body[data-auth="out"] header label { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen p-4 md:p-8">
+<body>
 
-  <div class="max-w-7xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6 text-slate-800">
 
-    <!-- 상단 헤더 -->
-    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+  <!-- 상단 헤더 -->
+  <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <span class="bg-indigo-600 text-white w-11 h-11 rounded-xl shadow-sm flex items-center justify-center shrink-0">
+        <i class="fa-solid fa-atom text-xl" aria-hidden="true"></i>
+      </span>
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">아토믹 해빗 시스템 대시보드</h1>
+          <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">1% 복리 시스템</span>
+        </div>
+        <p id="current-date-display" class="text-xs sm:text-sm text-slate-500 mt-1 font-medium"></p>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span id="sync-pill" class="px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-slate-50 text-slate-500 border-slate-200">
+        <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 연결 중
+      </span>
+      <button type="button" data-action="export-xlsx" class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
+        <i class="fa-solid fa-file-excel" aria-hidden="true"></i> 엑셀
+      </button>
+      <button type="button" data-action="export-json" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-download" aria-hidden="true"></i> 백업 저장
+      </button>
+      <label class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-upload" aria-hidden="true"></i> 백업 복원
+        <input type="file" id="import-json-input" accept=".json,application/json" class="sr-only">
+      </label>
+      <button type="button" data-action="reset-week" class="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 이번 주 초기화
+      </button>
+      <button type="button" data-action="load-sample" class="px-3.5 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> 샘플 복원
+      </button>
+      <button type="button" id="logout-btn" data-action="logout" hidden class="px-3.5 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> 로그아웃
+      </button>
+    </div>
+  </header>
+
+  <!-- 로그인 (Supabase 계정) -->
+  <section id="auth-section" hidden class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
+    <div class="max-w-sm mx-auto space-y-4">
+      <div class="space-y-1 text-center">
+        <h2 class="text-lg font-extrabold text-slate-900">로그인하고 모든 기기에서 이어서 쓰기</h2>
+        <p class="text-xs text-slate-500 leading-relaxed">휴대폰, 아이패드, PC에서 같은 이메일로 로그인하면 기록과 인증 사진이 함께 보입니다.</p>
+      </div>
+      <form id="auth-form" class="space-y-2.5">
+        <label for="auth-email" class="sr-only">이메일</label>
+        <input type="email" id="auth-email" autocomplete="email" required placeholder="이메일"
+          class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <label for="auth-password" class="sr-only">비밀번호</label>
+        <input type="password" id="auth-password" autocomplete="current-password" required minlength="6" placeholder="비밀번호 (6자 이상)"
+          class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="submit" data-mode="signin" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition">로그인</button>
+          <button type="submit" data-mode="signup" class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition">처음이면 가입</button>
+        </div>
+      </form>
+      <p id="auth-message" class="text-xs text-center text-slate-500 min-h-[1rem]" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- 연결 상태 / 첫 시작 안내 -->
+  <section id="store-banner" hidden class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80"></section>
+
+  <!-- 오늘 체크 (휴대폰 화면 전용) -->
+  <section class="md:hidden bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3" aria-labelledby="today-title">
+    <div class="flex items-center justify-between gap-2">
+      <h2 id="today-title" class="text-sm font-bold text-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-sun text-amber-500" aria-hidden="true"></i> 오늘 체크
+      </h2>
+      <span id="today-label" class="text-xs font-semibold text-indigo-600 tabular"></span>
+    </div>
+    <div id="today-list" class="space-y-2.5"></div>
+  </section>
+
+  <!-- 핵심 지표 (KPI) 카드 5종 -->
+  <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4" aria-label="요약 지표">
+    <div class="col-span-2 lg:col-span-1 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">오늘의 궤도 유지율</p>
+        <p id="stat-today" class="text-2xl font-extrabold text-slate-900 mt-1 tabular">0%</p>
+        <p id="stat-today-sub" class="text-xs text-slate-500 mt-1">완수 0 · 2분실행 0</p>
+      </div>
+      <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+        <i class="fa-solid fa-compass" aria-hidden="true"></i>
+      </div>
+    </div>
+    <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-4 md:p-5 rounded-2xl shadow-sm flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1% 복리 지수</p>
+        <p id="stat-compound" class="text-2xl font-extrabold text-amber-300 mt-1 tabular">1.00배</p>
+        <p id="stat-compound-sub" class="text-[11px] text-slate-300 mt-1 truncate">1.01^0</p>
+      </div>
+      <i class="fa-solid fa-chart-line text-amber-300 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
+    </div>
+    <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">정체성 투표함</p>
+        <p id="stat-votes" class="text-2xl font-extrabold text-purple-700 mt-1 tabular">총 0표</p>
+        <p id="stat-votes-sub" class="text-xs text-slate-500 mt-1 truncate">총 0회 실천</p>
+      </div>
+      <i class="fa-solid fa-check-to-slot text-purple-600 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
+    </div>
+    <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">최고 연속 스트릭</p>
+        <p id="stat-best-streak" class="text-2xl font-extrabold text-slate-900 mt-1 tabular">0일</p>
+        <p class="text-xs text-amber-600 font-semibold mt-1 truncate">⚡ 2분실행 포함</p>
+      </div>
+      <i class="fa-solid fa-fire-flame-curved text-amber-500 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
+    </div>
+    <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">두 번 거르기 방지</p>
+        <p id="stat-alert-count" class="text-2xl font-extrabold text-rose-600 mt-1 tabular">0건</p>
+        <p id="stat-alert-sub" class="text-xs text-slate-500 mt-1 truncate">궤도 순항 중</p>
+      </div>
+      <i class="fa-solid fa-triangle-exclamation text-rose-500 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
+    </div>
+  </section>
+
+  <!-- 정체성 투표 보드 & 잠복기 돌파 게이지 -->
+  <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3 min-w-0">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-id-badge text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표 현황
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">습관을 반복할 때마다 정체성에 한 표가 쌓입니다.</p>
+        </div>
+        <span class="self-start text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · 2분실행 0.5표</span>
+      </div>
+      <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"></div>
+    </div>
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between gap-3">
       <div>
-        <div class="flex items-center gap-2.5">
-          <span class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-sm">
-            <i class="fa-solid fa-atom text-xl" aria-hidden="true"></i>
-          </span>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">아토믹 해빗(Atomic Habit) 시스템 대시보드</h1>
-              <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">1% 복리 시스템</span>
-            </div>
-            <p id="current-date-display" class="text-xs sm:text-sm text-slate-500 mt-1 font-medium"></p>
-          </div>
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 돌파 게이지
+          </h2>
+          <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 shrink-0">실망의 계곡</span>
         </div>
+        <p class="text-xs text-slate-400 mt-1">임계점 목표: 누적 100회 실천</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button type="button" onclick="exportToExcel()" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
-          <i class="fa-solid fa-file-excel text-sm" aria-hidden="true"></i> 엑셀(.xlsx) 내보내기
+      <div class="space-y-1.5">
+        <div class="flex justify-between gap-2 text-xs font-bold">
+          <span id="valley-temp-text" class="text-indigo-600">현재 온도: -10.0°C</span>
+          <span id="valley-count-text" class="text-slate-600 tabular">0 / 100회</span>
+        </div>
+        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100">
+          <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-rose-500 transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <p class="text-[11px] text-slate-500 font-medium pt-1">💡 변화가 차곡차곡 쌓이고 있습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 새 아토믹 해빗 추가 폼 -->
+  <section class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+      <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-indigo-600" aria-hidden="true"></i> 새로운 아토믹 해빗(시스템) 설계하기
+      </h2>
+      <span class="text-xs text-slate-400">의지력 대신 시스템으로 설계하세요</span>
+    </div>
+    <form id="add-habit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+      <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+      <input type="text" id="habit-identity" maxlength="100" aria-label="정체성" placeholder="🪪 정체성 (예: 냉철한 투자자)" required
+        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="text" id="habit-name" maxlength="100" aria-label="본래 목표" placeholder="🎯 본래 목표 (예: 거시경제 지표 스크랩)" required
+        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input type="text" id="habit-twomin" maxlength="100" aria-label="2분 최소규칙" placeholder="⚡ 2분 최소규칙 (예: 헤드라인 1줄 읽기)" required
+        class="px-3 py-2.5 bg-amber-50/60 border border-amber-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+      <input type="text" id="habit-cue" maxlength="100" aria-label="환경 신호" placeholder="📍 환경 신호 (예: 출근 직후 아이패드 켜기)"
+        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <div class="flex gap-2">
+        <input type="text" id="habit-reward" maxlength="100" aria-label="즉각 보상" placeholder="🎁 즉각 보상 (예: 커피 한 잔)"
+          class="flex-1 min-w-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition shrink-0 flex items-center gap-1">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> 추가
         </button>
-        <button type="button" onclick="exportBackupJson()" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5" title="데이터 백업 파일 저장">
-          <i class="fa-solid fa-download" aria-hidden="true"></i> 백업 저장
-        </button>
-        <label class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer" title="백업 파일 불러오기">
-          <i class="fa-solid fa-upload" aria-hidden="true"></i> 백업 복원
-          <input type="file" id="import-json-input" accept=".json,application/json" class="hidden" onchange="importBackupJson(event)">
-        </label>
-        <button type="button" onclick="resetCurrentWeek()" class="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
-          <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 이번 주 초기화
-        </button>
-        <button type="button" onclick="loadDefaultHabits()" class="px-3.5 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition flex items-center gap-1.5">
-          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> 샘플 복원
-        </button>
       </div>
-    </header>
+    </form>
+  </section>
 
-    <!-- 핵심 지표 (KPI) 카드 5종 -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" aria-label="요약 지표">
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">오늘의 궤도 유지율</p>
-          <p id="stat-today" class="text-2xl font-extrabold text-slate-900 mt-1">0%</p>
-          <p id="stat-today-sub" class="text-xs text-slate-500 mt-1">완수 0 · 2분실행 0</p>
-        </div>
-        <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-compass" aria-hidden="true"></i>
-        </div>
-      </div>
-
-      <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-sm flex items-center justify-between">
-        <div>
-          <p class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1">
-            <i class="fa-solid fa-bolt text-amber-400" aria-hidden="true"></i> 1% 복리 성장 지수
-          </p>
-          <p id="stat-compound" class="text-2xl font-extrabold text-amber-300 mt-1">1.00배</p>
-          <p id="stat-compound-sub" class="text-[11px] text-slate-300 mt-1">잠재력 잠복기 돌파 0%</p>
-        </div>
-        <div class="w-11 h-11 rounded-2xl bg-white/10 text-amber-300 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">정체성 누적 투표함</p>
-          <p id="stat-votes" class="text-2xl font-extrabold text-purple-700 mt-1">총 0표</p>
-          <p id="stat-votes-sub" class="text-xs text-slate-500 mt-1 truncate max-w-[140px]">나를 증명하는 투표</p>
-        </div>
-        <div class="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-check-to-slot" aria-hidden="true"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">최고 연속 스트릭</p>
-          <p id="stat-best-streak" class="text-2xl font-extrabold text-slate-900 mt-1">0일</p>
-          <p class="text-xs text-amber-600 font-semibold mt-1">⚡ 2분 최소실행 방어 포함</p>
-        </div>
-        <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-fire-flame-curved" aria-hidden="true"></i>
-        </div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">두 번 거르기 방지</p>
-          <p id="stat-alert-count" class="text-2xl font-extrabold text-rose-600 mt-1">0건</p>
-          <p id="stat-alert-sub" class="text-xs text-slate-500 mt-1">어제 미달성 긴급 항목</p>
-        </div>
-        <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-        </div>
-      </div>
-    </section>
-
-    <!-- 정체성 투표 보드 & 잠복기 돌파 게이지 -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-id-badge text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표 현황
-            </h2>
-            <p class="text-xs text-slate-400 mt-0.5">"습관을 반복할 때마다 당신의 정체성에 한 표를 던지세요."</p>
-          </div>
-          <span class="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · 2분실행 0.5표</span>
-        </div>
-        <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"></div>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between space-y-3">
-        <div>
-          <div class="flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 돌파 게이지
-            </h2>
-            <span id="valley-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">실망의 계곡</span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">임계점 목표: 누적 100회 실천</p>
-        </div>
-        <div class="space-y-1.5">
-          <div class="flex justify-between text-xs font-bold">
-            <span id="valley-temp-text" class="text-indigo-600">현재 온도: -10.0°C</span>
-            <span id="valley-count-text" class="text-slate-600">0 / 100회</span>
-          </div>
-          <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100" id="valley-progress-wrap">
-            <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-rose-500 transition-all duration-500" style="width: 0%"></div>
-          </div>
-          <p id="valley-quote" class="text-[11px] text-slate-500 font-medium pt-1">💡 변화가 차곡차곡 쌓이고 있습니다.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 새 아토믹 해빗 추가 폼 -->
-    <section class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-indigo-600" aria-hidden="true"></i> 새로운 아토믹 해빗(시스템) 설계하기
+  <!-- 1. 주간 시스템 실행 보드 -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div>
+        <h2 class="font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-indigo-600" aria-hidden="true"></i> 주간 시스템 실행 보드
         </h2>
-        <span class="text-xs text-slate-400">의지력 대신 시스템으로 설계하세요</span>
+        <p id="week-range-label" class="text-xs text-slate-400 mt-0.5 tabular"></p>
       </div>
-      <form id="add-habit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
-        <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
-        <input type="text" id="habit-identity" maxlength="100" aria-label="정체성" placeholder="🪪 정체성 (예: 냉철한 투자자)" required
-          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <input type="text" id="habit-name" maxlength="100" aria-label="본래 목표" placeholder="🎯 본래 목표 (예: 거시경제 지표 스크랩)" required
-          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <input type="text" id="habit-twomin" maxlength="100" aria-label="2분 최소규칙" placeholder="⚡ 2분 최소규칙 (예: 헤드라인 1줄 읽기)" required
-          class="px-3 py-2.5 bg-amber-50/60 border border-amber-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
-        <input type="text" id="habit-cue" maxlength="100" aria-label="환경 신호" placeholder="📍 환경 신호 (예: 출근 직후 아이패드 켜기)"
-          class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <div class="flex gap-2">
-          <input type="text" id="habit-reward" maxlength="100" aria-label="즉각 보상" placeholder="🎁 즉각 보상 (예: 커피 한 잔)"
-            class="flex-1 min-w-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition shrink-0 flex items-center gap-1">
-            <i class="fa-solid fa-plus" aria-hidden="true"></i> 추가
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <!-- 1. 주간 시스템 실행 보드 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-      <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h2 class="font-bold text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-indigo-600" aria-hidden="true"></i> 주간 시스템 실행 보드 (3.5도 궤도 유지 트래커)
-          </h2>
-          <p id="week-range-label" class="text-xs text-slate-400 mt-0.5"></p>
-        </div>
-        <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70">
-          <span class="font-bold text-slate-600">클릭 단계:</span>
-          <span class="text-amber-600 font-semibold"><span class="w-4 h-4 rounded bg-amber-400 text-slate-900 inline-flex items-center justify-center text-[10px]">⚡</span> 1번: 2분 최소실행</span>
-          <span class="text-slate-300">➔</span>
-          <span class="text-indigo-600 font-semibold"><span class="w-4 h-4 rounded bg-indigo-600 text-white inline-flex items-center justify-center text-[10px]">✔</span> 2번: 100% 완수</span>
-          <span class="text-slate-300">➔</span>
-          <span class="text-slate-400">3번: 해제</span>
-          <span class="text-slate-300">|</span>
-          <span class="text-emerald-600 font-semibold"><span class="w-4 h-4 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center text-[8px]"><i class="fa-solid fa-camera" aria-hidden="true"></i></span> 사진 인증</span>
-        </div>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70">
+        <span class="font-bold text-slate-600">클릭 단계:</span>
+        <span class="text-amber-600 font-semibold">⚡ 1번: 2분 최소실행</span>
+        <span class="text-slate-300">➔</span>
+        <span class="text-indigo-600 font-semibold">✔ 2번: 100% 완수</span>
+        <span class="text-slate-300">➔</span>
+        <span class="text-slate-400">3번: 해제</span>
+        <span class="text-emerald-600 font-semibold"><i class="fa-solid fa-camera" aria-hidden="true"></i> 사진 인증</span>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse min-w-[960px]">
-          <thead>
-            <tr id="week-table-head" class="border-b border-slate-200/80 bg-slate-50/70 text-xs font-semibold text-slate-500"></tr>
-          </thead>
-          <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- 2. 월간 아토믹 히트맵 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-        <div>
-          <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
-            <i class="fa-solid fa-border-all text-emerald-600" aria-hidden="true"></i> 월간 아토믹 히트맵 (잔디 심기)
-          </h2>
-          <p id="heatmap-help" class="text-xs text-slate-400 mt-0.5"></p>
-        </div>
-        <div class="flex items-center gap-2 self-start md:self-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200/80">
-          <button type="button" onclick="changeMonth(-1)" aria-label="이전 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></button>
-          <span id="heatmap-month-label" class="text-sm font-bold text-slate-800 px-3 min-w-[110px] text-center" aria-live="polite"></span>
-          <button type="button" onclick="changeMonth(1)" aria-label="다음 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></button>
-          <button type="button" onclick="goTodayMonth()" class="text-xs font-semibold text-indigo-600 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition">이번 달</button>
-        </div>
-      </div>
-      <div id="heatmap-filter-tabs" class="flex flex-wrap gap-2" role="tablist" aria-label="히트맵 습관 선택"></div>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div class="lg:col-span-2 bg-slate-50/60 p-4 rounded-2xl border border-slate-200/70">
-          <div class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-slate-400" aria-hidden="true">
-            <div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-indigo-500">토</div><div class="text-rose-500">일</div>
-          </div>
-          <div id="heatmap-calendar-grid" class="grid grid-cols-7 gap-2"></div>
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-200/60 text-xs text-slate-500">
-            <span class="font-medium">💡 오늘 이후 날짜는 기록할 수 없습니다.</span>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <span>미실행</span>
-              <span class="w-4 h-4 rounded grass-lv-0 border inline-block"></span>
-              <span class="w-4 h-4 rounded grass-lv-min border inline-flex text-[9px] font-bold items-center justify-center">⚡</span>
-              <span class="w-4 h-4 rounded grass-lv-1 border inline-block"></span>
-              <span class="w-4 h-4 rounded grass-lv-2 border inline-block"></span>
-              <span class="w-4 h-4 rounded grass-lv-3 border inline-block"></span>
-              <span class="w-4 h-4 rounded grass-lv-4 border inline-block"></span>
-              <span>완벽</span>
-            </div>
-          </div>
-        </div>
-        <div class="bg-slate-50/60 p-4 rounded-2xl border border-slate-200/70 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">습관별 월간 요약</h3>
-            <span id="mini-summary-month" class="text-xs font-semibold text-emerald-600"></span>
-          </div>
-          <div id="habit-monthly-bars" class="space-y-3"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. 타임스탬프 사진 인증 갤러리 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-4">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div>
-          <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
-            <i class="fa-solid fa-camera-retro text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증 갤러리
-          </h2>
-          <p id="proof-gallery-help" class="text-xs text-slate-400 mt-0.5"></p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 text-xs">
-          <span id="proof-gallery-count" class="font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80"></span>
-          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">✅ 촬영일 일치</span>
-          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 font-semibold">⚠️ 촬영일 불일치</span>
-        </div>
-      </div>
-      <div id="proof-gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
-    </section>
-
-  </div>
-
-  <!-- 사진 인증 모달(팝업) -->
-  <div id="proof-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="proof-modal-title">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto">
-      <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-        <div class="min-w-0">
-          <h3 id="proof-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
-            <i class="fa-solid fa-camera text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증
-          </h3>
-          <p id="proof-modal-sub" class="text-xs text-slate-500 mt-0.5 truncate"></p>
-        </div>
-        <button type="button" onclick="closeProofModal()" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1 shrink-0"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
-      </div>
-      <div id="proof-modal-body" class="space-y-3"></div>
-      <input type="file" id="proof-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleProofFile(event)">
-      <input type="file" id="proof-file-input" accept="image/*" class="hidden" onchange="handleProofFile(event)">
     </div>
-  </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[960px]">
+        <thead>
+          <tr id="week-table-head" class="border-b border-slate-200/80 bg-slate-50/70 text-xs font-semibold text-slate-500"></tr>
+        </thead>
+        <tbody id="habit-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+      </table>
+    </div>
+  </section>
 
-  <!-- 습관 수정 모달(팝업) -->
-  <div id="edit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 id="edit-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
-          <i class="fa-solid fa-pen-to-square text-indigo-600" aria-hidden="true"></i> 아토믹 해빗 수정하기
+  <!-- 2. 월간 아토믹 히트맵 -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 md:p-6 space-y-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div>
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
+          <i class="fa-solid fa-border-all text-emerald-600" aria-hidden="true"></i> 월간 아토믹 히트맵
+        </h2>
+        <p id="heatmap-help" class="text-xs text-slate-400 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2 self-start md:self-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200/80">
+        <button type="button" data-action="month-prev" aria-label="이전 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></button>
+        <span id="heatmap-month-label" class="text-sm font-bold text-slate-800 px-2 min-w-[100px] text-center tabular" aria-live="polite"></span>
+        <button type="button" data-action="month-next" aria-label="다음 달" class="w-8 h-8 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></button>
+        <button type="button" data-action="month-today" class="text-xs font-semibold text-indigo-600 hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition">이번 달</button>
+      </div>
+    </div>
+    <div id="heatmap-filter-tabs" class="flex flex-wrap gap-2" role="tablist" aria-label="히트맵 습관 선택"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div class="lg:col-span-2 bg-slate-50/60 p-3 md:p-4 rounded-2xl border border-slate-200/70 min-w-0">
+        <div class="grid grid-cols-7 gap-1.5 md:gap-2 mb-2 text-center text-xs font-bold text-slate-400" aria-hidden="true">
+          <div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-indigo-500">토</div><div class="text-rose-500">일</div>
+        </div>
+        <div id="heatmap-calendar-grid" class="grid grid-cols-7 gap-1.5 md:gap-2"></div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-200/60 text-xs text-slate-500">
+          <span class="font-medium">💡 오늘 이후 날짜는 기록할 수 없습니다.</span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span>미실행</span>
+            <span class="w-4 h-4 rounded grass-lv-0 border inline-block"></span>
+            <span class="w-4 h-4 rounded grass-lv-min border inline-flex text-[9px] font-bold items-center justify-center">⚡</span>
+            <span class="w-4 h-4 rounded grass-lv-1 border inline-block"></span>
+            <span class="w-4 h-4 rounded grass-lv-2 border inline-block"></span>
+            <span class="w-4 h-4 rounded grass-lv-3 border inline-block"></span>
+            <span class="w-4 h-4 rounded grass-lv-4 border inline-block"></span>
+            <span>완벽</span>
+          </div>
+        </div>
+      </div>
+      <div class="bg-slate-50/60 p-4 rounded-2xl border border-slate-200/70 space-y-3 min-w-0">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">습관별 월간 요약</h3>
+          <span id="mini-summary-month" class="text-xs font-semibold text-emerald-600"></span>
+        </div>
+        <div id="habit-monthly-bars" class="space-y-3"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 타임스탬프 사진 인증 갤러리 -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 md:p-6 space-y-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div>
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
+          <i class="fa-solid fa-camera-retro text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증 갤러리
+        </h2>
+        <p id="proof-gallery-help" class="text-xs text-slate-400 mt-0.5"></p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span id="proof-gallery-count" class="font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 tabular"></span>
+        <span class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">✅ 촬영일 일치</span>
+        <span class="px-2 py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 font-semibold">⚠️ 촬영일 불일치</span>
+      </div>
+    </div>
+    <div id="proof-gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+  </section>
+
+</div>
+
+<!-- 습관 수정 모달 -->
+<div id="edit-modal" class="modal-wrap fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+  <div class="bg-white rounded-2xl max-w-lg w-full p-5 md:p-6 space-y-4 shadow-xl border border-slate-200 max-h-full overflow-y-auto">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <h3 id="edit-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
+        <i class="fa-solid fa-pen-to-square text-indigo-600" aria-hidden="true"></i> 아토믹 해빗 수정하기
+      </h3>
+      <button type="button" data-action="close-edit" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+    <form id="edit-habit-form" class="space-y-3">
+      <input type="hidden" id="edit-habit-id">
+      <div>
+        <label for="edit-category" class="block text-xs font-bold text-slate-600 mb-1">카테고리</label>
+        <select id="edit-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"></select>
+      </div>
+      <div>
+        <label for="edit-identity" class="block text-xs font-bold text-slate-600 mb-1">🪪 정체성 (Identity)</label>
+        <input type="text" id="edit-identity" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      </div>
+      <div>
+        <label for="edit-name" class="block text-xs font-bold text-slate-600 mb-1">🎯 본래 목표 (습관명)</label>
+        <input type="text" id="edit-name" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      </div>
+      <div>
+        <label for="edit-twomin" class="block text-xs font-bold text-slate-600 mb-1">⚡ 2분 최소규칙</label>
+        <input type="text" id="edit-twomin" maxlength="100" required class="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-sm">
+      </div>
+      <div>
+        <label for="edit-cue" class="block text-xs font-bold text-slate-600 mb-1">📍 환경 신호 (Cue)</label>
+        <input type="text" id="edit-cue" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      </div>
+      <div>
+        <label for="edit-reward" class="block text-xs font-bold text-slate-600 mb-1">🎁 즉각 보상 (Reward)</label>
+        <input type="text" id="edit-reward" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" data-action="close-edit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">수정 완료</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 사진 인증 모달 -->
+<div id="proof-modal" class="modal-wrap fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="proof-modal-title">
+  <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200 max-h-full overflow-y-auto">
+    <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+      <div class="min-w-0">
+        <h3 id="proof-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-camera text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증
         </h3>
-        <button type="button" onclick="closeEditModal()" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+        <p id="proof-modal-sub" class="text-xs text-slate-500 mt-0.5 truncate"></p>
       </div>
-      <form id="edit-habit-form" class="space-y-3">
-        <input type="hidden" id="edit-habit-id">
-        <div>
-          <label for="edit-category" class="block text-xs font-bold text-slate-600 mb-1">카테고리</label>
-          <select id="edit-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"></select>
-        </div>
-        <div>
-          <label for="edit-identity" class="block text-xs font-bold text-slate-600 mb-1">🪪 정체성 (Identity)</label>
-          <input type="text" id="edit-identity" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-        </div>
-        <div>
-          <label for="edit-name" class="block text-xs font-bold text-slate-600 mb-1">🎯 본래 목표 (습관명)</label>
-          <input type="text" id="edit-name" maxlength="100" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-        </div>
-        <div>
-          <label for="edit-twomin" class="block text-xs font-bold text-slate-600 mb-1">⚡ 2분 최소규칙</label>
-          <input type="text" id="edit-twomin" maxlength="100" required class="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-xs">
-        </div>
-        <div>
-          <label for="edit-cue" class="block text-xs font-bold text-slate-600 mb-1">📍 환경 신호 (Cue)</label>
-          <input type="text" id="edit-cue" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-        </div>
-        <div>
-          <label for="edit-reward" class="block text-xs font-bold text-slate-600 mb-1">🎁 즉각 보상 (Reward)</label>
-          <input type="text" id="edit-reward" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
-          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">수정 완료</button>
-        </div>
-      </form>
+      <button type="button" data-action="close-proof" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1 shrink-0"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+    <div id="proof-modal-body" class="space-y-3"></div>
+    <input type="file" id="proof-camera-input" accept="image/*" capture="environment" class="sr-only" tabindex="-1">
+    <input type="file" id="proof-file-input" accept="image/*" class="sr-only" tabindex="-1">
+  </div>
+</div>
+
+<!-- 확인 대화상자 (브라우저 confirm 대체) -->
+<div id="confirm-modal" class="modal-wrap fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[70]" role="alertdialog" aria-modal="true" aria-labelledby="confirm-text">
+  <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200">
+    <p id="confirm-text" class="text-sm text-slate-700 whitespace-pre-line leading-relaxed"></p>
+    <div class="flex justify-end gap-2">
+      <button type="button" id="confirm-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
+      <button type="button" id="confirm-ok" class="px-5 py-2 text-white text-xs font-bold rounded-xl shadow-sm transition"></button>
     </div>
   </div>
+</div>
 
-  <!-- 알림 토스트 -->
-  <div id="toast" role="status" aria-live="polite"
-       class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none translate-y-2 z-[60] max-w-[90vw] text-center"></div>
+<!-- 알림 토스트 -->
+<div id="toast" role="status" aria-live="polite"
+     class="fixed left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none translate-y-2 z-[80] max-w-[90vw] text-center"></div>
 
-  <script>
-    'use strict';
+<script>
+  'use strict';
 
-    const STORAGE_KEY = 'atomic_habit_system_dashboard_v3';
-    const DAYS_KR = ['월', '화', '수', '목', '금', '토', '일'];
-    const TEXT_MAX = 100;
+  const STORAGE_KEY = 'atomic_habit_system_dashboard_v3';
+  const DAYS_KR = ['월', '화', '수', '목', '금', '토', '일'];
+  const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+  const TEXT_MAX = 100;
+  const PHOTO_MAX_SIDE = 1280;
+  const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-    const CATEGORY_LABELS = {
-      '경제/재테크': '📈 경제/재테크',
-      '운동/건강': '🏃 운동/건강',
-      '학습/독서': '📚 학습/독서',
-      '생산성/정리': '⚡ 생산성/정리',
-      '생활습관': '🌱 생활습관'
-    };
-    const CATEGORIES = Object.keys(CATEGORY_LABELS);
+  const CATEGORY_LABELS = {
+    '경제/재테크': '📈 경제/재테크',
+    '운동/건강': '🏃 운동/건강',
+    '학습/독서': '📚 학습/독서',
+    '생산성/정리': '⚡ 생산성/정리',
+    '생활습관': '🌱 생활습관'
+  };
+  const CATEGORIES = Object.keys(CATEGORY_LABELS);
+  const categoryStyles = {
+    '경제/재테크': 'bg-blue-50 text-blue-700 border-blue-200',
+    '운동/건강': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    '학습/독서': 'bg-purple-50 text-purple-700 border-purple-200',
+    '생산성/정리': 'bg-amber-50 text-amber-700 border-amber-200',
+    '생활습관': 'bg-teal-50 text-teal-700 border-teal-200'
+  };
+  const STATE_LABEL = { 0: '미실행', 1: '2분 최소실행', 2: '100% 완수' };
 
-    const categoryStyles = {
-      '경제/재테크': 'bg-blue-50 text-blue-700 border-blue-200',
-      '운동/건강': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      '학습/독서': 'bg-purple-50 text-purple-700 border-purple-200',
-      '생산성/정리': 'bg-amber-50 text-amber-700 border-amber-200',
-      '생활습관': 'bg-teal-50 text-teal-700 border-teal-200'
-    };
+  const pad = n => String(n).padStart(2, '0');
+  function formatDateKey(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+  function parseDateKey(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const isDateKey = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const keyLabel = key => { const d = parseDateKey(key); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+  function formatDateTime(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '-';
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}(${WEEKDAY_KR[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+  const newId = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    const STATE_LABEL = { 0: '미실행', 1: '2분 최소실행', 2: '100% 완수' };
+  const storage = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  };
 
-    const pad = n => String(n).padStart(2, '0');
-    function formatDateKey(date) {
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-    function parseDateKey(key) {
-      const [y, m, d] = key.split('-').map(Number);
-      return new Date(y, m - 1, d);
-    }
-    const isDateKey = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
-    const keyLabel = key => { const d = parseDateKey(key); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+  let toastTimer = null;
+  function showToast(msg, ms = 2800) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.remove('opacity-0', 'translate-y-2');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.add('opacity-0', 'translate-y-2'), ms);
+  }
 
-    function escapeHtml(str) {
-      return String(str ?? '').replace(/[&<>"']/g, c => (
-        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-      ));
-    }
-    const newId = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  // ===== 확인 대화상자 =====
+  let confirmResolve = null;
+  function askConfirm(message, okLabel = '확인', danger = false) {
+    if (confirmResolve) settleConfirm(false);
+    return new Promise(resolve => {
+      confirmResolve = resolve;
+      document.getElementById('confirm-text').textContent = message;
+      const ok = document.getElementById('confirm-ok');
+      ok.textContent = okLabel;
+      ok.className = `px-5 py-2 text-white text-xs font-bold rounded-xl shadow-sm transition ${danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'}`;
+      showModal('confirm-modal');
+      ok.focus();
+    });
+  }
+  function settleConfirm(value) {
+    hideModal('confirm-modal');
+    const r = confirmResolve;
+    confirmResolve = null;
+    if (r) r(value);
+  }
+  function showModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  }
+  function hideModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove('flex');
+    m.classList.add('hidden');
+  }
 
-    const storage = {
-      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-      set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
-    };
+  // ===== 날짜 =====
+  let today, todayKey, yesterdayKey, currentWeekDates, currentWeekKeys;
+  function computeDates() {
+    today = new Date();
+    todayKey = formatDateKey(today);
+    const y = new Date(today);
+    y.setDate(today.getDate() - 1);
+    yesterdayKey = formatDateKey(y);
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    currentWeekDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+    currentWeekKeys = currentWeekDates.map(formatDateKey);
+  }
+  computeDates();
 
-    // ===== 사진 인증 저장소 (사진은 용량이 커서 localStorage 대신 IndexedDB 사용) =====
-    const PHOTO_DB_NAME = 'atomic_habit_photos';
-    const PHOTO_STORE = 'proofs';
-    const PHOTO_MAX_SIDE = 1280;
-    const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let selectedHeatmapHabitId = 'ALL';
+  let habits = [];
+  const isFutureKey = key => key > todayKey;
 
-    const photoDb = {
-      _db: null,
-      open() {
-        if (this._db) return Promise.resolve(this._db);
-        return new Promise((resolve, reject) => {
-          if (!('indexedDB' in window)) { reject(new Error('IndexedDB 미지원')); return; }
-          const req = indexedDB.open(PHOTO_DB_NAME, 1);
-          req.onupgradeneeded = () => req.result.createObjectStore(PHOTO_STORE, { keyPath: 'key' });
-          req.onsuccess = () => { this._db = req.result; resolve(this._db); };
-          req.onerror = () => reject(req.error);
-        });
-      },
-      async tx(mode, fn) {
-        const db = await this.open();
-        return new Promise((resolve, reject) => {
-          const t = db.transaction(PHOTO_STORE, mode);
-          const out = fn(t.objectStore(PHOTO_STORE));
-          t.oncomplete = () => resolve(out && 'result' in out ? out.result : undefined);
-          t.onerror = t.onabort = () => reject(t.error);
-        });
-      },
-      getAll() { return this.tx('readonly', s => s.getAll()); },
-      put(rec) { return this.tx('readwrite', s => s.put(rec)); },
-      remove(keys) { return this.tx('readwrite', s => keys.forEach(k => s.delete(k))); },
-      replaceAll(list) { return this.tx('readwrite', s => { s.clear(); list.forEach(p => s.put(p)); }); }
-    };
+  // ===== 저장소 상태 =====
+  // storeMode: 'loading' → 'auth'(로그인 필요) → 'cloud'(Supabase, 기기 간 동기화)
+  //            설정이 비어 있으면 'local'(이 브라우저에만 저장)
+  let storeMode = 'loading';
+  let hasStoredData = false;
+  let sb = null, userId = null, userEmail = '';
+  let realtimeChannel = null;
+  let lastSavedAt = '';      // 내가 마지막으로 저장한 updated_at (내 저장의 메아리는 무시)
+  let dirty = false, writing = false, writeTimer = null, dbWarned = false;
+  let photos = {};          // key -> { key, habitId, dateKey, path, url, takenAt, timeSource, uploadedAt, verified }
+  let proofTarget = null;   // { habitId, dateKey }
+  let proofBusy = false;
+  const photosEnabled = () => storeMode === 'cloud';
+  const PHOTO_BUCKET = 'proofs';
 
-    let photos = {};          // key -> { key, habitId, dateKey, dataUrl, takenAt, timeSource, uploadedAt, verified }
-    let photoWarned = false;
-    let proofTarget = null;   // { habitId, dateKey }
-    let proofBusy = false;
+  function configReady() {
+    const c = window.HABIT_CONFIG || {};
+    return typeof c.supabaseUrl === 'string' && /^https:\/\/.+/.test(c.supabaseUrl) && !c.supabaseUrl.includes('YOUR-PROJECT')
+      && typeof c.supabaseAnonKey === 'string' && c.supabaseAnonKey.length > 20 && !c.supabaseAnonKey.includes('YOUR-ANON');
+  }
 
-    const proofKey = (habitId, dateKey) => `${habitId}|${dateKey}`;
-    const getProof = (habitId, dateKey) => photos[proofKey(habitId, dateKey)] || null;
-
-    async function persistPhotos(op) {
-      try { await op(); return true; } catch (e) {
-        if (!photoWarned) {
-          photoWarned = true;
-          showToast('사진 저장소를 쓸 수 없어 창을 닫으면 사진이 사라집니다.');
-        }
-        return false;
-      }
-    }
-
-    function removePhotosWhere(pred) {
-      const keys = Object.keys(photos).filter(k => pred(photos[k]));
-      if (!keys.length) return;
-      keys.forEach(k => delete photos[k]);
-      persistPhotos(() => photoDb.remove(keys));
-    }
-
-    function formatDateTime(iso) {
-      const d = new Date(iso);
-      if (isNaN(d)) return '-';
-      return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}(${WEEKDAY_KR[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-
-    const isSafeImageDataUrl = s => typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s);
-
-    function sanitizePhoto(p, habitIds) {
-      if (!p || typeof p !== 'object') return null;
-      const habitId = String(p.habitId ?? '');
-      if (!habitIds.has(habitId) || !isDateKey(p.dateKey) || !isSafeImageDataUrl(p.dataUrl)) return null;
-      const taken = new Date(p.takenAt);
-      if (isNaN(taken)) return null;
-      const uploaded = new Date(p.uploadedAt);
-      return {
-        key: proofKey(habitId, p.dateKey),
-        habitId,
-        dateKey: p.dateKey,
-        dataUrl: p.dataUrl,
-        takenAt: taken.toISOString(),
-        timeSource: p.timeSource === 'exif' ? 'exif' : 'file',
-        uploadedAt: isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString(),
-        verified: formatDateKey(taken) === p.dateKey
-      };
-    }
-
-    // JPEG EXIF에서 촬영 시각(DateTimeOriginal)을 읽어옵니다. 없으면 null.
-    function readExifDate(buffer) {
-      try {
-        const view = new DataView(buffer);
-        if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
-        let offset = 2;
-        while (offset + 4 <= view.byteLength) {
-          const marker = view.getUint16(offset);
-          if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) return null;
-          const size = view.getUint16(offset + 2);
-          if (marker === 0xFFE1) {
-            const d = parseExifSegment(view, offset + 4);
-            if (d) return d;
-          }
-          offset += 2 + size;
-        }
-      } catch (e) { /* 손상된 EXIF는 무시 */ }
-      return null;
-    }
-
-    function parseExifSegment(view, start) {
-      if (view.getUint32(start) !== 0x45786966) return null; // "Exif"
-      const tiff = start + 6;
-      const little = view.getUint16(tiff) === 0x4949;
-      const u16 = o => view.getUint16(o, little);
-      const u32 = o => view.getUint32(o, little);
-      const readAscii = (o, n) => {
-        let s = '';
-        for (let i = 0; i < n; i++) {
-          const c = view.getUint8(o + i);
-          if (!c) break;
-          s += String.fromCharCode(c);
-        }
-        return s;
-      };
-      const scanIfd = ifdOffset => {
-        const base = tiff + ifdOffset;
-        const n = u16(base);
-        const out = {};
-        for (let i = 0; i < n; i++) {
-          const e = base + 2 + i * 12;
-          const tag = u16(e), type = u16(e + 2), count = u32(e + 4);
-          if (tag === 0x8769) out.exifPtr = u32(e + 8);
-          else if ((tag === 0x9003 || tag === 0x9004 || tag === 0x0132) && type === 2) {
-            out[tag] = readAscii(count > 4 ? tiff + u32(e + 8) : e + 8, count);
-          }
-        }
-        return out;
-      };
-      const ifd0 = scanIfd(u32(tiff + 4));
-      const exif = ifd0.exifPtr ? scanIfd(ifd0.exifPtr) : {};
-      const str = exif[0x9003] || exif[0x9004] || ifd0[0x0132] || '';
-      const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(str);
-      if (!m || m[1] === '0000') return null;
-      const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
-      return isNaN(d) ? null : d;
-    }
-
-    function loadImageFromFile(file) {
-      return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
-        img.src = url;
+  // ===== 데이터 정리 =====
+  function normalizeLogValue(v) {
+    if (v === true || v === 2) return 2;
+    if (v === 1) return 1;
+    return 0;
+  }
+  function cleanText(v, fallback) {
+    const s = typeof v === 'string' ? v.trim().slice(0, TEXT_MAX) : '';
+    return s || fallback;
+  }
+  function sanitizeHabit(h, remap) {
+    if (!h || typeof h !== 'object') return null;
+    const name = cleanText(h.name, '');
+    if (!name) return null;
+    const logs = {};
+    if (h.logs && typeof h.logs === 'object') {
+      Object.keys(h.logs).forEach(k => {
+        const v = normalizeLogValue(h.logs[k]);
+        if (isDateKey(k) && v > 0) logs[k] = v;
       });
     }
+    const logKeys = Object.keys(logs).sort();
+    let createdAt = isDateKey(h.createdAt) ? h.createdAt : (logKeys[0] || todayKey);
+    if (logKeys[0] && logKeys[0] < createdAt) createdAt = logKeys[0];
+    const rawId = (h.id !== undefined && h.id !== null) ? String(h.id) : '';
+    const id = ID_RE.test(rawId) ? rawId : newId();
+    if (remap && rawId) remap[rawId] = id;
+    return {
+      id,
+      name,
+      category: CATEGORIES.includes(h.category) ? h.category : '생활습관',
+      identity: cleanText(h.identity, '성장하는 사람'),
+      twoMinRule: cleanText(h.twoMinRule, '2분만 시작하기'),
+      cue: cleanText(h.cue, ''),
+      reward: cleanText(h.reward, ''),
+      createdAt,
+      logs
+    };
+  }
+  function sanitizeHabitList(parsed, remap) {
+    const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.habits) ? parsed.habits : null);
+    if (!arr) return null;
+    const list = arr.map(h => sanitizeHabit(h, remap)).filter(Boolean);
+    const seen = new Set();
+    list.forEach(h => { if (seen.has(h.id)) h.id = newId(); seen.add(h.id); });
+    return list;
+  }
+  const proofDocId = (habitId, dateKey) => `${habitId}_${dateKey}`;
+  const getProof = (habitId, dateKey) => photos[proofDocId(habitId, dateKey)] || null;
+  const proofUrl = p => p.url || '';
+  // Supabase habit_proofs 행 → 화면용 기록
+  function sanitizeProof(row) {
+    if (!row || typeof row !== 'object') return null;
+    const habitId = String(row.habit_id ?? '');
+    const path = String(row.path ?? '');
+    if (!ID_RE.test(habitId) || !isDateKey(row.date_key) || !path) return null;
+    const taken = new Date(row.taken_at);
+    if (isNaN(taken)) return null;
+    const uploaded = new Date(row.uploaded_at);
+    return {
+      key: proofDocId(habitId, row.date_key),
+      habitId,
+      dateKey: row.date_key,
+      path,
+      url: '',
+      takenAt: taken.toISOString(),
+      timeSource: row.time_source === 'exif' ? 'exif' : 'file',
+      uploadedAt: isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString(),
+      verified: formatDateKey(taken) === row.date_key
+    };
+  }
 
-    function fitText(ctx, text, maxWidth) {
-      if (ctx.measureText(text).width <= maxWidth) return text;
-      let s = text;
-      while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) s = s.slice(0, -1);
-      return s + '…';
+  function getLogState(logs, dateKey) { return normalizeLogValue(logs[dateKey]); }
+  function setLog(habit, dateKey, value) {
+    if (value > 0) {
+      habit.logs[dateKey] = value;
+      if (dateKey < habit.createdAt) habit.createdAt = dateKey;
+    } else {
+      delete habit.logs[dateKey];
     }
+  }
+  function countEligibleDays(habit, keys) {
+    return keys.filter(k => k <= todayKey && k >= habit.createdAt).length;
+  }
 
-    // 사진 하단에 촬영 시각 · 습관명 타임스탬프를 새겨 넣습니다.
-    function drawTimestamp(ctx, w, h, takenAt, habitName) {
-      const base = Math.max(14, Math.round(Math.min(w, h) * 0.045));
-      const gap = Math.round(base * 0.8);
-      const fadeH = Math.round(base * 5);
-      const grad = ctx.createLinearGradient(0, h - fadeH, 0, h);
-      grad.addColorStop(0, 'rgba(15,23,42,0)');
-      grad.addColorStop(1, 'rgba(15,23,42,0.8)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, h - fadeH, w, fadeH);
-
-      const font = "'Pretendard', -apple-system, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif";
-      const line1Y = h - gap - Math.round(base * 1.3);
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = Math.round(base * 0.3);
-      ctx.textBaseline = 'alphabetic';
-
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `800 ${Math.round(base * 1.7)}px ${font}`;
-      ctx.fillText(`${pad(takenAt.getHours())}:${pad(takenAt.getMinutes())}`, gap, line1Y);
-      ctx.font = `600 ${base}px ${font}`;
-      ctx.fillText(`${takenAt.getFullYear()}.${pad(takenAt.getMonth() + 1)}.${pad(takenAt.getDate())} (${WEEKDAY_KR[takenAt.getDay()]})`, gap, h - gap);
-
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#fcd34d';
-      ctx.font = `800 ${Math.round(base * 0.85)}px ${font}`;
-      ctx.fillText('ATOMIC HABIT 인증', w - gap, line1Y);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `600 ${Math.round(base * 0.9)}px ${font}`;
-      ctx.fillText(fitText(ctx, habitName, w * 0.5), w - gap, h - gap);
-      ctx.shadowBlur = 0;
-      ctx.textAlign = 'left';
-    }
-
-    async function processProofImage(file, habitName) {
-      const exifDate = readExifDate(await file.arrayBuffer());
-      const takenAt = exifDate || new Date(file.lastModified || Date.now());
-      const img = await loadImageFromFile(file);
-      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-      const w = Math.max(1, Math.round(img.naturalWidth * scale));
-      const h = Math.max(1, Math.round(img.naturalHeight * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      drawTimestamp(ctx, w, h, takenAt, habitName);
-      return {
-        dataUrl: canvas.toDataURL('image/jpeg', 0.82),
-        takenAt: takenAt.toISOString(),
-        timeSource: exifDate ? 'exif' : 'file'
-      };
-    }
-
-    let toastTimer = null;
-    function showToast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.classList.remove('opacity-0', 'translate-y-2');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.add('opacity-0', 'translate-y-2'), 2800);
-    }
-
-    let today, todayKey, yesterdayKey, currentWeekDates, currentWeekKeys;
-
-    function computeDates() {
-      today = new Date();
-      todayKey = formatDateKey(today);
-      const y = new Date(today);
-      y.setDate(today.getDate() - 1);
-      yesterdayKey = formatDateKey(y);
-
-      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-      currentWeekDates = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        return d;
-      });
-      currentWeekKeys = currentWeekDates.map(formatDateKey);
-    }
-    computeDates();
-
-    let viewYear = today.getFullYear();
-    let viewMonth = today.getMonth();
-    let selectedHeatmapHabitId = 'ALL';
-    let habits = [];
-    let saveWarned = false;
-
-    const isFutureKey = key => key > todayKey;
-
-    function normalizeLogValue(v) {
-      if (v === true || v === 2) return 2;
-      if (v === 1) return 1;
-      return 0;
-    }
-    function cleanText(v, fallback) {
-      const s = typeof v === 'string' ? v.trim().slice(0, TEXT_MAX) : '';
-      return s || fallback;
-    }
-    function sanitizeHabit(h) {
-      if (!h || typeof h !== 'object') return null;
-      const name = cleanText(h.name, '');
-      if (!name) return null;
+  function createSampleHabits() {
+    const baseList = [
+      { name: '거시경제 지표 및 증시 브리핑 정리', category: '경제/재테크', identity: '냉철한 거시경제 분석가',
+        twoMinRule: '환율·반도체 지수 차트 1분 확인하기', cue: '아침 커피 내린 직후 아이패드 켜기', reward: '좋아하는 원두 커피 한 잔 음미', freq: 0.85 },
+      { name: '야외 러닝 또는 유산소 30분', category: '운동/건강', identity: '에너제틱한 러너',
+        twoMinRule: '운동화 끈 묶고 현관문 밖으로 나가기', cue: '현관 가장 잘 보이는 곳에 러닝화 배치', reward: '샤워 후 시원한 탄산수 한 잔', freq: 0.70 },
+      { name: '외국어 원서 / 경제 서적 20페이지 독서', category: '학습/독서', identity: '지적인 독서가',
+        twoMinRule: '책 1페이지 펼치고 첫 문장 소리 내어 읽기', cue: '잠들기 전 베개 위에 책 올려두기', reward: '인상 깊은 문장 노트에 수집하는 즐거움', freq: 0.80 }
+    ];
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const createdAt = formatDateKey(new Date(y, m, 1));
+    return baseList.map((item, idx) => {
       const logs = {};
-      if (h.logs && typeof h.logs === 'object') {
-        Object.keys(h.logs).forEach(k => {
-          const v = normalizeLogValue(h.logs[k]);
-          if (isDateKey(k) && v > 0) logs[k] = v;
-        });
+      for (let day = 1; day <= today.getDate(); day++) {
+        const dKey = formatDateKey(new Date(y, m, day));
+        const pseudo = ((day * 7 + idx * 13) % 10) / 10;
+        if (pseudo < item.freq - 0.15) logs[dKey] = 2;
+        else if (pseudo < item.freq + 0.05) logs[dKey] = 1;
       }
-      const logKeys = Object.keys(logs).sort();
-      let createdAt = isDateKey(h.createdAt) ? h.createdAt : (logKeys[0] || todayKey);
-      if (logKeys[0] && logKeys[0] < createdAt) createdAt = logKeys[0];
-      return {
-        id: (h.id !== undefined && h.id !== null && h.id !== '') ? String(h.id) : newId(),
-        name,
-        category: CATEGORIES.includes(h.category) ? h.category : '생활습관',
-        identity: cleanText(h.identity, '성장하는 사람'),
-        twoMinRule: cleanText(h.twoMinRule, '2분만 시작하기'),
-        cue: cleanText(h.cue, ''),
-        reward: cleanText(h.reward, ''),
-        createdAt,
-        logs
-      };
+      const { freq, ...rest } = item;
+      return { id: newId(), ...rest, createdAt, logs };
+    });
+  }
+
+  // ===== 저장 =====
+  function saveData() {
+    hasStoredData = true;
+    if (storeMode === 'cloud') {
+      dirty = true;
+      clearTimeout(writeTimer);
+      writeTimer = setTimeout(flushWrite, 500);
+      return;
     }
-    function sanitizeHabitList(parsed) {
-      const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.habits) ? parsed.habits : null);
-      if (!arr) return null;
-      const list = arr.map(sanitizeHabit).filter(Boolean);
-      const seen = new Set();
-      list.forEach(h => { if (seen.has(h.id)) h.id = newId(); seen.add(h.id); });
-      return list;
+    if (storeMode === 'local' && !storage.set(STORAGE_KEY, JSON.stringify(habits)) && !dbWarned) {
+      dbWarned = true;
+      showToast('이 브라우저에 저장할 수 없습니다.');
     }
+  }
+  async function flushWrite() {
+    clearTimeout(writeTimer);
+    if (writing || !dirty || !sb || !userId) return;
+    writing = true;
+    dirty = false;
+    const updatedAt = new Date().toISOString();
+    lastSavedAt = updatedAt;
+    const { error } = await sb.from('habit_state')
+      .upsert({ user_id: userId, habits: JSON.parse(JSON.stringify(habits)), updated_at: updatedAt });
+    if (error) { dirty = true; reportDbError(error); }
+    else dbWarned = false;
+    writing = false;
+    if (dirty && !error) flushWrite();
+  }
+  function reportDbError(e) {
+    const msg = String((e && (e.message || e.error)) || '');
+    if (/JWT|token|auth/i.test(msg)) showToast('로그인이 만료되었습니다. 다시 로그인해 주세요.', 5000);
+    else if (/quota|exceed|too large|payload/i.test(msg)) showToast('저장 공간이 부족하거나 파일이 너무 큽니다. 오래된 인증 사진을 지워주세요.', 5000);
+    else if (!dbWarned) { dbWarned = true; showToast('저장하지 못했습니다. 인터넷 연결을 확인해 주세요. 연결되면 다음 변경 때 다시 저장합니다.', 4500); }
+  }
 
-    function getLogState(logs, dateKey) {
-      return normalizeLogValue(logs[dateKey]);
+  // ===== 동작 =====
+  const findHabit = id => habits.find(h => h.id === id);
+
+  // 1번 클릭: 2분 최소실행(1) → 2번: 100% 완수(2) → 3번: 해제(0)
+  function cycleDateCheck(habitId, dateKey) {
+    if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
+    const habit = findHabit(habitId);
+    if (!habit) return;
+    const current = getLogState(habit.logs, dateKey);
+    setLog(habit, dateKey, current === 0 ? 1 : current === 1 ? 2 : 0);
+    saveData();
+    renderAll();
+  }
+  // 오늘 체크 카드: 같은 상태를 다시 누르면 해제
+  function setDateState(habitId, dateKey, value) {
+    if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
+    const habit = findHabit(habitId);
+    if (!habit) return;
+    setLog(habit, dateKey, getLogState(habit.logs, dateKey) === value ? 0 : value);
+    saveData();
+    renderAll();
+  }
+
+  async function handleHeatmapCellClick(dateKey) {
+    if (!isDateKey(dateKey) || isFutureKey(dateKey) || habits.length === 0) return;
+    if (selectedHeatmapHabitId !== 'ALL') {
+      cycleDateCheck(selectedHeatmapHabitId, dateKey);
+      return;
     }
-
-    function setLog(habit, dateKey, value) {
-      if (value > 0) {
-        habit.logs[dateKey] = value;
-        if (dateKey < habit.createdAt) habit.createdAt = dateKey;
-      } else {
-        delete habit.logs[dateKey];
-      }
+    const targets = habits.filter(h => h.createdAt <= dateKey);
+    const pool = targets.length ? targets : habits;
+    const missing = pool.filter(h => getLogState(h.logs, dateKey) === 0);
+    if (missing.length > 0) {
+      missing.forEach(h => setLog(h, dateKey, 2));
+      showToast(`${keyLabel(dateKey)}: 미기록 ${missing.length}개 습관을 완수로 기록했습니다.`);
+    } else {
+      if (!await askConfirm(`${keyLabel(dateKey)}의 모든 습관 기록(완수·2분실행)을 지울까요?`, '기록 지우기', true)) return;
+      pool.filter(h => h.createdAt <= dateKey).forEach(h => setLog(h, dateKey, 0));
+      showToast(`${keyLabel(dateKey)} 기록을 지웠습니다.`);
     }
+    saveData();
+    renderAll();
+  }
 
-    function countEligibleDays(habit, keys) {
-      return keys.filter(k => k <= todayKey && k >= habit.createdAt).length;
-    }
+  function moveHabit(habitId, dir) {
+    const i = habits.findIndex(h => h.id === habitId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= habits.length) return;
+    [habits[i], habits[j]] = [habits[j], habits[i]];
+    saveData();
+    renderAll();
+  }
 
-    function createSampleHabits() {
-      const baseList = [
-        { name: '거시경제 지표 및 증시 브리핑 정리', category: '경제/재테크', identity: '냉철한 거시경제 분석가',
-          twoMinRule: '환율·반도체 지수 차트 1분 확인하기', cue: '아침 커피 내린 직후 아이패드 켜기', reward: '좋아하는 원두 커피 한 잔 음미', freq: 0.85 },
-        { name: '야외 러닝 또는 유산소 30분', category: '운동/건강', identity: '에너제틱한 러너',
-          twoMinRule: '운동화 끈 묶고 현관문 밖으로 나가기', cue: '현관 가장 잘 보이는 곳에 러닝화 배치', reward: '샤워 후 시원한 탄산수 한 잔', freq: 0.70 },
-        { name: '외국어 원서 / 경제 서적 20페이지 독서', category: '학습/독서', identity: '지적인 독서가',
-          twoMinRule: '책 1페이지 펼치고 첫 문장 소리 내어 읽기', cue: '잠들기 전 베개 위에 책 올려두기', reward: '인상 깊은 문장 노트에 수집하는 즐거움', freq: 0.80 }
-      ];
-      const y = today.getFullYear();
-      const m = today.getMonth();
-      const createdAt = formatDateKey(new Date(y, m, 1));
+  async function deleteHabit(habitId) {
+    const habit = findHabit(habitId);
+    if (!habit) return;
+    if (!await askConfirm(`'${habit.name}' 습관을 삭제할까요?\n모든 기록과 인증 사진이 함께 삭제됩니다.`, '삭제', true)) return;
+    habits = habits.filter(h => h.id !== habitId);
+    if (selectedHeatmapHabitId === habitId) selectedHeatmapHabitId = 'ALL';
+    saveData();
+    removeProofs(p => p.habitId === habitId);
+    renderAll();
+    showToast('습관을 삭제했습니다.');
+  }
 
-      return baseList.map((item, idx) => {
-        const logs = {};
-        for (let day = 1; day <= today.getDate(); day++) {
-          const dKey = formatDateKey(new Date(y, m, day));
-          const pseudo = ((day * 7 + idx * 13) % 10) / 10;
-          if (pseudo < item.freq - 0.15) logs[dKey] = 2;
-          else if (pseudo < item.freq + 0.05) logs[dKey] = 1;
-        }
-        const { freq, ...rest } = item;
-        return { id: newId(), ...rest, createdAt, logs };
-      });
-    }
+  function openEditModal(habitId) {
+    const habit = findHabit(habitId);
+    if (!habit) return;
+    document.getElementById('edit-habit-id').value = habit.id;
+    document.getElementById('edit-category').value = habit.category;
+    document.getElementById('edit-identity').value = habit.identity || '';
+    document.getElementById('edit-name').value = habit.name;
+    document.getElementById('edit-twomin').value = habit.twoMinRule || '';
+    document.getElementById('edit-cue').value = habit.cue || '';
+    document.getElementById('edit-reward').value = habit.reward || '';
+    showModal('edit-modal');
+  }
 
-    function loadHabits() {
-      const raw = storage.get(STORAGE_KEY);
-      if (raw === null) return createSampleHabits();
-      try {
-        const list = sanitizeHabitList(JSON.parse(raw));
-        if (list) return list;
-      } catch (e) { /* 아래에서 복구 */ }
-      storage.set(STORAGE_KEY + '_corrupt_backup', raw);
-      setTimeout(() => showToast('저장 데이터가 손상되어 샘플로 복구했습니다.'), 300);
-      return createSampleHabits();
-    }
+  async function resetCurrentWeek() {
+    if (!await askConfirm('이번 주(월~일) 체크 기록과 인증 사진을 모두 지울까요?', '초기화', true)) return;
+    habits.forEach(h => currentWeekKeys.forEach(k => delete h.logs[k]));
+    saveData();
+    removeProofs(p => currentWeekKeys.includes(p.dateKey));
+    renderAll();
+    showToast('이번 주 기록을 초기화했습니다.');
+  }
 
-    function saveData() {
-      const ok = storage.set(STORAGE_KEY, JSON.stringify(habits));
-      if (!ok && !saveWarned) {
-        saveWarned = true;
-        showToast('브라우저에 저장할 수 없습니다.');
-      }
-    }
+  async function loadDefaultHabits() {
+    const msg = habits.length
+      ? '샘플 데이터로 바꿀까요?\n지금 습관 기록과 인증 사진이 모두 삭제됩니다.'
+      : '샘플 습관 3개로 시작할까요?';
+    if (!await askConfirm(msg, '샘플 불러오기', habits.length > 0)) return;
+    habits = createSampleHabits();
+    selectedHeatmapHabitId = 'ALL';
+    saveData();
+    removeProofs(() => true);
+    renderAll();
+    showToast('샘플 데이터를 불러왔습니다.');
+  }
 
-    function calculateStreak(habit) {
-      let streak = 0;
-      const cursor = new Date(today);
-      if (getLogState(habit.logs, formatDateKey(cursor)) === 0) cursor.setDate(cursor.getDate() - 1);
-      for (let guard = 0; guard < 3660; guard++) {
-        if (getLogState(habit.logs, formatDateKey(cursor)) === 0) break;
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      }
-      return streak;
-    }
-
-    function isNeverMissTwiceRisk(habit) {
-      if (habit.createdAt > yesterdayKey) return false;
-      return getLogState(habit.logs, yesterdayKey) === 0 && getLogState(habit.logs, todayKey) === 0;
-    }
-
-    function countVotes(habit) {
-      let full = 0, min = 0;
-      Object.keys(habit.logs).forEach(k => {
-        const st = getLogState(habit.logs, k);
-        if (st === 2) full++;
-        else if (st === 1) min++;
-      });
-      return { full, min, votes: full + min * 0.5 };
-    }
-
-    function monthKeys(year, month) {
-      const n = new Date(year, month + 1, 0).getDate();
-      return Array.from({ length: n }, (_, i) => formatDateKey(new Date(year, month, i + 1)));
-    }
-
-    const findHabit = id => habits.find(h => h.id === id);
-
-    // ★ 1번 클릭: 2분 최소실행(1) -> 2번 클릭: 100% 완수(2) -> 3번 클릭: 해제(0)
-    function cycleDateCheck(habitId, dateKey) {
-      if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
-      const habit = findHabit(habitId);
-      if (!habit) return;
-      const current = getLogState(habit.logs, dateKey);
-      const next = current === 0 ? 1 : current === 1 ? 2 : 0;
-      setLog(habit, dateKey, next);
-      saveData();
-      renderAll();
-    }
-
-    function handleHeatmapCellClick(dateKey) {
-      if (!isDateKey(dateKey) || isFutureKey(dateKey) || habits.length === 0) return;
-      if (selectedHeatmapHabitId !== 'ALL') {
-        cycleDateCheck(selectedHeatmapHabitId, dateKey);
-        return;
-      }
-      const targets = habits.filter(h => h.createdAt <= dateKey);
-      const pool = targets.length ? targets : habits;
-      const missing = pool.filter(h => getLogState(h.logs, dateKey) === 0);
-      if (missing.length > 0) {
-        missing.forEach(h => setLog(h, dateKey, 2));
-        showToast(`${keyLabel(dateKey)}: 미기록 ${missing.length}개 습관을 완수로 기록했습니다.`);
-      } else {
-        if (!confirm(`${keyLabel(dateKey)}의 모든 습관 기록(완수·2분실행)을 지우시겠습니까?`)) return;
-        pool.filter(h => h.createdAt <= dateKey).forEach(h => setLog(h, dateKey, 0));
-        showToast(`${keyLabel(dateKey)} 기록을 지웠습니다.`);
-      }
-      saveData();
-      renderAll();
-    }
-
-    function moveHabit(habitId, dir) {
-      const i = habits.findIndex(h => h.id === habitId);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= habits.length) return;
-      [habits[i], habits[j]] = [habits[j], habits[i]];
-      saveData();
-      renderAll();
-    }
-
-    function deleteHabit(habitId) {
-      const habit = findHabit(habitId);
-      if (!habit) return;
-      if (!confirm(`'${habit.name}' 습관 시스템을 삭제하시겠습니까?
-모든 기록과 인증 사진이 함께 삭제됩니다.`)) return;
-      habits = habits.filter(h => h.id !== habitId);
-      removePhotosWhere(p => p.habitId === habitId);
-      if (selectedHeatmapHabitId === habitId) selectedHeatmapHabitId = 'ALL';
-      saveData();
-      renderAll();
-      showToast('습관 시스템을 삭제했습니다.');
-    }
-
-    function openEditModal(habitId) {
-      const habit = findHabit(habitId);
-      if (!habit) return;
-      document.getElementById('edit-habit-id').value = habit.id;
-      document.getElementById('edit-category').value = habit.category;
-      document.getElementById('edit-identity').value = habit.identity || '';
-      document.getElementById('edit-name').value = habit.name;
-      document.getElementById('edit-twomin').value = habit.twoMinRule || '';
-      document.getElementById('edit-cue').value = habit.cue || '';
-      document.getElementById('edit-reward').value = habit.reward || '';
-      const modal = document.getElementById('edit-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function closeEditModal() {
-      const modal = document.getElementById('edit-modal');
-      modal.classList.remove('flex');
-      modal.classList.add('hidden');
-    }
-
-    // ===== 사진 인증 모달 =====
-    function openProofModal(habitId, dateKey) {
-      if (!isDateKey(dateKey) || isFutureKey(dateKey) || !findHabit(habitId)) return;
-      proofTarget = { habitId, dateKey };
-      proofBusy = false;
-      renderProofModal();
-      const modal = document.getElementById('proof-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function closeProofModal() {
-      proofTarget = null;
-      const modal = document.getElementById('proof-modal');
-      modal.classList.remove('flex');
-      modal.classList.add('hidden');
-    }
-
-    function pickProofFile(useCamera) {
-      if (proofBusy) return;
-      document.getElementById(useCamera ? 'proof-camera-input' : 'proof-file-input').click();
-    }
-
-    function renderProofModal() {
-      if (!proofTarget) return;
-      const habit = findHabit(proofTarget.habitId);
-      if (!habit) { closeProofModal(); return; }
-      const { dateKey } = proofTarget;
-      const d = parseDateKey(dateKey);
-      document.getElementById('proof-modal-sub').textContent =
-        `${habit.name} · ${keyLabel(dateKey)}(${WEEKDAY_KR[d.getDay()]})`;
-
-      const body = document.getElementById('proof-modal-body');
-      if (proofBusy) {
-        body.innerHTML = `
-          <div class="py-14 text-center text-sm text-slate-500 space-y-2">
-            <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" aria-hidden="true"></i>
-            <p>타임스탬프를 새기는 중...</p>
-          </div>`;
-        return;
-      }
-
-      const uploadButtons = label => `
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="pickProofFile(true)" class="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
-            <i class="fa-solid fa-camera" aria-hidden="true"></i> 카메라로 ${label}
-          </button>
-          <button type="button" onclick="pickProofFile(false)" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5">
-            <i class="fa-solid fa-image" aria-hidden="true"></i> 앨범에서 선택
-          </button>
-        </div>`;
-
-      const p = getProof(habit.id, dateKey);
-      if (!p) {
-        body.innerHTML = `
-          <button type="button" onclick="pickProofFile(false)" class="w-full py-10 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition text-center space-y-2">
-            <i class="fa-solid fa-camera-retro text-3xl text-slate-300" aria-hidden="true"></i>
-            <p class="text-sm font-bold text-slate-600">인증 사진을 올려주세요</p>
-            <p class="text-[11px] text-slate-400 px-6 leading-relaxed">사진의 촬영 시각(EXIF)을 읽어 날짜가 맞는지 확인하고,<br>사진 하단에 시각 · 습관명 타임스탬프를 새겨 저장합니다.</p>
-          </button>
-          ${uploadButtons('촬영')}
-          <p class="text-[11px] text-slate-400">💡 업로드하면 미기록 상태인 날은 자동으로 <b class="text-indigo-600">✔ 100% 완수</b>로 체크됩니다.</p>`;
-        return;
-      }
-
-      const status = p.verified
-        ? `<div class="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800"><span>✅</span><span><b>촬영일 일치</b> · 인증 날짜에 찍은 사진입니다.</span></div>`
-        : `<div class="flex items-start gap-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800"><span>⚠️</span><span><b>촬영일 불일치</b> · 사진은 ${escapeHtml(keyLabel(formatDateKey(new Date(p.takenAt))))}에 찍혔습니다.</span></div>`;
-      const sourceLabel = p.timeSource === 'exif' ? '사진 촬영 정보(EXIF)' : '파일 수정 시각 (촬영 정보 없음)';
-
-      body.innerHTML = `
-        <div class="rounded-xl overflow-hidden bg-slate-900">
-          <img src="${p.dataUrl}" alt="${escapeHtml(habit.name)} ${escapeHtml(keyLabel(dateKey))} 인증 사진" class="w-full max-h-[50vh] object-contain">
-        </div>
-        ${status}
-        <dl class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
-          <dt class="text-slate-400 font-semibold">촬영 시각</dt><dd class="text-slate-800 font-bold">${escapeHtml(formatDateTime(p.takenAt))}</dd>
-          <dt class="text-slate-400 font-semibold">시각 출처</dt><dd class="text-slate-600">${sourceLabel}</dd>
-          <dt class="text-slate-400 font-semibold">업로드</dt><dd class="text-slate-600">${escapeHtml(formatDateTime(p.uploadedAt))}</dd>
-        </dl>
-        ${uploadButtons('다시 찍기')}
-        <div class="flex justify-between gap-2 pt-1">
-          <button type="button" onclick="downloadProof()" class="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
-            <i class="fa-solid fa-download" aria-hidden="true"></i> 사진 저장
-          </button>
-          <button type="button" onclick="deleteProof()" class="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition flex items-center gap-1.5">
-            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> 인증 사진 삭제
-          </button>
-        </div>`;
-    }
-
-    async function handleProofFile(event) {
-      const file = event.target.files && event.target.files[0];
-      event.target.value = '';
-      if (!file || !proofTarget || proofBusy) return;
-      const { habitId, dateKey } = proofTarget;
-      const habit = findHabit(habitId);
-      if (!habit) return;
-
-      proofBusy = true;
-      renderProofModal();
-      let result;
-      try {
-        result = await processProofImage(file, habit.name);
-      } catch (e) {
-        proofBusy = false;
-        renderProofModal();
-        showToast('이미지를 읽을 수 없습니다. JPG/PNG 사진을 사용해 주세요.');
-        return;
-      }
-      proofBusy = false;
-
-      const takenKey = formatDateKey(new Date(result.takenAt));
-      const verified = takenKey === dateKey;
-      if (!verified && !confirm(`사진 촬영일(${keyLabel(takenKey)})이 인증 날짜(${keyLabel(dateKey)})와 다릅니다.\n'촬영일 불일치'로 표시해서 저장할까요?`)) {
-        renderProofModal();
-        return;
-      }
-
-      const rec = {
-        key: proofKey(habitId, dateKey),
-        habitId,
-        dateKey,
-        ...result,
-        uploadedAt: new Date().toISOString(),
-        verified
-      };
-      photos[rec.key] = rec;
-      persistPhotos(() => photoDb.put(rec));
-
-      const autoChecked = getLogState(habit.logs, dateKey) === 0;
-      if (autoChecked) {
-        setLog(habit, dateKey, 2);
-        saveData();
-      }
-      renderAll();
-      renderProofModal();
-      showToast(verified
-        ? `📸 인증 완료!${autoChecked ? ' 100% 완수로 체크했습니다.' : ''}`
-        : '⚠️ 촬영일 불일치로 저장했습니다.');
-    }
-
-    function deleteProof() {
-      if (!proofTarget) return;
-      const { habitId, dateKey } = proofTarget;
-      if (!getProof(habitId, dateKey)) return;
-      if (!confirm('이 인증 사진을 삭제하시겠습니까?\n(체크 기록은 그대로 유지됩니다)')) return;
-      removePhotosWhere(p => p.habitId === habitId && p.dateKey === dateKey);
-      renderAll();
-      renderProofModal();
-      showToast('인증 사진을 삭제했습니다.');
-    }
-
-    function downloadProof() {
-      if (!proofTarget) return;
-      const p = getProof(proofTarget.habitId, proofTarget.dateKey);
-      const habit = findHabit(proofTarget.habitId);
-      if (!p || !habit) return;
-      const a = document.createElement('a');
-      a.href = p.dataUrl;
-      a.download = `인증_${habit.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)}_${p.dateKey}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-
-    function resetCurrentWeek() {
-      if (!confirm('이번 주(월~일) 체크 기록과 인증 사진을 모두 초기화하시겠습니까?')) return;
-      habits.forEach(h => currentWeekKeys.forEach(k => delete h.logs[k]));
-      removePhotosWhere(p => currentWeekKeys.includes(p.dateKey));
-      saveData();
-      renderAll();
-      showToast('초기화되었습니다.');
-    }
-
-    function loadDefaultHabits() {
-      if (!confirm('샘플 데이터로 복원하시겠습니까?\n기존 인증 사진도 모두 삭제됩니다.')) return;
-      habits = createSampleHabits();
-      removePhotosWhere(() => true);
-      selectedHeatmapHabitId = 'ALL';
-      saveData();
-      renderAll();
-      showToast('복원되었습니다.');
-    }
-
-    function changeMonth(delta) {
-      viewMonth += delta;
-      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-      else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-      renderAll();
-    }
-
-    function goTodayMonth() {
+  function changeMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderAll();
+  }
+  function goTodayMonth() {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    renderAll();
+  }
+  function selectHeatmapFilter(habitId) {
+    selectedHeatmapHabitId = habitId === 'ALL' || findHabit(habitId) ? habitId : 'ALL';
+    renderAll();
+  }
+  function refreshDates() {
+    const prevToday = todayKey;
+    const prevYear = today.getFullYear(), prevMonth = today.getMonth();
+    computeDates();
+    if (todayKey === prevToday) return;
+    if (viewYear === prevYear && viewMonth === prevMonth) {
       viewYear = today.getFullYear();
       viewMonth = today.getMonth();
-      renderAll();
     }
+    renderAll();
+  }
 
-    function selectHeatmapFilter(habitId) {
-      selectedHeatmapHabitId = habitId === 'ALL' || findHabit(habitId) ? habitId : 'ALL';
-      renderAll();
-    }
-
-    function refreshDates() {
-      const prevToday = todayKey;
-      const prevYear = today.getFullYear(), prevMonth = today.getMonth();
-      computeDates();
-      if (todayKey === prevToday) return;
-      if (viewYear === prevYear && viewMonth === prevMonth) {
-        viewYear = today.getFullYear();
-        viewMonth = today.getMonth();
-      }
-      renderAll();
-    }
-
-    function renderCategoryOptions() {
-      return CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(CATEGORY_LABELS[c])}</option>`).join('');
-    }
-
-    function renderAll() {
-      renderHeaderInfo();
-      renderIdentityCards();
-      renderWeeklyBoard();
-      renderHeatmapSection();
-      renderProofGallery();
-      updateKPIStats();
-    }
-
-    function renderProofGallery() {
-      const isAll = selectedHeatmapHabitId === 'ALL';
-      const prefix = `${viewYear}-${pad(viewMonth + 1)}-`;
-      const list = Object.values(photos)
-        .filter(p => p.dateKey.startsWith(prefix) && findHabit(p.habitId) && (isAll || p.habitId === selectedHeatmapHabitId))
-        .sort((a, b) => b.dateKey.localeCompare(a.dateKey) || b.takenAt.localeCompare(a.takenAt));
-      const verifiedCnt = list.filter(p => p.verified).length;
-
-      const target = isAll ? '전체 습관' : (findHabit(selectedHeatmapHabitId) || {}).name;
-      document.getElementById('proof-gallery-help').textContent =
-        `${viewYear}년 ${viewMonth + 1}월 · ${target} — 히트맵의 월/습관 선택을 따라갑니다. 주간 보드의 📷 버튼으로 올리세요.`;
-      document.getElementById('proof-gallery-count').textContent = `📸 ${list.length}장 · 촬영일 일치 ${verifiedCnt}장`;
-
-      const grid = document.getElementById('proof-gallery-grid');
-      if (list.length === 0) {
-        grid.innerHTML = `
-          <div class="col-span-full py-10 text-center text-xs text-slate-400 space-y-2">
-            <i class="fa-solid fa-images text-3xl text-slate-200" aria-hidden="true"></i>
-            <p>이 달에는 인증 사진이 없습니다. 주간 보드 체크 버튼 옆 <b class="text-slate-500">📷</b>을 눌러 첫 인증을 남겨보세요.</p>
-          </div>`;
-        return;
-      }
-      grid.innerHTML = list.map(p => {
-        const h = findHabit(p.habitId);
-        const badge = p.verified
-          ? '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold shadow">✅ 일치</span>'
-          : '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-orange-400 text-white text-[10px] font-bold shadow">⚠️ 불일치</span>';
-        return `
-          <button type="button" data-action="proof" data-id="${escapeHtml(p.habitId)}" data-date="${p.dateKey}"
-            class="proof-thumb group text-left rounded-xl overflow-hidden border border-slate-200/80 bg-white hover:shadow-md transition">
-            <div class="relative aspect-square overflow-hidden bg-slate-100">
-              <img src="${p.dataUrl}" alt="${escapeHtml(h.name)} ${escapeHtml(keyLabel(p.dateKey))} 인증 사진" loading="lazy" class="w-full h-full object-cover">
-              ${badge}
-            </div>
-            <div class="p-2 space-y-0.5">
-              <p class="text-[11px] font-extrabold text-slate-800">${escapeHtml(keyLabel(p.dateKey))} · ${escapeHtml(formatDateTime(p.takenAt).slice(-5))}</p>
-              <p class="text-[11px] text-slate-500 truncate">${escapeHtml(h.name)}</p>
-            </div>
-          </button>`;
-      }).join('');
-    }
-
-    function renderHeaderInfo() {
-      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-      document.getElementById('current-date-display').textContent =
-        `오늘 기준: ${today.toLocaleDateString('ko-KR', dateOptions)} · 작은 반복이 정체성을 증명합니다`;
-      const s = currentWeekDates[0], e = currentWeekDates[6];
-      document.getElementById('week-range-label').textContent =
-        `이번 주 범위: ${s.getMonth() + 1}.${s.getDate()}(월) ~ ${e.getMonth() + 1}.${e.getDate()}(일)`;
-    }
-
-    function renderIdentityCards() {
-      const container = document.getElementById('identity-cards-container');
-      if (habits.length === 0) {
-        container.innerHTML = `<div class="col-span-3 text-xs text-slate-400 py-4 text-center">등록된 정체성이 없습니다.</div>`;
-        return;
-      }
-      container.innerHTML = habits.map(h => {
-        const { full, min, votes } = countVotes(h);
-        const badgeClass = categoryStyles[h.category] || categoryStyles['생활습관'];
-        return `
-          <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass} mb-1">${escapeHtml(h.category)}</span>
-              <p class="text-xs font-extrabold text-slate-800 truncate">🪪 "${escapeHtml(h.identity)}"</p>
-              <p class="text-[11px] text-slate-500 truncate mt-0.5">완수 ${full} · 2분실행 ${min}</p>
-            </div>
-            <div class="text-right shrink-0 bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-sm">
-              <span class="block text-[10px] font-bold text-purple-500">투표</span>
-              <span class="text-sm font-extrabold text-purple-700">🗳️ ${votes}표</span>
-            </div>
-          </div>`;
-      }).join('');
-    }
-
-    function renderWeeklyBoard() {
-      let headHtml = `<th scope="col" class="py-3.5 px-5 w-80">아토믹 해빗 시스템 (정체성 · 2분 규칙)</th>`;
-      currentWeekDates.forEach((d, idx) => {
-        const dKey = currentWeekKeys[idx];
-        const isToday = dKey === todayKey;
-        const dayColor = idx === 5 ? 'text-indigo-600' : idx === 6 ? 'text-rose-500' : '';
-        headHtml += `
-          <th scope="col" class="py-3 px-2 text-center w-14 ${isToday ? 'today-col font-extrabold text-indigo-700' : dayColor}">
-            <div>${DAYS_KR[idx]}</div>
-            <div class="text-[11px] font-normal ${isToday ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${d.getDate()}일</div>
-          </th>`;
-      });
-      headHtml += `
-        <th scope="col" class="py-3.5 px-3 text-center w-28">연속 스트릭</th>
-        <th scope="col" class="py-3.5 px-4 w-40">주간 궤도 유지율</th>
-        <th scope="col" class="py-3.5 px-3 text-center w-36">관리</th>`;
-      document.getElementById('week-table-head').innerHTML = headHtml;
-
-      const tbody = document.getElementById('habit-tbody');
-      if (habits.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">등록된 습관 시스템이 없습니다.</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = habits.map((habit, index) => {
-        const id = escapeHtml(habit.id);
-        const safeName = escapeHtml(habit.name);
-        const weekStates = currentWeekKeys.map(k => getLogState(habit.logs, k));
-        const fullDays = weekStates.filter(s => s === 2).length;
-        const minDays = weekStates.filter(s => s === 1).length;
-        const eligible = countEligibleDays(habit, currentWeekKeys);
-        const orbitRate = eligible ? Math.round(((fullDays + minDays) / eligible) * 100) : 0;
-        const fullPct = eligible ? Math.round((fullDays / eligible) * 100) : 0;
-        const minPct = eligible ? Math.min(100 - fullPct, Math.round((minDays / eligible) * 100)) : 0;
-        const streak = calculateStreak(habit);
-        const isRisk = isNeverMissTwiceRisk(habit);
-        const badgeClass = categoryStyles[habit.category] || categoryStyles['생활습관'];
-
-        const dayCells = currentWeekKeys.map((dKey, idx) => {
-          const state = weekStates[idx];
-          const isToday = dKey === todayKey;
-          const future = isFutureKey(dKey);
-          let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500';
-          let iconHtml = `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
-          let nextHint = '1번 클릭: ⚡ 2분 최소실행';
-          if (future) {
-            btnStyle = 'bg-slate-50 border-dashed border-slate-200 text-slate-200';
-            nextHint = '예정';
-          } else if (state === 1) {
-            btnStyle = 'bg-amber-400 border-amber-500 text-slate-900 shadow-sm shadow-amber-100';
-            iconHtml = `<i class="fa-solid fa-bolt text-xs" aria-hidden="true"></i>`;
-            nextHint = '현재: ⚡ 2분 최소실행 (클릭 시 ✔ 100% 완수)';
-          } else if (state === 2) {
-            btnStyle = 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200';
-            iconHtml = `<i class="fa-solid fa-check" aria-hidden="true"></i>`;
-            nextHint = '현재: ✔ 100% 완수 (클릭 시 해제)';
-          }
-          const label = `${safeName} ${DAYS_KR[idx]}요일 ${future ? '예정' : STATE_LABEL[state]}`;
-          const proof = future ? null : getProof(habit.id, dKey);
-          let proofHtml = '';
-          if (!future) {
-            const proofCls = !proof
-              ? 'bg-white border-slate-200 text-slate-300 hover:text-indigo-600 hover:border-indigo-300'
-              : proof.verified
-                ? 'bg-emerald-500 border-white text-white shadow'
-                : 'bg-orange-400 border-white text-white shadow';
-            const proofTitle = !proof ? '📷 타임스탬프 사진으로 인증하기'
-              : proof.verified ? `📸 인증 완료 (${formatDateTime(proof.takenAt)})` : `⚠️ 촬영일 불일치 (${formatDateTime(proof.takenAt)})`;
-            proofHtml = `
-              <button type="button" data-action="proof" data-id="${id}" data-date="${dKey}"
-                aria-label="${safeName} ${DAYS_KR[idx]}요일 사진 인증 ${proof ? '보기' : '올리기'}" title="${escapeHtml(proofTitle)}"
-                class="proof-badge absolute -top-2 -right-2 w-5 h-5 rounded-full border text-[9px] inline-flex items-center justify-center ${proofCls}">
-                <i class="fa-solid fa-camera" aria-hidden="true"></i>
-              </button>`;
-          }
-          return `
-            <td class="py-3.5 px-2 text-center ${isToday ? 'today-col' : ''}">
-              <div class="relative inline-block">
-                <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
-                  aria-label="${label}" title="${nextHint}"
-                  class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
-                  ${iconHtml}
-                </button>${proofHtml}
-              </div>
-            </td>`;
-        }).join('');
-
-        const riskBadgeHtml = isRisk ? `<span class="never-miss-badge inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-extrabold rounded-md bg-rose-100 text-rose-700 border border-rose-300 ml-1">🚨 절대 두 번 거르지 마라!</span>` : '';
-
-        return `
-          <tr class="transition ${isRisk ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50/80'}">
-            <td class="py-3.5 px-5 space-y-1">
-              <div class="flex flex-wrap items-center gap-1">
-                <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass}">${escapeHtml(habit.category)}</span>
-                <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🪪 ${escapeHtml(habit.identity)}</span>
-                ${riskBadgeHtml}
-              </div>
-              <p class="font-bold text-slate-900 leading-snug break-words">${safeName}</p>
-              <p class="text-xs font-semibold text-amber-700 flex items-center gap-1">
-                <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡ 2분 규칙</span>
-                <span>${escapeHtml(habit.twoMinRule)}</span>
-              </p>
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 pt-0.5">
-                <span>📍 <b>신호:</b> ${escapeHtml(habit.cue || '-')}</span>
-                <span>🎁 <b>보상:</b> ${escapeHtml(habit.reward || '-')}</span>
-              </div>
-            </td>
-            ${dayCells}
-            <td class="py-3.5 px-3 text-center">
-              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${streak >= 3 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
-                <i class="fa-solid fa-fire ${streak >= 3 ? 'text-amber-500' : 'text-slate-400'}" aria-hidden="true"></i>
-                <span>${streak}일 연속</span>
-              </div>
-            </td>
-            <td class="py-3.5 px-4">
-              <div class="flex items-center justify-between text-xs font-bold mb-1">
-                <span class="${orbitRate === 100 ? 'text-emerald-600' : 'text-slate-700'}">${orbitRate}% 궤도유지</span>
-                <span class="text-[11px] text-slate-400">⚡${minDays} · ✔${fullDays}</span>
-              </div>
-              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex" role="progressbar" aria-label="${safeName} 주간 궤도 유지율" aria-valuenow="${orbitRate}" aria-valuemin="0" aria-valuemax="100">
-                <div class="h-full bg-indigo-600 transition-all duration-300" style="width:${fullPct}%"></div>
-                <div class="h-full bg-amber-400 transition-all duration-300" style="width:${minPct}%"></div>
-              </div>
-            </td>
-            <td class="py-3.5 px-2 text-center whitespace-nowrap">
-              <button type="button" data-action="up" data-id="${id}" ${index === 0 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="위로" aria-label="${safeName} 위로 이동"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-              <button type="button" data-action="down" data-id="${id}" ${index === habits.length - 1 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="아래로" aria-label="${safeName} 아래로 이동"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
-              <button type="button" data-action="edit" data-id="${id}" class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="수정" aria-label="${safeName} 수정"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-              <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제" aria-label="${safeName} 삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
-            </td>
-          </tr>`;
-      }).join('');
-    }
-
-    function renderHeatmapSection() {
-      if (selectedHeatmapHabitId !== 'ALL' && !findHabit(selectedHeatmapHabitId)) selectedHeatmapHabitId = 'ALL';
-      const isAll = selectedHeatmapHabitId === 'ALL';
-
-      document.getElementById('heatmap-month-label').textContent = `${viewYear}년 ${viewMonth + 1}월`;
-      document.getElementById('mini-summary-month').textContent = `${viewMonth + 1}월 기준`;
-      document.getElementById('heatmap-help').textContent = isAll
-        ? '날짜를 누르면 미기록 습관만 완수로 채웁니다.'
-        : '날짜를 누를 때마다 1번: 2분 최소실행(⚡) → 2번: 100% 완수(✔) → 해제 순으로 바뀝니다.';
-
-      const tabClass = active => active
-        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
-      let tabsHtml = `<button type="button" role="tab" aria-selected="${isAll}" data-action="filter" data-id="ALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${tabClass(isAll)}">🌱 전체 통합 잔디 (${habits.length})</button>`;
-      habits.forEach(h => {
-        const active = selectedHeatmapHabitId === h.id;
-        tabsHtml += `<button type="button" role="tab" aria-selected="${active}" data-action="filter" data-id="${escapeHtml(h.id)}" title="${escapeHtml(h.name)}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border truncate max-w-[230px] ${tabClass(active)}">${escapeHtml(h.name)}</button>`;
-      });
-      document.getElementById('heatmap-filter-tabs').innerHTML = tabsHtml;
-
-      const keys = monthKeys(viewYear, viewMonth);
-      const firstDay = new Date(viewYear, viewMonth, 1);
-      const startOffset = (firstDay.getDay() + 6) % 7;
-      const targetHabit = isAll ? null : findHabit(selectedHeatmapHabitId);
-
-      const photoDays = new Set(Object.values(photos)
-        .filter(p => isAll ? findHabit(p.habitId) : p.habitId === selectedHeatmapHabitId)
-        .map(p => p.dateKey));
-
-      let gridHtml = '<div class="h-12" aria-hidden="true"></div>'.repeat(startOffset);
-      keys.forEach((dKey, i) => {
-        const day = i + 1;
-        const isToday = dKey === todayKey;
-        const future = isFutureKey(dKey);
-        let levelClass = 'grass-lv-0', bottomLabel = '-';
-
-        if (future) {
-          levelClass = 'grass-future';
-          bottomLabel = '';
-        } else if (isAll) {
-          const pool = habits.filter(h => h.createdAt <= dKey);
-          let fullCnt = 0, minCnt = 0;
-          pool.forEach(h => {
-            const st = getLogState(h.logs, dKey);
-            if (st === 2) fullCnt++;
-            else if (st === 1) minCnt++;
-          });
-          const total = pool.length;
-          const activeCnt = fullCnt + minCnt;
-          const ratio = total > 0 ? activeCnt / total : 0;
-          if (activeCnt > 0 && fullCnt === 0) levelClass = 'grass-lv-min';
-          else if (ratio > 0 && ratio <= 0.34) levelClass = 'grass-lv-1';
-          else if (ratio > 0.34 && ratio <= 0.67) levelClass = 'grass-lv-2';
-          else if (ratio > 0.67 && ratio < 1) levelClass = 'grass-lv-3';
-          else if (ratio === 1 && total > 0) levelClass = 'grass-lv-4';
-          bottomLabel = total > 0 ? `${activeCnt}/${total}` : '-';
-        } else {
-          const st = targetHabit ? getLogState(targetHabit.logs, dKey) : 0;
-          if (st === 2) { levelClass = 'grass-lv-4'; bottomLabel = '✔ 완수'; }
-          else if (st === 1) { levelClass = 'grass-lv-min'; bottomLabel = '⚡ 2분'; }
+  // ===== 사진 인증: EXIF 촬영시각 읽기 + 타임스탬프 새기기 =====
+  function readExifDate(buffer) {
+    try {
+      const view = new DataView(buffer);
+      if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
+      let offset = 2;
+      while (offset + 4 <= view.byteLength) {
+        const marker = view.getUint16(offset);
+        if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) return null;
+        const size = view.getUint16(offset + 2);
+        if (marker === 0xFFE1) {
+          const d = parseExifSegment(view, offset + 4);
+          if (d) return d;
         }
-
-        gridHtml += `
-          <button type="button" data-action="cell" data-date="${dKey}" ${future ? 'disabled' : ''}
-            class="grass-cell h-12 rounded-xl border p-1.5 flex flex-col justify-between items-center ${levelClass} ${isToday ? 'ring-2 ring-indigo-600 ring-offset-1' : ''}">
-            <span class="w-full flex items-start justify-between text-xs font-bold leading-none"><span>${day}</span>${photoDays.has(dKey) ? '<i class="fa-solid fa-camera text-[9px] opacity-80" aria-label="사진 인증 있음"></i>' : ''}</span>
-            <span class="text-[10px] font-bold opacity-95">${bottomLabel}</span>
-          </button>`;
-      });
-      document.getElementById('heatmap-calendar-grid').innerHTML = gridHtml;
-
-      const barsEl = document.getElementById('habit-monthly-bars');
-      if (habits.length === 0) {
-        barsEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">등록된 습관이 없습니다.</p>`;
-        return;
+        offset += 2 + size;
       }
-      barsEl.innerHTML = habits.map(h => {
-        let monthFull = 0, monthMin = 0, squares = '';
-        keys.forEach(dKey => {
-          const st = getLogState(h.logs, dKey);
-          let sq = 'bg-slate-200';
-          if (isFutureKey(dKey) || dKey < h.createdAt) sq = 'bg-slate-100';
-          if (st === 2) { monthFull++; sq = 'bg-emerald-500'; }
-          else if (st === 1) { monthMin++; sq = 'bg-amber-400'; }
-          squares += `<span class="w-2.5 h-2.5 rounded-[2px] inline-block ${sq}"></span>`;
-        });
-        const eligible = countEligibleDays(h, keys);
-        const rateText = eligible ? `${Math.round(((monthFull + monthMin) / eligible) * 100)}%` : '-';
-        return `
-          <div class="bg-white p-3 rounded-xl border border-slate-200/70 space-y-1.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-slate-700 truncate pr-2">${escapeHtml(h.name)}</span>
-              <span class="font-extrabold text-emerald-600 shrink-0">⚡${monthMin} · ✔${monthFull} (${rateText})</span>
-            </div>
-            <div class="flex flex-wrap gap-1 pt-0.5">${squares}</div>
-          </div>`;
-      }).join('');
+    } catch (e) { /* 손상된 EXIF는 무시 */ }
+    return null;
+  }
+  function parseExifSegment(view, start) {
+    if (view.getUint32(start) !== 0x45786966) return null; // "Exif"
+    const tiff = start + 6;
+    const little = view.getUint16(tiff) === 0x4949;
+    const u16 = o => view.getUint16(o, little);
+    const u32 = o => view.getUint32(o, little);
+    const readAscii = (o, n) => {
+      let s = '';
+      for (let i = 0; i < n; i++) {
+        const c = view.getUint8(o + i);
+        if (!c) break;
+        s += String.fromCharCode(c);
+      }
+      return s;
+    };
+    const scanIfd = ifdOffset => {
+      const base = tiff + ifdOffset;
+      const n = u16(base);
+      const out = {};
+      for (let i = 0; i < n; i++) {
+        const e = base + 2 + i * 12;
+        const tag = u16(e), type = u16(e + 2), count = u32(e + 4);
+        if (tag === 0x8769) out.exifPtr = u32(e + 8);
+        else if ((tag === 0x9003 || tag === 0x9004 || tag === 0x0132) && type === 2) {
+          out[tag] = readAscii(count > 4 ? tiff + u32(e + 8) : e + 8, count);
+        }
+      }
+      return out;
+    };
+    const ifd0 = scanIfd(u32(tiff + 4));
+    const exif = ifd0.exifPtr ? scanIfd(ifd0.exifPtr) : {};
+    const str = exif[0x9003] || exif[0x9004] || ifd0[0x0132] || '';
+    const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(str);
+    if (!m || m[1] === '0000') return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    return isNaN(d) ? null : d;
+  }
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+      img.src = url;
+    });
+  }
+  function fitText(ctx, text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let s = text;
+    while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) s = s.slice(0, -1);
+    return s + '…';
+  }
+  function drawTimestamp(ctx, w, h, takenAt, habitName) {
+    const base = Math.max(14, Math.round(Math.min(w, h) * 0.045));
+    const gap = Math.round(base * 0.8);
+    const fadeH = Math.round(base * 5);
+    const grad = ctx.createLinearGradient(0, h - fadeH, 0, h);
+    grad.addColorStop(0, 'rgba(15,23,42,0)');
+    grad.addColorStop(1, 'rgba(15,23,42,0.8)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h - fadeH, w, fadeH);
+    const font = "'Noto Sans KR', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+    const line1Y = h - gap - Math.round(base * 1.3);
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = Math.round(base * 0.3);
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `800 ${Math.round(base * 1.7)}px ${font}`;
+    ctx.fillText(`${pad(takenAt.getHours())}:${pad(takenAt.getMinutes())}`, gap, line1Y);
+    ctx.font = `600 ${base}px ${font}`;
+    ctx.fillText(`${takenAt.getFullYear()}.${pad(takenAt.getMonth() + 1)}.${pad(takenAt.getDate())} (${WEEKDAY_KR[takenAt.getDay()]})`, gap, h - gap);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fcd34d';
+    ctx.font = `800 ${Math.round(base * 0.85)}px ${font}`;
+    ctx.fillText('ATOMIC HABIT 인증', w - gap, line1Y);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `600 ${Math.round(base * 0.9)}px ${font}`;
+    ctx.fillText(fitText(ctx, habitName, w * 0.5), w - gap, h - gap);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left';
+  }
+  async function processProofImage(file, habitName) {
+    const exifDate = readExifDate(await file.arrayBuffer());
+    const takenAt = exifDate || new Date(file.lastModified || Date.now());
+    const img = await loadImageFromFile(file);
+    const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    drawTimestamp(ctx, w, h, takenAt, habitName);
+    const blob = await new Promise((resolve, reject) =>
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', 0.82));
+    return { blob, takenAt: takenAt.toISOString(), timeSource: exifDate ? 'exif' : 'file' };
+  }
+
+  // 사진 기록 저장/삭제 (Storage 파일 + habit_proofs 행)
+  async function saveProofRecord(habitId, dateKey, blob, takenAt, timeSource, uploadedAt) {
+    const key = proofDocId(habitId, dateKey);
+    const old = photos[key];
+    const path = `${userId}/${key}_${Date.now()}.jpg`;
+    const up = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw up.error;
+    const row = { user_id: userId, habit_id: habitId, date_key: dateKey, path, taken_at: takenAt, time_source: timeSource, uploaded_at: uploadedAt };
+    const { error } = await sb.from('habit_proofs').upsert(row);
+    if (error) {
+      sb.storage.from(PHOTO_BUCKET).remove([path]);
+      throw error;
     }
-
-    function updateKPIStats() {
-      const totalHabits = habits.length;
-      let todayFull = 0, todayMin = 0, riskCount = 0, bestStreak = 0;
-      let totalActionsCount = 0, totalWeightedVotes = 0;
-
-      habits.forEach(h => {
-        const tState = getLogState(h.logs, todayKey);
-        if (tState === 2) todayFull++;
-        else if (tState === 1) todayMin++;
-        if (isNeverMissTwiceRisk(h)) riskCount++;
-        bestStreak = Math.max(bestStreak, calculateStreak(h));
-        const { full, min, votes } = countVotes(h);
-        totalActionsCount += full + min;
-        totalWeightedVotes += votes;
-      });
-
-      const todayActive = todayFull + todayMin;
-      const todayRate = totalHabits > 0 ? Math.round((todayActive / totalHabits) * 100) : 0;
-      const compoundMultiplier = Math.pow(1.01, totalWeightedVotes);
-      const valleyPercent = Math.min(100, totalActionsCount);
-
-      document.getElementById('stat-today').textContent = `${todayRate}%`;
-      document.getElementById('stat-today-sub').textContent = `완수 ${todayFull} · 2분실행 ${todayMin}`;
-      document.getElementById('stat-compound').textContent = `${compoundMultiplier.toFixed(2)}배`;
-      document.getElementById('stat-compound-sub').textContent = `1.01^${totalWeightedVotes} · +${Math.round((compoundMultiplier - 1) * 100)}%`;
-      document.getElementById('stat-votes').textContent = `총 ${totalWeightedVotes}표`;
-      document.getElementById('stat-votes-sub').textContent = `총 ${totalActionsCount}회 실천`;
-      document.getElementById('stat-best-streak').textContent = `${bestStreak}일`;
-      document.getElementById('stat-alert-count').textContent = `${riskCount}건`;
-      document.getElementById('stat-alert-sub').textContent = riskCount > 0 ? `🚨 2분실행 필요!` : `궤도 순항 중`;
-
-      const currentTemp = (-10 + (totalActionsCount * 0.1)).toFixed(1);
-      document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 임계점 돌파!` : `❄️ 현재 온도: ${currentTemp}°C`;
-      document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 (${valleyPercent}%)`;
-      document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
+    const rec = sanitizeProof(row);
+    rec.url = URL.createObjectURL(blob);   // 방금 올린 사진은 바로 표시
+    photos[key] = rec;
+    if (old && old.path !== path) sb.storage.from(PHOTO_BUCKET).remove([old.path]);
+    return rec;
+  }
+  async function removeProofs(pred) {
+    const targets = Object.values(photos).filter(pred);
+    if (!targets.length || !sb) return;
+    targets.forEach(p => delete photos[p.key]);
+    for (const p of targets) {
+      const { error } = await sb.from('habit_proofs').delete()
+        .match({ user_id: userId, habit_id: p.habitId, date_key: p.dateKey });
+      if (error) { reportDbError(error); continue; }
+      await sb.storage.from(PHOTO_BUCKET).remove([p.path]);
     }
+  }
+  // 비공개 버킷이라 사진마다 1시간짜리 서명 URL을 받아 표시
+  async function signProofUrls(list) {
+    const need = list.filter(p => !p.url);
+    if (!need.length) return;
+    const { data, error } = await sb.storage.from(PHOTO_BUCKET).createSignedUrls(need.map(p => p.path), 3600);
+    if (error || !data) return;
+    const byPath = {};
+    data.forEach(d => { if (d.signedUrl) byPath[d.path] = d.signedUrl; });
+    need.forEach(p => { if (byPath[p.path]) p.url = byPath[p.path]; });
+  }
 
-    function downloadBlob(blob, filename) {
+  // ===== 사진 인증 모달 =====
+  function openProofModal(habitId, dateKey) {
+    if (!isDateKey(dateKey) || isFutureKey(dateKey) || !findHabit(habitId)) return;
+    proofTarget = { habitId, dateKey };
+    proofBusy = false;
+    renderProofModal();
+    showModal('proof-modal');
+  }
+  function closeProofModal() {
+    proofTarget = null;
+    hideModal('proof-modal');
+  }
+  function renderProofModal() {
+    if (!proofTarget) return;
+    const habit = findHabit(proofTarget.habitId);
+    if (!habit) { closeProofModal(); return; }
+    const { dateKey } = proofTarget;
+    const d = parseDateKey(dateKey);
+    document.getElementById('proof-modal-sub').textContent = `${habit.name} · ${keyLabel(dateKey)}(${WEEKDAY_KR[d.getDay()]})`;
+    const body = document.getElementById('proof-modal-body');
+
+    if (!photosEnabled()) {
+      body.innerHTML = `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
+          사진 인증은 로그인한 상태에서 쓸 수 있습니다. 로그인한 뒤 다시 열어 주세요.
+        </div>`;
+      return;
+    }
+    if (proofBusy) {
+      body.innerHTML = `
+        <div class="py-14 text-center text-sm text-slate-500 space-y-2">
+          <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" aria-hidden="true"></i>
+          <p>타임스탬프를 새기고 올리는 중...</p>
+        </div>`;
+      return;
+    }
+    const uploadButtons = label => `
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" data-action="pick-camera" class="px-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-camera" aria-hidden="true"></i> ${label}
+        </button>
+        <button type="button" data-action="pick-album" class="px-3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-image" aria-hidden="true"></i> 앨범에서 선택
+        </button>
+      </div>`;
+
+    const p = getProof(habit.id, dateKey);
+    if (!p) {
+      body.innerHTML = `
+        <button type="button" data-action="pick-camera" class="w-full py-10 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition text-center space-y-2">
+          <i class="fa-solid fa-camera-retro text-3xl text-slate-300" aria-hidden="true"></i>
+          <p class="text-sm font-bold text-slate-600">눌러서 바로 촬영하기</p>
+          <p class="text-[11px] text-slate-400 px-6 leading-relaxed">사진의 촬영 시각을 읽어 날짜가 맞는지 확인하고,<br>사진 아래에 시각 · 습관명을 새겨 저장합니다.</p>
+        </button>
+        ${uploadButtons('카메라로 촬영')}
+        <p class="text-[11px] text-slate-400">💡 기록이 없는 날에 올리면 자동으로 <b class="text-indigo-600">✔ 100% 완수</b>로 체크됩니다.</p>`;
+      return;
+    }
+    const status = p.verified
+      ? `<div class="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800"><span>✅</span><span><b>촬영일 일치</b> · 인증 날짜에 찍은 사진입니다.</span></div>`
+      : `<div class="flex items-start gap-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800"><span>⚠️</span><span><b>촬영일 불일치</b> · 사진은 ${escapeHtml(keyLabel(formatDateKey(new Date(p.takenAt))))}에 찍혔습니다.</span></div>`;
+    const sourceLabel = p.timeSource === 'exif' ? '사진 촬영 정보(EXIF)' : '파일 시각 (촬영 정보 없음)';
+    body.innerHTML = `
+      <div class="rounded-xl overflow-hidden bg-slate-900">
+        <img src="${escapeHtml(proofUrl(p))}" alt="${escapeHtml(habit.name)} ${escapeHtml(keyLabel(dateKey))} 인증 사진" class="w-full max-h-[50vh] object-contain">
+      </div>
+      ${status}
+      <dl class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+        <dt class="text-slate-400 font-semibold">촬영 시각</dt><dd class="text-slate-800 font-bold tabular">${escapeHtml(formatDateTime(p.takenAt))}</dd>
+        <dt class="text-slate-400 font-semibold">시각 출처</dt><dd class="text-slate-600">${sourceLabel}</dd>
+        <dt class="text-slate-400 font-semibold">업로드</dt><dd class="text-slate-600 tabular">${escapeHtml(formatDateTime(p.uploadedAt))}</dd>
+      </dl>
+      ${uploadButtons('다시 찍기')}
+      <div class="flex justify-between gap-2 pt-1">
+        <button type="button" data-action="proof-download" class="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+          <i class="fa-solid fa-download" aria-hidden="true"></i> 사진 저장
+        </button>
+        <button type="button" data-action="proof-delete" class="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition flex items-center gap-1.5">
+          <i class="fa-solid fa-trash-can" aria-hidden="true"></i> 인증 사진 삭제
+        </button>
+      </div>`;
+  }
+
+  async function handleProofFile(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file || !proofTarget || proofBusy || !photosEnabled()) return;
+    const { habitId, dateKey } = proofTarget;
+    const habit = findHabit(habitId);
+    if (!habit) return;
+
+    proofBusy = true;
+    renderProofModal();
+    let result;
+    try {
+      result = await processProofImage(file, habit.name);
+    } catch (e) {
+      proofBusy = false;
+      renderProofModal();
+      showToast('이미지를 읽을 수 없습니다. JPG/PNG 사진을 사용해 주세요.');
+      return;
+    }
+    const takenKey = formatDateKey(new Date(result.takenAt));
+    const verified = takenKey === dateKey;
+    if (!verified) {
+      proofBusy = false;
+      renderProofModal();
+      const ok = await askConfirm(`사진 촬영일(${keyLabel(takenKey)})이 인증 날짜(${keyLabel(dateKey)})와 다릅니다.\n'촬영일 불일치'로 표시해서 저장할까요?`, '불일치로 저장');
+      if (!ok || !proofTarget) return;
+      proofBusy = true;
+      renderProofModal();
+    }
+    try {
+      await saveProofRecord(habitId, dateKey, result.blob, result.takenAt, result.timeSource, new Date().toISOString());
+    } catch (e) {
+      proofBusy = false;
+      renderProofModal();
+      const code = e && e.code;
+      showToast(code === 'quota_or_state' || code === 'quota_exceeded'
+        ? '사진 저장 공간이 가득 찼습니다. 오래된 인증 사진을 지워주세요.'
+        : '사진을 올리지 못했습니다. 잠시 후 다시 시도해 주세요.', 4000);
+      return;
+    }
+    proofBusy = false;
+    const autoChecked = getLogState(habit.logs, dateKey) === 0;
+    if (autoChecked) {
+      setLog(habit, dateKey, 2);
+      saveData();
+    }
+    renderAll();
+    renderProofModal();
+    showToast(verified
+      ? `📸 인증 완료!${autoChecked ? ' 100% 완수로 체크했습니다.' : ''}`
+      : '⚠️ 촬영일 불일치로 저장했습니다.');
+  }
+
+  async function deleteProof() {
+    if (!proofTarget) return;
+    const { habitId, dateKey } = proofTarget;
+    if (!getProof(habitId, dateKey)) return;
+    if (!await askConfirm('이 인증 사진을 삭제할까요?\n체크 기록은 그대로 유지됩니다.', '삭제', true)) return;
+    await removeProofs(p => p.habitId === habitId && p.dateKey === dateKey);
+    renderAll();
+    renderProofModal();
+    showToast('인증 사진을 삭제했습니다.');
+  }
+
+  // ===== 파일 저장 =====
+  async function saveFile(filename, data) {
+    try {
+      const blob = data instanceof Blob ? data : new Blob([data]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1474,161 +1173,856 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
+      return true;
+    } catch (e) {
+      showToast('파일을 저장하지 못했습니다. 노션 안에서는 막힐 수 있으니 브라우저에서 열어 주세요.', 4500);
+      return false;
     }
-
-    function exportToExcel() {
-      if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 불러오지 못했습니다.'); return; }
-      if (habits.length === 0) { showToast('데이터가 없습니다.'); return; }
-      const mark = st => (st === 2 ? 'O' : st === 1 ? '△' : '-');
-      const wb = XLSX.utils.book_new();
-
-      const weeklyHeader = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상',
-        ...currentWeekDates.map((d, i) => `${DAYS_KR[i]} (${d.getMonth() + 1}/${d.getDate()})`),
-        '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표', '사진인증'];
-      const weeklyRows = habits.map(h => {
-        const states = currentWeekKeys.map(k => getLogState(h.logs, k));
-        const active = states.filter(s => s > 0).length;
-        const eligible = countEligibleDays(h, currentWeekKeys);
-        const rate = eligible ? `${Math.round((active / eligible) * 100)}%` : '-';
-        return [h.category, h.identity, h.name, h.twoMinRule, h.cue, h.reward,
-          ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes,
-          currentWeekKeys.filter(k => getProof(h.id, k)).length];
-      });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([weeklyHeader, ...weeklyRows]), '주간시스템');
-      XLSX.writeFile(wb, `아토믹해빗_대시보드_${todayKey}.xlsx`);
+  }
+  async function downloadProof() {
+    if (!proofTarget) return;
+    const p = getProof(proofTarget.habitId, proofTarget.dateKey);
+    const habit = findHabit(proofTarget.habitId);
+    if (!p || !habit) return;
+    try {
+      const blob = await (await fetch(proofUrl(p))).blob();
+      await saveFile(`인증_${habit.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)}_${p.dateKey}.jpg`, blob);
+    } catch (e) {
+      showToast('사진을 불러오지 못했습니다.');
     }
-
-    function exportBackupJson() {
-      const payload = { app: 'atomic-habit-dashboard', version: 5, exportedAt: new Date().toISOString(), habits, photos: Object.values(photos) };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `아토믹해빗_백업_${todayKey}.json`; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importBackupJson(event) {
-      const file = event.target.files && event.target.files[0];
-      event.target.value = '';
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        let parsed = null, list = null;
-        try { parsed = JSON.parse(e.target.result); list = sanitizeHabitList(parsed); } catch (err) { list = null; }
-        if (!list) { showToast('올바른 백업 파일이 아닙니다.'); return; }
-        habits = list;
-        // 백업에 사진이 있으면 그것으로 교체, 없으면(구버전 백업) 남아있는 습관의 사진만 유지
-        const ids = new Set(list.map(h => h.id));
-        const source = parsed && Array.isArray(parsed.photos)
-          ? parsed.photos.map(p => sanitizePhoto(p, ids)).filter(Boolean)
-          : Object.values(photos).filter(p => ids.has(p.habitId));
-        photos = {};
-        source.forEach(p => { photos[p.key] = p; });
-        persistPhotos(() => photoDb.replaceAll(Object.values(photos)));
-        selectedHeatmapHabitId = 'ALL';
-        saveData();
-        renderAll();
-        showToast('복원되었습니다.');
-      };
-      reader.readAsText(file);
-    }
-
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn || btn.disabled) return;
-      const id = btn.dataset.id;
-      switch (btn.dataset.action) {
-        case 'cycle': refreshDates(); cycleDateCheck(id, btn.dataset.date); break;
-        case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
-        case 'proof': refreshDates(); openProofModal(id, btn.dataset.date); break;
-        case 'filter': selectHeatmapFilter(id); break;
-        case 'up': moveHabit(id, -1); break;
-        case 'down': moveHabit(id, 1); break;
-        case 'edit': openEditModal(id); break;
-        case 'delete': deleteHabit(id); break;
-      }
+  }
+  function exportToExcel() {
+    if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 불러오지 못했습니다.'); return; }
+    if (habits.length === 0) { showToast('데이터가 없습니다.'); return; }
+    const mark = st => (st === 2 ? 'O' : st === 1 ? '△' : '-');
+    const wb = XLSX.utils.book_new();
+    const header = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상',
+      ...currentWeekDates.map((d, i) => `${DAYS_KR[i]} (${d.getMonth() + 1}/${d.getDate()})`),
+      '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표', '사진인증'];
+    const rows = habits.map(h => {
+      const states = currentWeekKeys.map(k => getLogState(h.logs, k));
+      const active = states.filter(s => s > 0).length;
+      const eligible = countEligibleDays(h, currentWeekKeys);
+      const rate = eligible ? `${Math.round((active / eligible) * 100)}%` : '-';
+      return [h.category, h.identity, h.name, h.twoMinRule, h.cue, h.reward,
+        ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes,
+        currentWeekKeys.filter(k => getProof(h.id, k)).length];
     });
-
-    document.getElementById('edit-habit-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const habit = findHabit(document.getElementById('edit-habit-id').value);
-      if (!habit) { closeEditModal(); return; }
-      const name = cleanText(document.getElementById('edit-name').value, '');
-      if (!name) return;
-      habit.category = document.getElementById('edit-category').value;
-      habit.identity = cleanText(document.getElementById('edit-identity').value, '성장하는 사람');
-      habit.name = name;
-      habit.twoMinRule = cleanText(document.getElementById('edit-twomin').value, '2분만 시작하기');
-      habit.cue = cleanText(document.getElementById('edit-cue').value, '');
-      habit.reward = cleanText(document.getElementById('edit-reward').value, '')
-      saveData();
-      renderAll();
-      closeEditModal();
-      showToast('수정되었습니다.');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), '주간시스템');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveFile(`아토믹해빗_대시보드_${todayKey}.xlsx`, buf);
+  }
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
     });
-
-    document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') closeEditModal(); });
-    document.getElementById('proof-modal').addEventListener('click', e => { if (e.target.id === 'proof-modal' && !proofBusy) closeProofModal(); });
-    document.addEventListener('keydown', e => {
-      if (e.key !== 'Escape') return;
-      closeEditModal();
-      if (!proofBusy) closeProofModal();
-    });
-
-    document.getElementById('add-habit-form').addEventListener('submit', e => {
-      e.preventDefault();
-      refreshDates();
-      const name = cleanText(document.getElementById('habit-name').value, '');
-      if (!name) return;
-      habits.push({
-        id: newId(),
-        name,
-        category: document.getElementById('habit-category').value,
-        identity: cleanText(document.getElementById('habit-identity').value, '성장하는 사람'),
-        twoMinRule: cleanText(document.getElementById('habit-twomin').value, '2분만 시작하기'),
-        cue: cleanText(document.getElementById('habit-cue').value, ''),
-        reward: cleanText(document.getElementById('habit-reward').value, ''),
-        createdAt: todayKey,
-        logs: {}
-      });
-      ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
-        .forEach(fid => { document.getElementById(fid).value = ''; });
-      saveData();
-      renderAll();
-      showToast('추가되었습니다.');
-    });
-
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDates(); });
-    setInterval(refreshDates, 60 * 1000);
-
-    function init() {
-      const options = renderCategoryOptions();
-      document.getElementById('habit-category').innerHTML = options;
-      document.getElementById('edit-category').innerHTML = options;
-      habits = loadHabits();
-      saveData();
-      renderAll();
-      loadPhotos();
-    }
-
-    async function loadPhotos() {
+  }
+  async function exportBackupJson() {
+    const list = Object.values(photos).filter(p => findHabit(p.habitId));
+    const out = [];
+    if (list.length) showToast(`사진 ${list.length}장을 백업에 담는 중...`, 10000);
+    if (sb) await signProofUrls(list);
+    for (const p of list) {
       try {
-        const ids = new Set(habits.map(h => h.id));
-        const list = await photoDb.getAll();
-        const orphanKeys = [];
-        (list || []).forEach(raw => {
-          const p = sanitizePhoto(raw, ids);
-          if (p) photos[p.key] = p;
-          else if (raw && raw.key) orphanKeys.push(raw.key);
+        const blob = await (await fetch(proofUrl(p))).blob();
+        out.push({ key: `${p.habitId}|${p.dateKey}`, habitId: p.habitId, dateKey: p.dateKey, dataUrl: await blobToDataUrl(blob),
+          takenAt: p.takenAt, timeSource: p.timeSource, uploadedAt: p.uploadedAt, verified: p.verified });
+      } catch (e) { /* 불러오지 못한 사진은 건너뜀 */ }
+    }
+    const payload = { app: 'atomic-habit-dashboard', version: 5, exportedAt: new Date().toISOString(), habits, photos: out };
+    const saved = await saveFile(`아토믹해빗_백업_${todayKey}.json`, JSON.stringify(payload, null, 2));
+    if (saved && out.length < list.length) showToast(`사진 ${list.length - out.length}장은 불러오지 못해 빠졌습니다.`, 4000);
+  }
+  function dataUrlToBlob(dataUrl) {
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || '');
+    if (!m) return null;
+    const bin = atob(m[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: m[1] });
+  }
+  async function importBackupJson(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    let parsed = null, list = null;
+    const remap = {};
+    try { parsed = JSON.parse(await file.text()); list = sanitizeHabitList(parsed, remap); } catch (e) { list = null; }
+    if (!list) { showToast('올바른 백업 파일이 아닙니다.'); return; }
+    const backupPhotos = parsed && Array.isArray(parsed.photos) ? parsed.photos : [];
+    const photoNote = backupPhotos.length
+      ? (photosEnabled() ? `, 인증 사진 ${backupPhotos.length}장` : `\n(인증 사진 ${backupPhotos.length}장은 로그인 상태에서만 옮겨집니다)`)
+      : '';
+    const ok = await askConfirm(`백업에서 습관 ${list.length}개${photoNote}을 불러옵니다.\n지금 기록은 백업 내용으로 바뀝니다.`, '불러오기');
+    if (!ok) return;
+
+    habits = list;
+    selectedHeatmapHabitId = 'ALL';
+    saveData();
+    const ids = new Set(list.map(h => h.id));
+    await removeProofs(p => !ids.has(p.habitId));
+    renderAll();
+    showToast('백업을 불러왔습니다.');
+
+    if (!photosEnabled() || !backupPhotos.length) return;
+    let done = 0, failed = 0;
+    for (const raw of backupPhotos) {
+      const habitId = remap[String(raw && raw.habitId)] || String(raw && raw.habitId);
+      const blob = raw && dataUrlToBlob(raw.dataUrl);
+      const taken = new Date(raw && raw.takenAt);
+      if (!ids.has(habitId) || !isDateKey(raw.dateKey) || !blob || isNaN(taken)) { failed++; continue; }
+      showToast(`인증 사진 옮기는 중... ${done + failed + 1}/${backupPhotos.length}`, 8000);
+      try {
+        const uploaded = new Date(raw.uploadedAt);
+        await saveProofRecord(habitId, raw.dateKey, blob, taken.toISOString(),
+          raw.timeSource === 'exif' ? 'exif' : 'file', isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString());
+        done++;
+      } catch (e) { failed++; }
+      renderAll();
+    }
+    showToast(failed ? `사진 ${done}장을 옮겼고 ${failed}장은 옮기지 못했습니다.` : `인증 사진 ${done}장을 옮겼습니다.`, 4000);
+  }
+
+  // ===== 계산 =====
+  function calculateStreak(habit) {
+    let streak = 0;
+    const cursor = new Date(today);
+    if (getLogState(habit.logs, formatDateKey(cursor)) === 0) cursor.setDate(cursor.getDate() - 1);
+    for (let guard = 0; guard < 3660; guard++) {
+      if (getLogState(habit.logs, formatDateKey(cursor)) === 0) break;
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+  function isNeverMissTwiceRisk(habit) {
+    if (habit.createdAt > yesterdayKey) return false;
+    return getLogState(habit.logs, yesterdayKey) === 0 && getLogState(habit.logs, todayKey) === 0;
+  }
+  function countVotes(habit) {
+    let full = 0, min = 0;
+    Object.keys(habit.logs).forEach(k => {
+      const st = getLogState(habit.logs, k);
+      if (st === 2) full++;
+      else if (st === 1) min++;
+    });
+    return { full, min, votes: full + min * 0.5 };
+  }
+  function monthKeys(year, month) {
+    const n = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: n }, (_, i) => formatDateKey(new Date(year, month, i + 1)));
+  }
+
+  // ===== 화면 그리기 =====
+  function renderCategoryOptions() {
+    return CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(CATEGORY_LABELS[c])}</option>`).join('');
+  }
+  function renderAll() {
+    renderHeaderInfo();
+    renderStoreBanner();
+    renderTodaySection();
+    renderIdentityCards();
+    renderWeeklyBoard();
+    renderHeatmapSection();
+    renderProofGallery();
+    updateKPIStats();
+  }
+
+  function renderHeaderInfo() {
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+    document.getElementById('current-date-display').textContent =
+      `오늘 기준: ${today.toLocaleDateString('ko-KR', dateOptions)} · 작은 반복이 정체성을 증명합니다`;
+    const s = currentWeekDates[0], e = currentWeekDates[6];
+    document.getElementById('week-range-label').textContent =
+      `이번 주 범위: ${s.getMonth() + 1}.${s.getDate()}(월) ~ ${e.getMonth() + 1}.${e.getDate()}(일)`;
+    const pill = document.getElementById('sync-pill');
+    document.body.dataset.auth = storeMode === 'auth' ? 'out' : 'in';
+    document.getElementById('auth-section').hidden = storeMode !== 'auth';
+    document.getElementById('logout-btn').hidden = storeMode !== 'cloud';
+    if (storeMode === 'cloud') {
+      pill.className = 'px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-emerald-50 text-emerald-700 border-emerald-200 max-w-[220px] truncate';
+      pill.textContent = '';
+      pill.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-cloud" aria-hidden="true"></i> ');
+      pill.append(`동기화 중 · ${userEmail}`);
+      pill.title = `${userEmail} 계정으로 모든 기기와 동기화됩니다`;
+    } else if (storeMode === 'auth') {
+      pill.className = 'px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-slate-50 text-slate-500 border-slate-200';
+      pill.innerHTML = '<i class="fa-solid fa-lock" aria-hidden="true"></i> 로그인 필요';
+    } else if (storeMode === 'local') {
+      pill.className = 'px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-amber-50 text-amber-700 border-amber-200';
+      pill.innerHTML = '<i class="fa-solid fa-laptop" aria-hidden="true"></i> 이 브라우저에만 저장';
+    }
+  }
+
+  function renderStoreBanner() {
+    const el = document.getElementById('store-banner');
+    if (storeMode === 'loading') {
+      el.hidden = false;
+      el.innerHTML = `<p class="text-sm text-slate-500 flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500" aria-hidden="true"></i> 저장된 습관 기록을 불러오는 중...</p>`;
+      return;
+    }
+    if (storeMode === 'auth') { el.hidden = true; el.innerHTML = ''; return; }
+    if (storeMode === 'error') {
+      el.hidden = false;
+      el.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p class="text-sm text-rose-700">기록을 불러오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요. 덮어쓰기를 막기 위해 불러오기 전에는 편집할 수 없습니다.</p>
+          <button type="button" data-action="retry-load" class="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl">다시 시도</button>
+        </div>`;
+      return;
+    }
+    const setupNote = storeMode === 'local' && !configReady()
+      ? `<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 leading-relaxed">⚙️ <b>Supabase 설정 전이라 이 브라우저에만 저장됩니다.</b> index.html 맨 위 <code>HABIT_CONFIG</code>에 Supabase 주소와 anon 키를 넣으면 로그인 후 모든 기기에서 동기화됩니다.</p>`
+      : '';
+    if (habits.length > 0) {
+      el.hidden = !setupNote;
+      el.innerHTML = setupNote;
+      return;
+    }
+    el.hidden = false;
+    el.innerHTML = setupNote + `
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1 min-w-0">
+          <h2 class="text-base font-extrabold text-slate-900">아직 등록된 습관이 없습니다</h2>
+          <p class="text-xs text-slate-500 leading-relaxed">PC에서 쓰던 기록이 있다면 그 대시보드에서 <b>백업 저장</b>한 파일을 불러오세요. 인증 사진도 함께 옮겨집니다.<br>처음이라면 샘플로 둘러보거나 아래 폼에서 첫 습관을 만들어 보세요.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 shrink-0">
+          <button type="button" data-action="import-open" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-upload" aria-hidden="true"></i> 백업 파일 불러오기
+          </button>
+          <button type="button" data-action="load-sample" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> 샘플로 시작
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function proofBadgeClass(proof) {
+    if (!proof) return 'bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300';
+    return proof.verified ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-orange-400 border-orange-400 text-white';
+  }
+
+  function renderTodaySection() {
+    document.getElementById('today-label').textContent = `${today.getMonth() + 1}월 ${today.getDate()}일 (${WEEKDAY_KR[today.getDay()]})`;
+    const el = document.getElementById('today-list');
+    if (habits.length === 0) {
+      el.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">등록된 습관이 없습니다.</p>`;
+      return;
+    }
+    const withPhoto = photosEnabled();
+    el.innerHTML = habits.map(h => {
+      const id = escapeHtml(h.id);
+      const st = getLogState(h.logs, todayKey);
+      const proof = getProof(h.id, todayKey);
+      const risk = isNeverMissTwiceRisk(h);
+      const minCls = st === 1 ? 'bg-amber-400 border-amber-500 text-slate-900' : 'bg-white border-slate-200 text-slate-600';
+      const fullCls = st === 2 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600';
+      const camBtn = withPhoto ? `
+        <button type="button" data-action="proof" data-id="${id}" data-date="${todayKey}" class="py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 ${proofBadgeClass(proof)}">
+          <i class="fa-solid fa-camera" aria-hidden="true"></i> ${proof ? '인증됨' : '사진 인증'}
+        </button>` : '';
+      return `
+        <div class="p-3 rounded-xl border ${risk ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200/80 bg-slate-50/60'} space-y-2.5">
+          <div class="min-w-0">
+            ${risk ? '<span class="never-miss-badge inline-block mb-1 px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-rose-100 text-rose-700 border border-rose-300">🚨 어제 놓쳤어요 · 2분만 해도 OK</span>' : ''}
+            <p class="font-bold text-sm text-slate-900 break-words">${escapeHtml(h.name)}</p>
+            <p class="text-[11px] text-amber-700 mt-0.5 break-words">⚡ ${escapeHtml(h.twoMinRule)}</p>
+          </div>
+          <div class="grid ${withPhoto ? 'grid-cols-3' : 'grid-cols-2'} gap-2">
+            <button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="1" aria-pressed="${st === 1}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${minCls}">⚡ 2분 실행</button>
+            <button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="2" aria-pressed="${st === 2}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${fullCls}">✔ 완수</button>
+            ${camBtn}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderIdentityCards() {
+    const container = document.getElementById('identity-cards-container');
+    if (habits.length === 0) {
+      container.innerHTML = `<div class="sm:col-span-3 text-xs text-slate-400 py-4 text-center">등록된 정체성이 없습니다.</div>`;
+      return;
+    }
+    container.innerHTML = habits.map(h => {
+      const { full, min, votes } = countVotes(h);
+      const badgeClass = categoryStyles[h.category] || categoryStyles['생활습관'];
+      return `
+        <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-2 min-w-0">
+          <div class="min-w-0">
+            <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass} mb-1">${escapeHtml(h.category)}</span>
+            <p class="text-xs font-extrabold text-slate-800 truncate">🪪 "${escapeHtml(h.identity)}"</p>
+            <p class="text-[11px] text-slate-500 truncate mt-0.5">완수 ${full} · 2분실행 ${min}</p>
+          </div>
+          <div class="text-right shrink-0 bg-white px-3 py-1.5 rounded-xl border border-purple-200 shadow-sm">
+            <span class="block text-[10px] font-bold text-purple-500">투표</span>
+            <span class="text-sm font-extrabold text-purple-700 tabular">${votes}표</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderWeeklyBoard() {
+    let headHtml = `<th scope="col" class="py-3.5 px-5 w-80">아토믹 해빗 시스템 (정체성 · 2분 규칙)</th>`;
+    currentWeekDates.forEach((d, idx) => {
+      const isToday = currentWeekKeys[idx] === todayKey;
+      const dayColor = idx === 5 ? 'text-indigo-600' : idx === 6 ? 'text-rose-500' : '';
+      headHtml += `
+        <th scope="col" class="py-3 px-2 text-center w-14 ${isToday ? 'today-col font-extrabold text-indigo-700' : dayColor}">
+          <div>${DAYS_KR[idx]}</div>
+          <div class="text-[11px] font-normal ${isToday ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${d.getDate()}일</div>
+        </th>`;
+    });
+    headHtml += `
+      <th scope="col" class="py-3.5 px-3 text-center w-28">연속 스트릭</th>
+      <th scope="col" class="py-3.5 px-4 w-40">주간 궤도 유지율</th>
+      <th scope="col" class="py-3.5 px-3 text-center w-36">관리</th>`;
+    document.getElementById('week-table-head').innerHTML = headHtml;
+
+    const tbody = document.getElementById('habit-tbody');
+    if (habits.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">등록된 습관 시스템이 없습니다.</td></tr>`;
+      return;
+    }
+    const withPhoto = photosEnabled();
+    tbody.innerHTML = habits.map((habit, index) => {
+      const id = escapeHtml(habit.id);
+      const safeName = escapeHtml(habit.name);
+      const weekStates = currentWeekKeys.map(k => getLogState(habit.logs, k));
+      const fullDays = weekStates.filter(s => s === 2).length;
+      const minDays = weekStates.filter(s => s === 1).length;
+      const eligible = countEligibleDays(habit, currentWeekKeys);
+      const orbitRate = eligible ? Math.round(((fullDays + minDays) / eligible) * 100) : 0;
+      const fullPct = eligible ? Math.round((fullDays / eligible) * 100) : 0;
+      const minPct = eligible ? Math.min(100 - fullPct, Math.round((minDays / eligible) * 100)) : 0;
+      const streak = calculateStreak(habit);
+      const isRisk = isNeverMissTwiceRisk(habit);
+      const badgeClass = categoryStyles[habit.category] || categoryStyles['생활습관'];
+
+      const dayCells = currentWeekKeys.map((dKey, idx) => {
+        const state = weekStates[idx];
+        const isToday = dKey === todayKey;
+        const future = isFutureKey(dKey);
+        let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500';
+        let iconHtml = `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
+        let nextHint = '1번 클릭: ⚡ 2분 최소실행';
+        if (future) {
+          btnStyle = 'bg-slate-50 border-dashed border-slate-200 text-slate-200';
+          nextHint = '예정';
+        } else if (state === 1) {
+          btnStyle = 'bg-amber-400 border-amber-500 text-slate-900 shadow-sm shadow-amber-100';
+          iconHtml = `<i class="fa-solid fa-bolt text-xs" aria-hidden="true"></i>`;
+          nextHint = '현재: ⚡ 2분 최소실행 (클릭 시 ✔ 100% 완수)';
+        } else if (state === 2) {
+          btnStyle = 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-200';
+          iconHtml = `<i class="fa-solid fa-check" aria-hidden="true"></i>`;
+          nextHint = '현재: ✔ 100% 완수 (클릭 시 해제)';
+        }
+        const label = `${safeName} ${DAYS_KR[idx]}요일 ${future ? '예정' : STATE_LABEL[state]}`;
+        let proofHtml = '';
+        if (!future && withPhoto) {
+          const proof = getProof(habit.id, dKey);
+          const proofTitle = !proof ? '📷 타임스탬프 사진으로 인증하기'
+            : proof.verified ? `📸 인증 완료 (${formatDateTime(proof.takenAt)})` : `⚠️ 촬영일 불일치 (${formatDateTime(proof.takenAt)})`;
+          proofHtml = `
+            <button type="button" data-action="proof" data-id="${id}" data-date="${dKey}"
+              aria-label="${safeName} ${DAYS_KR[idx]}요일 사진 인증 ${proof ? '보기' : '올리기'}" title="${escapeHtml(proofTitle)}"
+              class="proof-badge absolute -top-2 -right-2 w-5 h-5 rounded-full border text-[9px] inline-flex items-center justify-center shadow-sm ${proofBadgeClass(proof)}">
+              <i class="fa-solid fa-camera" aria-hidden="true"></i>
+            </button>`;
+        }
+        return `
+          <td class="py-3.5 px-2 text-center ${isToday ? 'today-col' : ''}">
+            <div class="relative inline-block">
+              <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
+                aria-label="${label}" title="${nextHint}"
+                class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
+                ${iconHtml}
+              </button>${proofHtml}
+            </div>
+          </td>`;
+      }).join('');
+
+      const riskBadgeHtml = isRisk ? `<span class="never-miss-badge inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-extrabold rounded-md bg-rose-100 text-rose-700 border border-rose-300 ml-1">🚨 절대 두 번 거르지 마라!</span>` : '';
+
+      return `
+        <tr class="transition ${isRisk ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50/80'}">
+          <td class="py-3.5 px-5 space-y-1">
+            <div class="flex flex-wrap items-center gap-1">
+              <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass}">${escapeHtml(habit.category)}</span>
+              <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🪪 ${escapeHtml(habit.identity)}</span>
+              ${riskBadgeHtml}
+            </div>
+            <p class="font-bold text-slate-900 leading-snug break-words">${safeName}</p>
+            <p class="text-xs font-semibold text-amber-700 flex items-center gap-1">
+              <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡ 2분 규칙</span>
+              <span>${escapeHtml(habit.twoMinRule)}</span>
+            </p>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 pt-0.5">
+              <span>📍 <b>신호:</b> ${escapeHtml(habit.cue || '-')}</span>
+              <span>🎁 <b>보상:</b> ${escapeHtml(habit.reward || '-')}</span>
+            </div>
+          </td>
+          ${dayCells}
+          <td class="py-3.5 px-3 text-center">
+            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${streak >= 3 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
+              <i class="fa-solid fa-fire ${streak >= 3 ? 'text-amber-500' : 'text-slate-400'}" aria-hidden="true"></i>
+              <span class="tabular">${streak}일 연속</span>
+            </div>
+          </td>
+          <td class="py-3.5 px-4">
+            <div class="flex items-center justify-between text-xs font-bold mb-1">
+              <span class="tabular ${orbitRate === 100 ? 'text-emerald-600' : 'text-slate-700'}">${orbitRate}% 궤도유지</span>
+              <span class="text-[11px] text-slate-400 tabular">⚡${minDays} · ✔${fullDays}</span>
+            </div>
+            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex" role="progressbar" aria-label="${safeName} 주간 궤도 유지율" aria-valuenow="${orbitRate}" aria-valuemin="0" aria-valuemax="100">
+              <div class="h-full bg-indigo-600 transition-all duration-300" style="width:${fullPct}%"></div>
+              <div class="h-full bg-amber-400 transition-all duration-300" style="width:${minPct}%"></div>
+            </div>
+          </td>
+          <td class="py-3.5 px-2 text-center whitespace-nowrap">
+            <button type="button" data-action="up" data-id="${id}" ${index === 0 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="위로" aria-label="${safeName} 위로 이동"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+            <button type="button" data-action="down" data-id="${id}" ${index === habits.length - 1 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="아래로" aria-label="${safeName} 아래로 이동"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+            <button type="button" data-action="edit" data-id="${id}" class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="수정" aria-label="${safeName} 수정"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+            <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제" aria-label="${safeName} 삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderHeatmapSection() {
+    if (selectedHeatmapHabitId !== 'ALL' && !findHabit(selectedHeatmapHabitId)) selectedHeatmapHabitId = 'ALL';
+    const isAll = selectedHeatmapHabitId === 'ALL';
+    document.getElementById('heatmap-month-label').textContent = `${viewYear}년 ${viewMonth + 1}월`;
+    document.getElementById('mini-summary-month').textContent = `${viewMonth + 1}월 기준`;
+    document.getElementById('heatmap-help').textContent = isAll
+      ? '날짜를 누르면 미기록 습관만 완수로 채웁니다.'
+      : '날짜를 누를 때마다 ⚡ 2분 최소실행 → ✔ 100% 완수 → 해제 순으로 바뀝니다.';
+
+    const tabClass = active => active
+      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50';
+    let tabsHtml = `<button type="button" role="tab" aria-selected="${isAll}" data-action="filter" data-id="ALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${tabClass(isAll)}">🌱 전체 (${habits.length})</button>`;
+    habits.forEach(h => {
+      const active = selectedHeatmapHabitId === h.id;
+      tabsHtml += `<button type="button" role="tab" aria-selected="${active}" data-action="filter" data-id="${escapeHtml(h.id)}" title="${escapeHtml(h.name)}" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition border truncate max-w-[230px] ${tabClass(active)}">${escapeHtml(h.name)}</button>`;
+    });
+    document.getElementById('heatmap-filter-tabs').innerHTML = tabsHtml;
+
+    const keys = monthKeys(viewYear, viewMonth);
+    const startOffset = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+    const targetHabit = isAll ? null : findHabit(selectedHeatmapHabitId);
+    const photoDays = new Set(Object.values(photos)
+      .filter(p => isAll ? findHabit(p.habitId) : p.habitId === selectedHeatmapHabitId)
+      .map(p => p.dateKey));
+
+    let gridHtml = '<div class="h-12" aria-hidden="true"></div>'.repeat(startOffset);
+    keys.forEach((dKey, i) => {
+      const day = i + 1;
+      const isToday = dKey === todayKey;
+      const future = isFutureKey(dKey);
+      let levelClass = 'grass-lv-0', bottomLabel = '-';
+      if (future) {
+        levelClass = 'grass-future';
+        bottomLabel = '';
+      } else if (isAll) {
+        const pool = habits.filter(h => h.createdAt <= dKey);
+        let fullCnt = 0, minCnt = 0;
+        pool.forEach(h => {
+          const st = getLogState(h.logs, dKey);
+          if (st === 2) fullCnt++;
+          else if (st === 1) minCnt++;
         });
-        if (orphanKeys.length) persistPhotos(() => photoDb.remove(orphanKeys));
-        renderAll();
-      } catch (e) {
-        persistPhotos(() => Promise.reject(e));
+        const total = pool.length;
+        const activeCnt = fullCnt + minCnt;
+        const ratio = total > 0 ? activeCnt / total : 0;
+        if (activeCnt > 0 && fullCnt === 0) levelClass = 'grass-lv-min';
+        else if (ratio > 0 && ratio <= 0.34) levelClass = 'grass-lv-1';
+        else if (ratio > 0.34 && ratio <= 0.67) levelClass = 'grass-lv-2';
+        else if (ratio > 0.67 && ratio < 1) levelClass = 'grass-lv-3';
+        else if (ratio === 1 && total > 0) levelClass = 'grass-lv-4';
+        bottomLabel = total > 0 ? `${activeCnt}/${total}` : '-';
+      } else {
+        const st = targetHabit ? getLogState(targetHabit.logs, dKey) : 0;
+        if (st === 2) { levelClass = 'grass-lv-4'; bottomLabel = '✔'; }
+        else if (st === 1) { levelClass = 'grass-lv-min'; bottomLabel = '⚡'; }
+      }
+      gridHtml += `
+        <button type="button" data-action="cell" data-date="${dKey}" ${future ? 'disabled' : ''}
+          class="grass-cell h-12 rounded-xl border p-1 md:p-1.5 flex flex-col justify-between items-center min-w-0 ${levelClass} ${isToday ? 'ring-2 ring-indigo-600 ring-offset-1' : ''}">
+          <span class="w-full flex items-start justify-between text-xs font-bold leading-none tabular"><span>${day}</span>${photoDays.has(dKey) ? '<i class="fa-solid fa-camera text-[9px] opacity-80" aria-label="사진 인증 있음"></i>' : ''}</span>
+          <span class="text-[10px] font-bold opacity-95 tabular">${bottomLabel}</span>
+        </button>`;
+    });
+    document.getElementById('heatmap-calendar-grid').innerHTML = gridHtml;
+
+    const barsEl = document.getElementById('habit-monthly-bars');
+    if (habits.length === 0) {
+      barsEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">등록된 습관이 없습니다.</p>`;
+      return;
+    }
+    barsEl.innerHTML = habits.map(h => {
+      let monthFull = 0, monthMin = 0, squares = '';
+      keys.forEach(dKey => {
+        const st = getLogState(h.logs, dKey);
+        let sq = 'bg-slate-200';
+        if (isFutureKey(dKey) || dKey < h.createdAt) sq = 'bg-slate-100';
+        if (st === 2) { monthFull++; sq = 'bg-emerald-500'; }
+        else if (st === 1) { monthMin++; sq = 'bg-amber-400'; }
+        squares += `<span class="w-2.5 h-2.5 rounded-[2px] inline-block ${sq}"></span>`;
+      });
+      const eligible = countEligibleDays(h, keys);
+      const rateText = eligible ? `${Math.round(((monthFull + monthMin) / eligible) * 100)}%` : '-';
+      return `
+        <div class="bg-white p-3 rounded-xl border border-slate-200/70 space-y-1.5">
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <span class="font-bold text-slate-700 truncate">${escapeHtml(h.name)}</span>
+            <span class="font-extrabold text-emerald-600 shrink-0 tabular">⚡${monthMin} · ✔${monthFull} (${rateText})</span>
+          </div>
+          <div class="flex flex-wrap gap-1 pt-0.5">${squares}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderProofGallery() {
+    const isAll = selectedHeatmapHabitId === 'ALL';
+    const prefix = `${viewYear}-${pad(viewMonth + 1)}-`;
+    const list = Object.values(photos)
+      .filter(p => p.dateKey.startsWith(prefix) && findHabit(p.habitId) && (isAll || p.habitId === selectedHeatmapHabitId))
+      .sort((a, b) => b.dateKey.localeCompare(a.dateKey) || b.takenAt.localeCompare(a.takenAt));
+    const verifiedCnt = list.filter(p => p.verified).length;
+    const target = isAll ? '전체 습관' : (findHabit(selectedHeatmapHabitId) || {}).name;
+    document.getElementById('proof-gallery-help').textContent =
+      `${viewYear}년 ${viewMonth + 1}월 · ${target} (히트맵에서 고른 달과 습관을 따라갑니다)`;
+    document.getElementById('proof-gallery-count').textContent = `📸 ${list.length}장 · 일치 ${verifiedCnt}장`;
+
+    const grid = document.getElementById('proof-gallery-grid');
+    if (!photosEnabled() && storeMode !== 'loading') {
+      grid.innerHTML = `<p class="col-span-full py-8 text-center text-xs text-slate-400">사진 인증은 로그인한 상태에서 쓸 수 있습니다.</p>`;
+      return;
+    }
+    if (list.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-full py-10 text-center text-xs text-slate-400 space-y-2">
+          <i class="fa-solid fa-images text-3xl text-slate-200" aria-hidden="true"></i>
+          <p>이 달에는 인증 사진이 없습니다. <b class="text-slate-500">오늘 체크</b>나 주간 보드의 📷 버튼으로 첫 인증을 남겨보세요.</p>
+        </div>`;
+      return;
+    }
+    grid.innerHTML = list.map(p => {
+      const h = findHabit(p.habitId);
+      const badge = p.verified
+        ? '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold shadow">✅ 일치</span>'
+        : '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-orange-400 text-white text-[10px] font-bold shadow">⚠️ 불일치</span>';
+      return `
+        <button type="button" data-action="proof" data-id="${escapeHtml(p.habitId)}" data-date="${p.dateKey}"
+          class="proof-thumb text-left rounded-xl overflow-hidden border border-slate-200/80 bg-white hover:shadow-md transition min-w-0">
+          <div class="relative aspect-square max-w-full overflow-hidden bg-slate-100">
+            <img src="${escapeHtml(proofUrl(p))}" alt="${escapeHtml(h.name)} ${escapeHtml(keyLabel(p.dateKey))} 인증 사진" loading="lazy" class="w-full h-full object-cover">
+            ${badge}
+          </div>
+          <div class="p-2 space-y-0.5">
+            <p class="text-[11px] font-extrabold text-slate-800 tabular">${escapeHtml(keyLabel(p.dateKey))} · ${escapeHtml(formatDateTime(p.takenAt).slice(-5))}</p>
+            <p class="text-[11px] text-slate-500 truncate">${escapeHtml(h.name)}</p>
+          </div>
+        </button>`;
+    }).join('');
+  }
+
+  function updateKPIStats() {
+    const totalHabits = habits.length;
+    let todayFull = 0, todayMin = 0, riskCount = 0, bestStreak = 0;
+    let totalActionsCount = 0, totalWeightedVotes = 0;
+    habits.forEach(h => {
+      const tState = getLogState(h.logs, todayKey);
+      if (tState === 2) todayFull++;
+      else if (tState === 1) todayMin++;
+      if (isNeverMissTwiceRisk(h)) riskCount++;
+      bestStreak = Math.max(bestStreak, calculateStreak(h));
+      const { full, min, votes } = countVotes(h);
+      totalActionsCount += full + min;
+      totalWeightedVotes += votes;
+    });
+    const todayRate = totalHabits > 0 ? Math.round(((todayFull + todayMin) / totalHabits) * 100) : 0;
+    const compoundMultiplier = Math.pow(1.01, totalWeightedVotes);
+    const valleyPercent = Math.min(100, totalActionsCount);
+    document.getElementById('stat-today').textContent = `${todayRate}%`;
+    document.getElementById('stat-today-sub').textContent = `완수 ${todayFull} · 2분실행 ${todayMin}`;
+    document.getElementById('stat-compound').textContent = `${compoundMultiplier.toFixed(2)}배`;
+    document.getElementById('stat-compound-sub').textContent = `1.01^${totalWeightedVotes} · +${Math.round((compoundMultiplier - 1) * 100)}%`;
+    document.getElementById('stat-votes').textContent = `총 ${totalWeightedVotes}표`;
+    document.getElementById('stat-votes-sub').textContent = `총 ${totalActionsCount}회 실천`;
+    document.getElementById('stat-best-streak').textContent = `${bestStreak}일`;
+    document.getElementById('stat-alert-count').textContent = `${riskCount}건`;
+    document.getElementById('stat-alert-sub').textContent = riskCount > 0 ? `🚨 2분실행 필요!` : `궤도 순항 중`;
+    const currentTemp = (-10 + (totalActionsCount * 0.1)).toFixed(1);
+    document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 임계점 돌파!` : `❄️ 현재 온도: ${currentTemp}°C`;
+    document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 (${valleyPercent}%)`;
+    document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
+  }
+
+  // ===== 이벤트 =====
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn || btn.disabled) return;
+    const id = btn.dataset.id;
+    switch (btn.dataset.action) {
+      case 'cycle': refreshDates(); cycleDateCheck(id, btn.dataset.date); break;
+      case 'set': refreshDates(); setDateState(id, btn.dataset.date, Number(btn.dataset.value)); break;
+      case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
+      case 'proof': refreshDates(); openProofModal(id, btn.dataset.date); break;
+      case 'filter': selectHeatmapFilter(id); break;
+      case 'up': moveHabit(id, -1); break;
+      case 'down': moveHabit(id, 1); break;
+      case 'edit': openEditModal(id); break;
+      case 'delete': deleteHabit(id); break;
+      case 'month-prev': changeMonth(-1); break;
+      case 'month-next': changeMonth(1); break;
+      case 'month-today': goTodayMonth(); break;
+      case 'export-xlsx': exportToExcel(); break;
+      case 'export-json': exportBackupJson(); break;
+      case 'import-open': document.getElementById('import-json-input').click(); break;
+      case 'reset-week': resetCurrentWeek(); break;
+      case 'load-sample': loadDefaultHabits(); break;
+      case 'close-edit': hideModal('edit-modal'); break;
+      case 'close-proof': if (!proofBusy) closeProofModal(); break;
+      case 'pick-camera': if (!proofBusy) document.getElementById('proof-camera-input').click(); break;
+      case 'pick-album': if (!proofBusy) document.getElementById('proof-file-input').click(); break;
+      case 'proof-download': downloadProof(); break;
+      case 'proof-delete': deleteProof(); break;
+      case 'logout': logout(); break;
+      case 'retry-load': if (sb && userId) startCloud({ id: userId, email: userEmail }); break;
+    }
+  });
+  document.getElementById('import-json-input').addEventListener('change', importBackupJson);
+  document.getElementById('proof-camera-input').addEventListener('change', handleProofFile);
+  document.getElementById('proof-file-input').addEventListener('change', handleProofFile);
+  document.getElementById('confirm-ok').addEventListener('click', () => settleConfirm(true));
+  document.getElementById('confirm-cancel').addEventListener('click', () => settleConfirm(false));
+  document.getElementById('confirm-modal').addEventListener('click', e => { if (e.target.id === 'confirm-modal') settleConfirm(false); });
+  document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') hideModal('edit-modal'); });
+  document.getElementById('proof-modal').addEventListener('click', e => { if (e.target.id === 'proof-modal' && !proofBusy) closeProofModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (confirmResolve) { settleConfirm(false); return; }
+    hideModal('edit-modal');
+    if (!proofBusy) closeProofModal();
+  });
+
+  document.getElementById('edit-habit-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const habit = findHabit(document.getElementById('edit-habit-id').value);
+    if (!habit) { hideModal('edit-modal'); return; }
+    const name = cleanText(document.getElementById('edit-name').value, '');
+    if (!name) return;
+    habit.category = document.getElementById('edit-category').value;
+    habit.identity = cleanText(document.getElementById('edit-identity').value, '성장하는 사람');
+    habit.name = name;
+    habit.twoMinRule = cleanText(document.getElementById('edit-twomin').value, '2분만 시작하기');
+    habit.cue = cleanText(document.getElementById('edit-cue').value, '');
+    habit.reward = cleanText(document.getElementById('edit-reward').value, '');
+    saveData();
+    renderAll();
+    hideModal('edit-modal');
+    showToast('수정되었습니다.');
+  });
+
+  document.getElementById('add-habit-form').addEventListener('submit', e => {
+    e.preventDefault();
+    refreshDates();
+    const name = cleanText(document.getElementById('habit-name').value, '');
+    if (!name) return;
+    habits.push({
+      id: newId(),
+      name,
+      category: document.getElementById('habit-category').value,
+      identity: cleanText(document.getElementById('habit-identity').value, '성장하는 사람'),
+      twoMinRule: cleanText(document.getElementById('habit-twomin').value, '2분만 시작하기'),
+      cue: cleanText(document.getElementById('habit-cue').value, ''),
+      reward: cleanText(document.getElementById('habit-reward').value, ''),
+      createdAt: todayKey,
+      logs: {}
+    });
+    ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
+      .forEach(fid => { document.getElementById(fid).value = ''; });
+    saveData();
+    renderAll();
+    showToast('추가되었습니다.');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushWrite();
+    else {
+      refreshDates();
+      // 휴대폰에서 앱을 다시 열면 실시간 연결이 끊겨 있을 수 있어 한 번 새로 불러옴
+      if (storeMode === 'cloud') scheduleRemoteRefresh();
+    }
+  });
+  window.addEventListener('pagehide', () => flushWrite());
+  setInterval(refreshDates, 60 * 1000);
+
+  // ===== 저장소 연결 =====
+  function startLocalMode() {
+    storeMode = 'local';
+    const raw = storage.get(STORAGE_KEY);
+    let list = null;
+    try { list = raw ? sanitizeHabitList(JSON.parse(raw)) : null; } catch (e) { list = null; }
+    habits = list || [];
+    hasStoredData = !!list;
+    renderAll();
+  }
+
+  // ===== Supabase 연결 · 로그인 · 동기화 =====
+  let signedAt = 0, refreshTimer = null;
+  const sameTime = (a, b) => !!a && !!b && new Date(a).getTime() === new Date(b).getTime();
+
+  function connectStore() {
+    if (!configReady() || !window.supabase || typeof window.supabase.createClient !== 'function') {
+      startLocalMode();
+      return;
+    }
+    const c = window.HABIT_CONFIG;
+    sb = window.supabase.createClient(c.supabaseUrl, c.supabaseAnonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    // 콜백 안에서 바로 Supabase를 부르면 멈출 수 있어서 한 박자 뒤에 처리
+    sb.auth.onAuthStateChange((event, session) => {
+      setTimeout(() => {
+        if (event === 'SIGNED_OUT' || !session || !session.user) { showAuth(); return; }
+        if (session.user.id !== userId) startCloud(session.user);
+      }, 0);
+    });
+  }
+
+  function showAuth() {
+    if (realtimeChannel && sb) { sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+    userId = null;
+    userEmail = '';
+    habits = [];
+    photos = {};
+    dirty = false;
+    storeMode = 'auth';
+    closeProofModal();
+    renderAll();
+  }
+
+  async function startCloud(user) {
+    userId = user.id;
+    userEmail = user.email || '';
+    storeMode = 'loading';
+    renderAll();
+    if (!await loadRemote(true)) {
+      storeMode = 'error';
+      renderAll();
+      return;
+    }
+    storeMode = 'cloud';
+    renderAll();
+    subscribeRealtime();
+  }
+
+  // 서버의 최신 기록과 사진 목록을 불러옴. 아직 저장 안 한 내 변경이 있으면 습관 기록은 덮어쓰지 않음.
+  async function loadRemote(initial) {
+    const [st, pr] = await Promise.all([
+      sb.from('habit_state').select('habits, updated_at').eq('user_id', userId).maybeSingle(),
+      sb.from('habit_proofs').select('*').eq('user_id', userId).order('date_key', { ascending: false }).limit(2000)
+    ]);
+    if (st.error || pr.error) { reportDbError(st.error || pr.error); return false; }
+    if (!dirty && !writing) {
+      if (st.data) {
+        if (initial || !sameTime(st.data.updated_at, lastSavedAt)) {
+          habits = sanitizeHabitList({ habits: st.data.habits }) || [];
+          hasStoredData = true;
+        }
+      } else if (initial) {
+        habits = [];
       }
     }
+    const reuse = Date.now() - signedAt < 50 * 60 * 1000;
+    const next = {};
+    (pr.data || []).forEach(row => {
+      const p = sanitizeProof(row);
+      if (!p) return;
+      const old = photos[p.key];
+      if (reuse && old && old.path === p.path && old.url) p.url = old.url;
+      next[p.key] = p;
+    });
+    photos = next;
+    const before = Object.values(photos).some(p => !p.url);
+    await signProofUrls(Object.values(photos));
+    if (before) signedAt = Date.now();
+    return true;
+  }
 
-    init();
-  </script>
+  function subscribeRealtime() {
+    if (realtimeChannel) sb.removeChannel(realtimeChannel);
+    realtimeChannel = sb.channel('habit-sync-' + userId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_state', filter: `user_id=eq.${userId}` }, scheduleRemoteRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habit_proofs', filter: `user_id=eq.${userId}` }, scheduleRemoteRefresh)
+      .subscribe();
+  }
+
+  function scheduleRemoteRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(async () => {
+      if (storeMode !== 'cloud' || proofBusy) return;
+      if (await loadRemote(false)) {
+        renderAll();
+        if (proofTarget && !proofBusy) renderProofModal();
+      }
+    }, 400);
+  }
+
+  function authErrorText(error) {
+    const m = String((error && error.message) || '');
+    if (/invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않습니다.';
+    if (/email not confirmed/i.test(m)) return '메일함에서 가입 확인 링크를 먼저 눌러 주세요.';
+    if (/already registered|already exists/i.test(m)) return '이미 가입된 이메일입니다. 로그인을 눌러 주세요.';
+    if (/password/i.test(m)) return '비밀번호는 6자 이상으로 정해 주세요.';
+    if (/rate limit/i.test(m)) return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+    return m || '로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+
+  document.getElementById('auth-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!sb) return;
+    const mode = (e.submitter && e.submitter.dataset.mode) || 'signin';
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const msg = document.getElementById('auth-message');
+    const buttons = [...document.querySelectorAll('#auth-form button')];
+    buttons.forEach(b => { b.disabled = true; });
+    msg.textContent = mode === 'signup' ? '가입하는 중...' : '로그인하는 중...';
+    let error = null;
+    if (mode === 'signup') {
+      const res = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split('#')[0] } });
+      error = res.error;
+      if (!error && !res.data.session) msg.textContent = '확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 여기서 로그인해 주세요.';
+    } else {
+      error = (await sb.auth.signInWithPassword({ email, password })).error;
+      if (!error) msg.textContent = '';
+    }
+    if (error) msg.textContent = authErrorText(error);
+    buttons.forEach(b => { b.disabled = false; });
+  });
+
+  async function logout() {
+    if (!await askConfirm('로그아웃할까요?\n다시 로그인하면 기록이 그대로 보입니다.', '로그아웃')) return;
+    await flushWrite();
+    await sb.auth.signOut();
+  }
+
+  function init() {
+    const options = renderCategoryOptions();
+    document.getElementById('habit-category').innerHTML = options;
+    document.getElementById('edit-category').innerHTML = options;
+    renderAll();
+    connectStore();
+  }
+
+  init();
+</script>
 </body>
 </html>
