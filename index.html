@@ -40,6 +40,10 @@
       animation: pulse-soft 2s infinite;
     }
     #toast { transition: opacity 0.25s, transform 0.25s; }
+    .proof-badge { transition: all 0.15s ease; }
+    .proof-badge:hover { transform: scale(1.15); }
+    .proof-thumb img { transition: transform 0.25s ease; }
+    .proof-thumb:hover img { transform: scale(1.04); }
   </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen p-4 md:p-8">
@@ -224,6 +228,8 @@
           <span class="text-indigo-600 font-semibold"><span class="w-4 h-4 rounded bg-indigo-600 text-white inline-flex items-center justify-center text-[10px]">✔</span> 2번: 100% 완수</span>
           <span class="text-slate-300">➔</span>
           <span class="text-slate-400">3번: 해제</span>
+          <span class="text-slate-300">|</span>
+          <span class="text-emerald-600 font-semibold"><span class="w-4 h-4 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center text-[8px]"><i class="fa-solid fa-camera" aria-hidden="true"></i></span> 사진 인증</span>
         </div>
       </div>
       <div class="overflow-x-auto">
@@ -283,6 +289,42 @@
       </div>
     </section>
 
+    <!-- 3. 타임스탬프 사진 인증 갤러리 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 flex items-center gap-2 text-lg">
+            <i class="fa-solid fa-camera-retro text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증 갤러리
+          </h2>
+          <p id="proof-gallery-help" class="text-xs text-slate-400 mt-0.5"></p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span id="proof-gallery-count" class="font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80"></span>
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">✅ 촬영일 일치</span>
+          <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 font-semibold">⚠️ 촬영일 불일치</span>
+        </div>
+      </div>
+      <div id="proof-gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+    </section>
+
+  </div>
+
+  <!-- 사진 인증 모달(팝업) -->
+  <div id="proof-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="proof-modal-title">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+        <div class="min-w-0">
+          <h3 id="proof-modal-title" class="font-bold text-slate-900 text-lg flex items-center gap-2">
+            <i class="fa-solid fa-camera text-rose-500" aria-hidden="true"></i> 타임스탬프 사진 인증
+          </h3>
+          <p id="proof-modal-sub" class="text-xs text-slate-500 mt-0.5 truncate"></p>
+        </div>
+        <button type="button" onclick="closeProofModal()" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1 shrink-0"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+      </div>
+      <div id="proof-modal-body" class="space-y-3"></div>
+      <input type="file" id="proof-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleProofFile(event)">
+      <input type="file" id="proof-file-input" accept="image/*" class="hidden" onchange="handleProofFile(event)">
+    </div>
   </div>
 
   <!-- 습관 수정 모달(팝업) -->
@@ -380,6 +422,221 @@
       get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
       set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
     };
+
+    // ===== 사진 인증 저장소 (사진은 용량이 커서 localStorage 대신 IndexedDB 사용) =====
+    const PHOTO_DB_NAME = 'atomic_habit_photos';
+    const PHOTO_STORE = 'proofs';
+    const PHOTO_MAX_SIDE = 1280;
+    const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+
+    const photoDb = {
+      _db: null,
+      open() {
+        if (this._db) return Promise.resolve(this._db);
+        return new Promise((resolve, reject) => {
+          if (!('indexedDB' in window)) { reject(new Error('IndexedDB 미지원')); return; }
+          const req = indexedDB.open(PHOTO_DB_NAME, 1);
+          req.onupgradeneeded = () => req.result.createObjectStore(PHOTO_STORE, { keyPath: 'key' });
+          req.onsuccess = () => { this._db = req.result; resolve(this._db); };
+          req.onerror = () => reject(req.error);
+        });
+      },
+      async tx(mode, fn) {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const t = db.transaction(PHOTO_STORE, mode);
+          const out = fn(t.objectStore(PHOTO_STORE));
+          t.oncomplete = () => resolve(out && 'result' in out ? out.result : undefined);
+          t.onerror = t.onabort = () => reject(t.error);
+        });
+      },
+      getAll() { return this.tx('readonly', s => s.getAll()); },
+      put(rec) { return this.tx('readwrite', s => s.put(rec)); },
+      remove(keys) { return this.tx('readwrite', s => keys.forEach(k => s.delete(k))); },
+      replaceAll(list) { return this.tx('readwrite', s => { s.clear(); list.forEach(p => s.put(p)); }); }
+    };
+
+    let photos = {};          // key -> { key, habitId, dateKey, dataUrl, takenAt, timeSource, uploadedAt, verified }
+    let photoWarned = false;
+    let proofTarget = null;   // { habitId, dateKey }
+    let proofBusy = false;
+
+    const proofKey = (habitId, dateKey) => `${habitId}|${dateKey}`;
+    const getProof = (habitId, dateKey) => photos[proofKey(habitId, dateKey)] || null;
+
+    async function persistPhotos(op) {
+      try { await op(); return true; } catch (e) {
+        if (!photoWarned) {
+          photoWarned = true;
+          showToast('사진 저장소를 쓸 수 없어 창을 닫으면 사진이 사라집니다.');
+        }
+        return false;
+      }
+    }
+
+    function removePhotosWhere(pred) {
+      const keys = Object.keys(photos).filter(k => pred(photos[k]));
+      if (!keys.length) return;
+      keys.forEach(k => delete photos[k]);
+      persistPhotos(() => photoDb.remove(keys));
+    }
+
+    function formatDateTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d)) return '-';
+      return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}(${WEEKDAY_KR[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    const isSafeImageDataUrl = s => typeof s === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s);
+
+    function sanitizePhoto(p, habitIds) {
+      if (!p || typeof p !== 'object') return null;
+      const habitId = String(p.habitId ?? '');
+      if (!habitIds.has(habitId) || !isDateKey(p.dateKey) || !isSafeImageDataUrl(p.dataUrl)) return null;
+      const taken = new Date(p.takenAt);
+      if (isNaN(taken)) return null;
+      const uploaded = new Date(p.uploadedAt);
+      return {
+        key: proofKey(habitId, p.dateKey),
+        habitId,
+        dateKey: p.dateKey,
+        dataUrl: p.dataUrl,
+        takenAt: taken.toISOString(),
+        timeSource: p.timeSource === 'exif' ? 'exif' : 'file',
+        uploadedAt: isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString(),
+        verified: formatDateKey(taken) === p.dateKey
+      };
+    }
+
+    // JPEG EXIF에서 촬영 시각(DateTimeOriginal)을 읽어옵니다. 없으면 null.
+    function readExifDate(buffer) {
+      try {
+        const view = new DataView(buffer);
+        if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
+        let offset = 2;
+        while (offset + 4 <= view.byteLength) {
+          const marker = view.getUint16(offset);
+          if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) return null;
+          const size = view.getUint16(offset + 2);
+          if (marker === 0xFFE1) {
+            const d = parseExifSegment(view, offset + 4);
+            if (d) return d;
+          }
+          offset += 2 + size;
+        }
+      } catch (e) { /* 손상된 EXIF는 무시 */ }
+      return null;
+    }
+
+    function parseExifSegment(view, start) {
+      if (view.getUint32(start) !== 0x45786966) return null; // "Exif"
+      const tiff = start + 6;
+      const little = view.getUint16(tiff) === 0x4949;
+      const u16 = o => view.getUint16(o, little);
+      const u32 = o => view.getUint32(o, little);
+      const readAscii = (o, n) => {
+        let s = '';
+        for (let i = 0; i < n; i++) {
+          const c = view.getUint8(o + i);
+          if (!c) break;
+          s += String.fromCharCode(c);
+        }
+        return s;
+      };
+      const scanIfd = ifdOffset => {
+        const base = tiff + ifdOffset;
+        const n = u16(base);
+        const out = {};
+        for (let i = 0; i < n; i++) {
+          const e = base + 2 + i * 12;
+          const tag = u16(e), type = u16(e + 2), count = u32(e + 4);
+          if (tag === 0x8769) out.exifPtr = u32(e + 8);
+          else if ((tag === 0x9003 || tag === 0x9004 || tag === 0x0132) && type === 2) {
+            out[tag] = readAscii(count > 4 ? tiff + u32(e + 8) : e + 8, count);
+          }
+        }
+        return out;
+      };
+      const ifd0 = scanIfd(u32(tiff + 4));
+      const exif = ifd0.exifPtr ? scanIfd(ifd0.exifPtr) : {};
+      const str = exif[0x9003] || exif[0x9004] || ifd0[0x0132] || '';
+      const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(str);
+      if (!m || m[1] === '0000') return null;
+      const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+      return isNaN(d) ? null : d;
+    }
+
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+        img.src = url;
+      });
+    }
+
+    function fitText(ctx, text, maxWidth) {
+      if (ctx.measureText(text).width <= maxWidth) return text;
+      let s = text;
+      while (s.length > 1 && ctx.measureText(s + '…').width > maxWidth) s = s.slice(0, -1);
+      return s + '…';
+    }
+
+    // 사진 하단에 촬영 시각 · 습관명 타임스탬프를 새겨 넣습니다.
+    function drawTimestamp(ctx, w, h, takenAt, habitName) {
+      const base = Math.max(14, Math.round(Math.min(w, h) * 0.045));
+      const gap = Math.round(base * 0.8);
+      const fadeH = Math.round(base * 5);
+      const grad = ctx.createLinearGradient(0, h - fadeH, 0, h);
+      grad.addColorStop(0, 'rgba(15,23,42,0)');
+      grad.addColorStop(1, 'rgba(15,23,42,0.8)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, h - fadeH, w, fadeH);
+
+      const font = "'Pretendard', -apple-system, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif";
+      const line1Y = h - gap - Math.round(base * 1.3);
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = Math.round(base * 0.3);
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${Math.round(base * 1.7)}px ${font}`;
+      ctx.fillText(`${pad(takenAt.getHours())}:${pad(takenAt.getMinutes())}`, gap, line1Y);
+      ctx.font = `600 ${base}px ${font}`;
+      ctx.fillText(`${takenAt.getFullYear()}.${pad(takenAt.getMonth() + 1)}.${pad(takenAt.getDate())} (${WEEKDAY_KR[takenAt.getDay()]})`, gap, h - gap);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fcd34d';
+      ctx.font = `800 ${Math.round(base * 0.85)}px ${font}`;
+      ctx.fillText('ATOMIC HABIT 인증', w - gap, line1Y);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `600 ${Math.round(base * 0.9)}px ${font}`;
+      ctx.fillText(fitText(ctx, habitName, w * 0.5), w - gap, h - gap);
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'left';
+    }
+
+    async function processProofImage(file, habitName) {
+      const exifDate = readExifDate(await file.arrayBuffer());
+      const takenAt = exifDate || new Date(file.lastModified || Date.now());
+      const img = await loadImageFromFile(file);
+      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      drawTimestamp(ctx, w, h, takenAt, habitName);
+      return {
+        dataUrl: canvas.toDataURL('image/jpeg', 0.82),
+        takenAt: takenAt.toISOString(),
+        timeSource: exifDate ? 'exif' : 'file'
+      };
+    }
 
     let toastTimer = null;
     function showToast(msg) {
@@ -582,10 +839,10 @@
       const missing = pool.filter(h => getLogState(h.logs, dateKey) === 0);
       if (missing.length > 0) {
         missing.forEach(h => setLog(h, dateKey, 2));
-        showToast(`${keyLabel(dateKey)}: 미기록 습관을 완수로 기록했습니다.`);
+        showToast(`${keyLabel(dateKey)}: 미기록 ${missing.length}개 습관을 완수로 기록했습니다.`);
       } else {
-        if (!confirm(`${keyLabel(dateKey)}의 모든 습관 기록을 지우시겠습니까?`)) return;
-        pool.forEach(h => setLog(h, dateKey, 0));
+        if (!confirm(`${keyLabel(dateKey)}의 모든 습관 기록(완수·2분실행)을 지우시겠습니까?`)) return;
+        pool.filter(h => h.createdAt <= dateKey).forEach(h => setLog(h, dateKey, 0));
         showToast(`${keyLabel(dateKey)} 기록을 지웠습니다.`);
       }
       saveData();
@@ -604,12 +861,14 @@
     function deleteHabit(habitId) {
       const habit = findHabit(habitId);
       if (!habit) return;
-      if (!confirm(`'${habit.name}' 습관 시스템을 삭제하시겠습니까?`)) return;
+      if (!confirm(`'${habit.name}' 습관 시스템을 삭제하시겠습니까?
+모든 기록과 인증 사진이 함께 삭제됩니다.`)) return;
       habits = habits.filter(h => h.id !== habitId);
+      removePhotosWhere(p => p.habitId === habitId);
       if (selectedHeatmapHabitId === habitId) selectedHeatmapHabitId = 'ALL';
       saveData();
       renderAll();
-      showToast('삭제되었습니다.');
+      showToast('습관 시스템을 삭제했습니다.');
     }
 
     function openEditModal(habitId) {
@@ -633,17 +892,185 @@
       modal.classList.add('hidden');
     }
 
+    // ===== 사진 인증 모달 =====
+    function openProofModal(habitId, dateKey) {
+      if (!isDateKey(dateKey) || isFutureKey(dateKey) || !findHabit(habitId)) return;
+      proofTarget = { habitId, dateKey };
+      proofBusy = false;
+      renderProofModal();
+      const modal = document.getElementById('proof-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeProofModal() {
+      proofTarget = null;
+      const modal = document.getElementById('proof-modal');
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+    }
+
+    function pickProofFile(useCamera) {
+      if (proofBusy) return;
+      document.getElementById(useCamera ? 'proof-camera-input' : 'proof-file-input').click();
+    }
+
+    function renderProofModal() {
+      if (!proofTarget) return;
+      const habit = findHabit(proofTarget.habitId);
+      if (!habit) { closeProofModal(); return; }
+      const { dateKey } = proofTarget;
+      const d = parseDateKey(dateKey);
+      document.getElementById('proof-modal-sub').textContent =
+        `${habit.name} · ${keyLabel(dateKey)}(${WEEKDAY_KR[d.getDay()]})`;
+
+      const body = document.getElementById('proof-modal-body');
+      if (proofBusy) {
+        body.innerHTML = `
+          <div class="py-14 text-center text-sm text-slate-500 space-y-2">
+            <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-500" aria-hidden="true"></i>
+            <p>타임스탬프를 새기는 중...</p>
+          </div>`;
+        return;
+      }
+
+      const uploadButtons = label => `
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="pickProofFile(true)" class="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-camera" aria-hidden="true"></i> 카메라로 ${label}
+          </button>
+          <button type="button" onclick="pickProofFile(false)" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-image" aria-hidden="true"></i> 앨범에서 선택
+          </button>
+        </div>`;
+
+      const p = getProof(habit.id, dateKey);
+      if (!p) {
+        body.innerHTML = `
+          <button type="button" onclick="pickProofFile(false)" class="w-full py-10 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition text-center space-y-2">
+            <i class="fa-solid fa-camera-retro text-3xl text-slate-300" aria-hidden="true"></i>
+            <p class="text-sm font-bold text-slate-600">인증 사진을 올려주세요</p>
+            <p class="text-[11px] text-slate-400 px-6 leading-relaxed">사진의 촬영 시각(EXIF)을 읽어 날짜가 맞는지 확인하고,<br>사진 하단에 시각 · 습관명 타임스탬프를 새겨 저장합니다.</p>
+          </button>
+          ${uploadButtons('촬영')}
+          <p class="text-[11px] text-slate-400">💡 업로드하면 미기록 상태인 날은 자동으로 <b class="text-indigo-600">✔ 100% 완수</b>로 체크됩니다.</p>`;
+        return;
+      }
+
+      const status = p.verified
+        ? `<div class="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800"><span>✅</span><span><b>촬영일 일치</b> · 인증 날짜에 찍은 사진입니다.</span></div>`
+        : `<div class="flex items-start gap-2 p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-800"><span>⚠️</span><span><b>촬영일 불일치</b> · 사진은 ${escapeHtml(keyLabel(formatDateKey(new Date(p.takenAt))))}에 찍혔습니다.</span></div>`;
+      const sourceLabel = p.timeSource === 'exif' ? '사진 촬영 정보(EXIF)' : '파일 수정 시각 (촬영 정보 없음)';
+
+      body.innerHTML = `
+        <div class="rounded-xl overflow-hidden bg-slate-900">
+          <img src="${p.dataUrl}" alt="${escapeHtml(habit.name)} ${escapeHtml(keyLabel(dateKey))} 인증 사진" class="w-full max-h-[50vh] object-contain">
+        </div>
+        ${status}
+        <dl class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+          <dt class="text-slate-400 font-semibold">촬영 시각</dt><dd class="text-slate-800 font-bold">${escapeHtml(formatDateTime(p.takenAt))}</dd>
+          <dt class="text-slate-400 font-semibold">시각 출처</dt><dd class="text-slate-600">${sourceLabel}</dd>
+          <dt class="text-slate-400 font-semibold">업로드</dt><dd class="text-slate-600">${escapeHtml(formatDateTime(p.uploadedAt))}</dd>
+        </dl>
+        ${uploadButtons('다시 찍기')}
+        <div class="flex justify-between gap-2 pt-1">
+          <button type="button" onclick="downloadProof()" class="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+            <i class="fa-solid fa-download" aria-hidden="true"></i> 사진 저장
+          </button>
+          <button type="button" onclick="deleteProof()" class="px-3 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition flex items-center gap-1.5">
+            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> 인증 사진 삭제
+          </button>
+        </div>`;
+    }
+
+    async function handleProofFile(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file || !proofTarget || proofBusy) return;
+      const { habitId, dateKey } = proofTarget;
+      const habit = findHabit(habitId);
+      if (!habit) return;
+
+      proofBusy = true;
+      renderProofModal();
+      let result;
+      try {
+        result = await processProofImage(file, habit.name);
+      } catch (e) {
+        proofBusy = false;
+        renderProofModal();
+        showToast('이미지를 읽을 수 없습니다. JPG/PNG 사진을 사용해 주세요.');
+        return;
+      }
+      proofBusy = false;
+
+      const takenKey = formatDateKey(new Date(result.takenAt));
+      const verified = takenKey === dateKey;
+      if (!verified && !confirm(`사진 촬영일(${keyLabel(takenKey)})이 인증 날짜(${keyLabel(dateKey)})와 다릅니다.\n'촬영일 불일치'로 표시해서 저장할까요?`)) {
+        renderProofModal();
+        return;
+      }
+
+      const rec = {
+        key: proofKey(habitId, dateKey),
+        habitId,
+        dateKey,
+        ...result,
+        uploadedAt: new Date().toISOString(),
+        verified
+      };
+      photos[rec.key] = rec;
+      persistPhotos(() => photoDb.put(rec));
+
+      const autoChecked = getLogState(habit.logs, dateKey) === 0;
+      if (autoChecked) {
+        setLog(habit, dateKey, 2);
+        saveData();
+      }
+      renderAll();
+      renderProofModal();
+      showToast(verified
+        ? `📸 인증 완료!${autoChecked ? ' 100% 완수로 체크했습니다.' : ''}`
+        : '⚠️ 촬영일 불일치로 저장했습니다.');
+    }
+
+    function deleteProof() {
+      if (!proofTarget) return;
+      const { habitId, dateKey } = proofTarget;
+      if (!getProof(habitId, dateKey)) return;
+      if (!confirm('이 인증 사진을 삭제하시겠습니까?\n(체크 기록은 그대로 유지됩니다)')) return;
+      removePhotosWhere(p => p.habitId === habitId && p.dateKey === dateKey);
+      renderAll();
+      renderProofModal();
+      showToast('인증 사진을 삭제했습니다.');
+    }
+
+    function downloadProof() {
+      if (!proofTarget) return;
+      const p = getProof(proofTarget.habitId, proofTarget.dateKey);
+      const habit = findHabit(proofTarget.habitId);
+      if (!p || !habit) return;
+      const a = document.createElement('a');
+      a.href = p.dataUrl;
+      a.download = `인증_${habit.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)}_${p.dateKey}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
     function resetCurrentWeek() {
-      if (!confirm('이번 주(월~일) 체크 기록을 모두 초기화하시겠습니까?')) return;
+      if (!confirm('이번 주(월~일) 체크 기록과 인증 사진을 모두 초기화하시겠습니까?')) return;
       habits.forEach(h => currentWeekKeys.forEach(k => delete h.logs[k]));
+      removePhotosWhere(p => currentWeekKeys.includes(p.dateKey));
       saveData();
       renderAll();
       showToast('초기화되었습니다.');
     }
 
     function loadDefaultHabits() {
-      if (!confirm('샘플 데이터로 복원하시겠습니까?')) return;
+      if (!confirm('샘플 데이터로 복원하시겠습니까?\n기존 인증 사진도 모두 삭제됩니다.')) return;
       habits = createSampleHabits();
+      removePhotosWhere(() => true);
       selectedHeatmapHabitId = 'ALL';
       saveData();
       renderAll();
@@ -689,7 +1116,50 @@
       renderIdentityCards();
       renderWeeklyBoard();
       renderHeatmapSection();
+      renderProofGallery();
       updateKPIStats();
+    }
+
+    function renderProofGallery() {
+      const isAll = selectedHeatmapHabitId === 'ALL';
+      const prefix = `${viewYear}-${pad(viewMonth + 1)}-`;
+      const list = Object.values(photos)
+        .filter(p => p.dateKey.startsWith(prefix) && findHabit(p.habitId) && (isAll || p.habitId === selectedHeatmapHabitId))
+        .sort((a, b) => b.dateKey.localeCompare(a.dateKey) || b.takenAt.localeCompare(a.takenAt));
+      const verifiedCnt = list.filter(p => p.verified).length;
+
+      const target = isAll ? '전체 습관' : (findHabit(selectedHeatmapHabitId) || {}).name;
+      document.getElementById('proof-gallery-help').textContent =
+        `${viewYear}년 ${viewMonth + 1}월 · ${target} — 히트맵의 월/습관 선택을 따라갑니다. 주간 보드의 📷 버튼으로 올리세요.`;
+      document.getElementById('proof-gallery-count').textContent = `📸 ${list.length}장 · 촬영일 일치 ${verifiedCnt}장`;
+
+      const grid = document.getElementById('proof-gallery-grid');
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-10 text-center text-xs text-slate-400 space-y-2">
+            <i class="fa-solid fa-images text-3xl text-slate-200" aria-hidden="true"></i>
+            <p>이 달에는 인증 사진이 없습니다. 주간 보드 체크 버튼 옆 <b class="text-slate-500">📷</b>을 눌러 첫 인증을 남겨보세요.</p>
+          </div>`;
+        return;
+      }
+      grid.innerHTML = list.map(p => {
+        const h = findHabit(p.habitId);
+        const badge = p.verified
+          ? '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-bold shadow">✅ 일치</span>'
+          : '<span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-orange-400 text-white text-[10px] font-bold shadow">⚠️ 불일치</span>';
+        return `
+          <button type="button" data-action="proof" data-id="${escapeHtml(p.habitId)}" data-date="${p.dateKey}"
+            class="proof-thumb group text-left rounded-xl overflow-hidden border border-slate-200/80 bg-white hover:shadow-md transition">
+            <div class="relative aspect-square overflow-hidden bg-slate-100">
+              <img src="${p.dataUrl}" alt="${escapeHtml(h.name)} ${escapeHtml(keyLabel(p.dateKey))} 인증 사진" loading="lazy" class="w-full h-full object-cover">
+              ${badge}
+            </div>
+            <div class="p-2 space-y-0.5">
+              <p class="text-[11px] font-extrabold text-slate-800">${escapeHtml(keyLabel(p.dateKey))} · ${escapeHtml(formatDateTime(p.takenAt).slice(-5))}</p>
+              <p class="text-[11px] text-slate-500 truncate">${escapeHtml(h.name)}</p>
+            </div>
+          </button>`;
+      }).join('');
     }
 
     function renderHeaderInfo() {
@@ -783,13 +1253,32 @@
             nextHint = '현재: ✔ 100% 완수 (클릭 시 해제)';
           }
           const label = `${safeName} ${DAYS_KR[idx]}요일 ${future ? '예정' : STATE_LABEL[state]}`;
+          const proof = future ? null : getProof(habit.id, dKey);
+          let proofHtml = '';
+          if (!future) {
+            const proofCls = !proof
+              ? 'bg-white border-slate-200 text-slate-300 hover:text-indigo-600 hover:border-indigo-300'
+              : proof.verified
+                ? 'bg-emerald-500 border-white text-white shadow'
+                : 'bg-orange-400 border-white text-white shadow';
+            const proofTitle = !proof ? '📷 타임스탬프 사진으로 인증하기'
+              : proof.verified ? `📸 인증 완료 (${formatDateTime(proof.takenAt)})` : `⚠️ 촬영일 불일치 (${formatDateTime(proof.takenAt)})`;
+            proofHtml = `
+              <button type="button" data-action="proof" data-id="${id}" data-date="${dKey}"
+                aria-label="${safeName} ${DAYS_KR[idx]}요일 사진 인증 ${proof ? '보기' : '올리기'}" title="${escapeHtml(proofTitle)}"
+                class="proof-badge absolute -top-2 -right-2 w-5 h-5 rounded-full border text-[9px] inline-flex items-center justify-center ${proofCls}">
+                <i class="fa-solid fa-camera" aria-hidden="true"></i>
+              </button>`;
+          }
           return `
             <td class="py-3.5 px-2 text-center ${isToday ? 'today-col' : ''}">
-              <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
-                aria-label="${label}" title="${nextHint}"
-                class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
-                ${iconHtml}
-              </button>
+              <div class="relative inline-block">
+                <button type="button" data-action="cycle" data-id="${id}" data-date="${dKey}" ${future ? 'disabled' : ''}
+                  aria-label="${label}" title="${nextHint}"
+                  class="check-btn w-9 h-9 rounded-xl inline-flex items-center justify-center font-bold text-sm border ${btnStyle}">
+                  ${iconHtml}
+                </button>${proofHtml}
+              </div>
             </td>`;
         }).join('');
 
@@ -831,10 +1320,10 @@
               </div>
             </td>
             <td class="py-3.5 px-2 text-center whitespace-nowrap">
-              <button type="button" data-action="up" data-id="${id}" ${index === 0 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="위로"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-              <button type="button" data-action="down" data-id="${id}" ${index === habits.length - 1 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="아래로"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
-              <button type="button" data-action="edit" data-id="${id}" class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="수정"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-              <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+              <button type="button" data-action="up" data-id="${id}" ${index === 0 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="위로" aria-label="${safeName} 위로 이동"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+              <button type="button" data-action="down" data-id="${id}" ${index === habits.length - 1 ? 'disabled' : ''} class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="아래로" aria-label="${safeName} 아래로 이동"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+              <button type="button" data-action="edit" data-id="${id}" class="icon-btn text-slate-400 hover:text-indigo-600 transition p-1.5" title="수정" aria-label="${safeName} 수정"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+              <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제" aria-label="${safeName} 삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
             </td>
           </tr>`;
       }).join('');
@@ -864,6 +1353,10 @@
       const firstDay = new Date(viewYear, viewMonth, 1);
       const startOffset = (firstDay.getDay() + 6) % 7;
       const targetHabit = isAll ? null : findHabit(selectedHeatmapHabitId);
+
+      const photoDays = new Set(Object.values(photos)
+        .filter(p => isAll ? findHabit(p.habitId) : p.habitId === selectedHeatmapHabitId)
+        .map(p => p.dateKey));
 
       let gridHtml = '<div class="h-12" aria-hidden="true"></div>'.repeat(startOffset);
       keys.forEach((dKey, i) => {
@@ -901,7 +1394,7 @@
         gridHtml += `
           <button type="button" data-action="cell" data-date="${dKey}" ${future ? 'disabled' : ''}
             class="grass-cell h-12 rounded-xl border p-1.5 flex flex-col justify-between items-center ${levelClass} ${isToday ? 'ring-2 ring-indigo-600 ring-offset-1' : ''}">
-            <span class="text-xs font-bold self-start leading-none">${day}</span>
+            <span class="w-full flex items-start justify-between text-xs font-bold leading-none"><span>${day}</span>${photoDays.has(dKey) ? '<i class="fa-solid fa-camera text-[9px] opacity-80" aria-label="사진 인증 있음"></i>' : ''}</span>
             <span class="text-[10px] font-bold opacity-95">${bottomLabel}</span>
           </button>`;
       });
@@ -972,6 +1465,17 @@
       document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
     }
 
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
     function exportToExcel() {
       if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리를 불러오지 못했습니다.'); return; }
       if (habits.length === 0) { showToast('데이터가 없습니다.'); return; }
@@ -980,21 +1484,22 @@
 
       const weeklyHeader = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상',
         ...currentWeekDates.map((d, i) => `${DAYS_KR[i]} (${d.getMonth() + 1}/${d.getDate()})`),
-        '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표'];
+        '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표', '사진인증'];
       const weeklyRows = habits.map(h => {
         const states = currentWeekKeys.map(k => getLogState(h.logs, k));
         const active = states.filter(s => s > 0).length;
         const eligible = countEligibleDays(h, currentWeekKeys);
         const rate = eligible ? `${Math.round((active / eligible) * 100)}%` : '-';
         return [h.category, h.identity, h.name, h.twoMinRule, h.cue, h.reward,
-          ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes];
+          ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes,
+          currentWeekKeys.filter(k => getProof(h.id, k)).length];
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([weeklyHeader, ...weeklyRows]), '주간시스템');
       XLSX.writeFile(wb, `아토믹해빗_대시보드_${todayKey}.xlsx`);
     }
 
     function exportBackupJson() {
-      const payload = { app: 'atomic-habit-dashboard', version: 4, exportedAt: new Date().toISOString(), habits };
+      const payload = { app: 'atomic-habit-dashboard', version: 5, exportedAt: new Date().toISOString(), habits, photos: Object.values(photos) };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1008,10 +1513,18 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = e => {
-        let list = null;
-        try { list = sanitizeHabitList(JSON.parse(e.target.result)); } catch (err) { list = null; }
+        let parsed = null, list = null;
+        try { parsed = JSON.parse(e.target.result); list = sanitizeHabitList(parsed); } catch (err) { list = null; }
         if (!list) { showToast('올바른 백업 파일이 아닙니다.'); return; }
         habits = list;
+        // 백업에 사진이 있으면 그것으로 교체, 없으면(구버전 백업) 남아있는 습관의 사진만 유지
+        const ids = new Set(list.map(h => h.id));
+        const source = parsed && Array.isArray(parsed.photos)
+          ? parsed.photos.map(p => sanitizePhoto(p, ids)).filter(Boolean)
+          : Object.values(photos).filter(p => ids.has(p.habitId));
+        photos = {};
+        source.forEach(p => { photos[p.key] = p; });
+        persistPhotos(() => photoDb.replaceAll(Object.values(photos)));
         selectedHeatmapHabitId = 'ALL';
         saveData();
         renderAll();
@@ -1027,6 +1540,7 @@
       switch (btn.dataset.action) {
         case 'cycle': refreshDates(); cycleDateCheck(id, btn.dataset.date); break;
         case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
+        case 'proof': refreshDates(); openProofModal(id, btn.dataset.date); break;
         case 'filter': selectHeatmapFilter(id); break;
         case 'up': moveHabit(id, -1); break;
         case 'down': moveHabit(id, 1); break;
@@ -1046,7 +1560,7 @@
       habit.name = name;
       habit.twoMinRule = cleanText(document.getElementById('edit-twomin').value, '2분만 시작하기');
       habit.cue = cleanText(document.getElementById('edit-cue').value, '');
-      habit.reward = cleanText(document.getElementById('edit-reward').value, '');
+      habit.reward = cleanText(document.getElementById('edit-reward').value, '')
       saveData();
       renderAll();
       closeEditModal();
@@ -1054,6 +1568,12 @@
     });
 
     document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') closeEditModal(); });
+    document.getElementById('proof-modal').addEventListener('click', e => { if (e.target.id === 'proof-modal' && !proofBusy) closeProofModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      closeEditModal();
+      if (!proofBusy) closeProofModal();
+    });
 
     document.getElementById('add-habit-form').addEventListener('submit', e => {
       e.preventDefault();
@@ -1088,6 +1608,24 @@
       habits = loadHabits();
       saveData();
       renderAll();
+      loadPhotos();
+    }
+
+    async function loadPhotos() {
+      try {
+        const ids = new Set(habits.map(h => h.id));
+        const list = await photoDb.getAll();
+        const orphanKeys = [];
+        (list || []).forEach(raw => {
+          const p = sanitizePhoto(raw, ids);
+          if (p) photos[p.key] = p;
+          else if (raw && raw.key) orphanKeys.push(raw.key);
+        });
+        if (orphanKeys.length) persistPhotos(() => photoDb.remove(orphanKeys));
+        renderAll();
+      } catch (e) {
+        persistPhotos(() => Promise.reject(e));
+      }
     }
 
     init();
