@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>아토믹 해빗 대시보드</title>
+<title>수영's 라이프 대시보드</title>
 <script>
-  // ===== Supabase 설정 =====
-  // Supabase 대시보드 → Project Settings → API 에서 두 값을 복사해 넣으세요.
+  // ===== Supabase 설정 (만다라트·습관 공용) =====
   // anon(public) 키는 공개용 키라 페이지에 넣어도 됩니다. 데이터는 로그인한 본인만 읽고 쓸 수 있습니다(RLS).
   // service_role 키는 절대 넣지 마세요.
   window.HABIT_CONFIG = {
@@ -16,12 +15,18 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
+/* ===== 습관 대시보드 스타일 ===== */
   /* 단일 라이트 테마: 밝은 슬레이트 바탕 + 인디고 포인트 (기존 대시보드 룩 유지) */
   :root {
     color-scheme: light;
@@ -29,16 +34,19 @@
     --fg: #1e293b;
     --font-body: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   }
-  body {
+  /* 통합 페이지: 습관 화면에만 습관 대시보드 글꼴·여백을 적용 */
+  #habit-view {
     font-family: var(--font-body);
-    background: var(--bg);
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
-    padding-block: 16px 40px;
+    padding-block: 20px 40px;
   }
-  @media (min-width: 768px) { body { padding-block: 32px 48px; } }
+  @media (min-width: 768px) { #habit-view { padding-block: 28px 48px; } }
+  body[data-tab="habits"] { background: var(--bg) !important; }
+  /* 습관 대시보드의 모달·토스트도 같은 글꼴 */
+  .modal-wrap, #toast { font-family: var(--font-body); }
   h1, h2, h3 { text-wrap: balance; }
   .tabular { font-variant-numeric: tabular-nums; }
   button:focus-visible, label:focus-within, select:focus-visible, input:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
@@ -68,29 +76,79 @@
   .proof-thumb img { transition: transform 0.25s ease; }
   .proof-thumb:hover img { transform: scale(1.04); }
   [hidden] { display: none !important; }
-  /* 로그인 전에는 헤더·로그인·안내만 보이기 */
-  body[data-auth="out"] .max-w-7xl > section:not(#auth-section):not(#store-banner) { display: none; }
-  body[data-auth="out"] header [data-action]:not([data-action="logout"]),
+  /* 팝아트 히어로 코믹북 스타일 배지 & 효과 */
+  .comic-en { font-family: 'Bangers', 'Noto Sans KR', cursive; letter-spacing: 0.04em; }
+  .comic-kr { font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif; }
+  .pop-badge {
+    border: 2px solid #0f172a;
+    box-shadow: 2px 2px 0px #0f172a;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .pop-badge:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px #0f172a;
+  }
+  .pop-card {
+    border: 2px solid #0f172a;
+    box-shadow: 4px 4px 0px #0f172a;
+  }
+  .halftone-bg {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+  /* 로그인 전에는 헤더·로그인·안내·슬라이드 스토리 배너만 보이기 */
+  body[data-auth="out"] #habit-view .max-w-7xl > section:not(#auth-section):not(#store-banner):not(#hero-story-banner) { display: none; }
+  body[data-auth="out"] header [data-action]:not([data-action="logout"]):not([data-action="open-slide-guide"]),
   body[data-auth="out"] header label { display: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
+/* ===== 만다라트 스타일 ===== */
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: #F7F6F2; /* 웜그레이 스케치노트 배경 */
+      color: #2C2B29;
+    }
+    .sketch-border {
+      border: 2px solid #2C2B29;
+      box-shadow: 3px 3px 0px #2C2B29;
+    }
+    .sketch-border-sm {
+      border: 1.5px solid #2C2B29;
+      box-shadow: 2px 2px 0px #2C2B29;
+    }
+    .sketch-active {
+      border: 2px solid #D97706;
+      box-shadow: 3px 3px 0px #D97706;
+    }
+    /* 스크롤바 커스텀 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F7F6F2; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  
 </style>
 </head>
 <body>
 
+<!-- 만다라트 (React) + 공용 상단 바 -->
+<div id="root"></div>
+
+<!-- 습관 대시보드 화면 -->
+<div id="habit-view" hidden>
 <div class="max-w-7xl mx-auto space-y-6 text-slate-800">
 
   <!-- 상단 헤더 -->
   <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
-    <div class="flex items-center gap-2.5 min-w-0">
-      <span class="bg-indigo-600 text-white w-11 h-11 rounded-xl shadow-sm flex items-center justify-center shrink-0">
-        <i class="fa-solid fa-atom text-xl" aria-hidden="true"></i>
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-amber-300 w-12 h-12 rounded-2xl pop-badge flex items-center justify-center shrink-0">
+        <i class="fa-solid fa-bolt-lightning text-xl" aria-hidden="true"></i>
       </span>
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">
           <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">아토믹 해빗 시스템 대시보드</h1>
-          <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">1% 복리 시스템</span>
+          <span class="px-2.5 py-0.5 text-[11px] font-extrabold bg-amber-300 text-slate-900 rounded-md pop-badge comic-en">KABOOM! 37.78x</span>
+          <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">영웅의 탄생 스토리</span>
         </div>
         <p id="current-date-display" class="text-xs sm:text-sm text-slate-500 mt-1 font-medium"></p>
       </div>
@@ -99,6 +157,9 @@
       <span id="sync-pill" class="px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-slate-50 text-slate-500 border-slate-200">
         <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 연결 중
       </span>
+      <button type="button" data-action="open-slide-guide" class="px-3.5 py-2 text-xs font-extrabold text-slate-900 bg-amber-300 hover:bg-amber-400 rounded-xl pop-badge flex items-center gap-1.5">
+        <i class="fa-solid fa-book-open-reader" aria-hidden="true"></i> 슬라이드 바이블 (15장)
+      </button>
       <button type="button" data-action="export-xlsx" class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i> 엑셀
       </button>
@@ -120,6 +181,33 @@
       </button>
     </div>
   </header>
+
+  <!-- 슬라이드 핵심 스토리 & 오늘의 영웅 질문 배너 (p.1, p.3, p.13, p.15 반영) -->
+  <section id="hero-story-banner" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-5 md:p-6 shadow-md border border-indigo-500/30 halftone-bg">
+    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div class="space-y-2 max-w-3xl">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-0.5 text-xs font-extrabold bg-rose-500 text-white rounded-md pop-badge comic-en">ORIGIN STORY</span>
+          <span class="px-2.5 py-0.5 text-xs font-extrabold bg-amber-400 text-slate-900 rounded-md pop-badge comic-en">ZAP! 2 MINUTES!</span>
+          <span class="px-2.5 py-0.5 text-[11px] font-bold bg-indigo-500/30 text-indigo-200 rounded-lg border border-indigo-400/40">✈️ LA ➔ NY 3.5도 궤도 수정</span>
+        </div>
+        <h2 class="text-base md:text-lg font-extrabold tracking-tight text-white leading-snug">
+          "만약(What If)...? 오늘 당신이 찍을 단 하나의 도장은 무엇입니까?"
+        </h2>
+        <p id="slide-rotating-quote" class="text-xs sm:text-sm text-indigo-100/90 leading-relaxed font-medium">
+          💡 <b>슬라이드 핵심 (p.2):</b> 실패는 당신의 의지력 문제가 아닙니다. 변화를 가로막는 잘못된 '시스템'의 결과일 뿐입니다. 완벽함 대신 <b>⚡ 2분 규칙</b>으로 오늘의 궤도를 유지하세요!
+        </p>
+      </div>
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+        <button type="button" data-action="next-quote" class="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-amber-200 border border-white/15 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-wand-sparkles" aria-hidden="true"></i> 다음 슬라이드 명언
+        </button>
+        <button type="button" data-action="open-slide-guide" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold pop-badge flex items-center gap-1.5">
+          <i class="fa-solid fa-bolt" aria-hidden="true"></i> 4대 법칙 & 악당 격퇴법 보기
+        </button>
+      </div>
+    </div>
+  </section>
 
   <!-- 로그인 (Supabase 계정) -->
   <section id="auth-section" hidden class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
@@ -170,13 +258,16 @@
         <i class="fa-solid fa-compass" aria-hidden="true"></i>
       </div>
     </div>
-    <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-4 md:p-5 rounded-2xl shadow-sm flex items-center justify-between gap-2">
+    <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white p-4 md:p-5 rounded-2xl shadow-sm flex items-center justify-between gap-2 border border-amber-400/40 halftone-bg">
       <div class="min-w-0">
-        <p class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">1% 복리 지수</p>
+        <p class="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+          <span>1% 복리 마법</span>
+          <span class="px-1.5 py-0.2 text-[9px] bg-rose-500 text-white rounded comic-en">KABOOM!</span>
+        </p>
         <p id="stat-compound" class="text-2xl font-extrabold text-amber-300 mt-1 tabular">1.00배</p>
-        <p id="stat-compound-sub" class="text-[11px] text-slate-300 mt-1 truncate">1.01^0</p>
+        <p id="stat-compound-sub" class="text-[11px] text-indigo-200 mt-1 truncate">1.01^365 = 37.78배</p>
       </div>
-      <i class="fa-solid fa-chart-line text-amber-300 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
+      <i class="fa-solid fa-rocket text-amber-300 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
     </div>
     <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
       <div class="min-w-0">
@@ -204,17 +295,20 @@
     </div>
   </section>
 
-  <!-- 정체성 투표 보드 & 잠복기 돌파 게이지 -->
+  <!-- 정체성 투표 보드 (The Hero vs Amateur) & 잠복기 돌파 게이지 (101번째 망치질) -->
   <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3 min-w-0">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-id-badge text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표 현황
-          </h2>
-          <p class="text-xs text-slate-400 mt-0.5">습관을 반복할 때마다 정체성에 한 표가 쌓입니다.</p>
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표함
+            </h2>
+            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-purple-600 text-white rounded comic-en">THE HERO</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">"목표는 책을 읽는 것이 아니라 <b>'독서가'</b>가 되는 것입니다. 매일의 습관으로 당신의 정체성에 투표하세요!" (슬라이드 7p)</p>
         </div>
-        <span class="self-start text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · 2분실행 0.5표</span>
+        <span class="self-start text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · ⚡2분실행 0.5표</span>
       </div>
       <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"></div>
     </div>
@@ -222,21 +316,23 @@
       <div>
         <div class="flex items-center justify-between gap-2">
           <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-            <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 돌파 게이지
+            <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 (실망의 계곡)
           </h2>
-          <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 shrink-0">실망의 계곡</span>
+          <span id="valley-stage-pill" class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-300 text-slate-900 pop-badge shrink-0">101번째 타격 향해</span>
         </div>
-        <p class="text-xs text-slate-400 mt-1">임계점 목표: 누적 100회 실천</p>
+        <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          100번 망치질에도 안 깨지던 돌이 <b>101번째에 쪼개지고</b>, 영하 10도에서 <b>0°C가 되는 순간</b> 얼음이 폭발적으로 녹아내립니다. (슬라이드 5p)
+        </p>
       </div>
-      <div class="space-y-1.5">
+      <div class="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
         <div class="flex justify-between gap-2 text-xs font-bold">
           <span id="valley-temp-text" class="text-indigo-600">현재 온도: -10.0°C</span>
-          <span id="valley-count-text" class="text-slate-600 tabular">0 / 100회</span>
+          <span id="valley-count-text" class="text-slate-700 tabular">0 / 100회 타격</span>
         </div>
-        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100">
+        <div class="w-full h-3.5 bg-white rounded-full overflow-hidden p-0.5 border border-slate-300" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100">
           <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-rose-500 transition-all duration-500" style="width: 0%"></div>
         </div>
-        <p class="text-[11px] text-slate-500 font-medium pt-1">💡 변화가 차곡차곡 쌓이고 있습니다.</p>
+        <p id="valley-quote-text" class="text-[11px] text-slate-500 font-medium pt-0.5">💡 보이지 않는 곳에서 변화가 차곡차곡 쌓이고 있습니다.</p>
       </div>
     </div>
   </section>
@@ -248,6 +344,15 @@
         <i class="fa-solid fa-sliders text-indigo-600" aria-hidden="true"></i> 새로운 아토믹 해빗(시스템) 설계하기
       </h2>
       <span class="text-xs text-slate-400">의지력 대신 시스템으로 설계하세요</span>
+    </div>
+    <div id="mandalart-hint" hidden class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900">
+      <span id="mandalart-hint-text"></span>
+      <button type="button" data-action="mandalart-cancel" class="self-start sm:self-auto shrink-0 px-2.5 py-1 rounded-lg bg-white border border-amber-300 font-semibold hover:bg-amber-100">칸 연결 취소</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <label for="habit-pillar" class="font-bold text-slate-600">🧩 만다라트 기둥</label>
+      <select id="habit-pillar" class="px-3 py-2 bg-amber-50/60 border border-amber-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
+      <span class="text-slate-400">기둥에 연결하면 만다라트에 실천 투표 수가 쌓입니다</span>
     </div>
     <form id="add-habit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
       <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
@@ -363,6 +468,86 @@
     <div id="proof-gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
   </section>
 
+  <!-- 4. 슬라이드 핵심 요약: 뇌를 해킹하는 4가지 절대 법칙 & 악당(나쁜 습관) 격퇴 역발상 전략 (p.8 ~ p.14 반영) -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 md:p-6 space-y-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-[11px] font-extrabold bg-indigo-600 text-white rounded comic-en">SYSTEM CORE</span>
+          <h2 class="font-extrabold text-slate-900 text-lg">의지력을 버리고 뇌를 해킹하는 아토믹 시스템 가이던스</h2>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">동기부여를 믿지 마십시오. 시스템이 동기를 대신합니다. (슬라이드 8p ~ 14p 핵심 요약)</p>
+      </div>
+      <button type="button" data-action="open-slide-guide" class="self-start md:self-auto px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center gap-1.5 shrink-0">
+        <i class="fa-solid fa-layer-group" aria-hidden="true"></i> 15장 슬라이드 스토리 전체 보기
+      </button>
+    </div>
+
+    <!-- 4대 법칙 (좋은 습관 설계) + 역발상 전략 (나쁜 습관 타파) 카드 그리드 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <!-- 제1법칙: 신호 -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2.5 flex flex-col justify-between">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-sky-100 text-sky-800 rounded border border-sky-200">제1법칙 · 신호 (Cue)</span>
+            <i class="fa-solid fa-magnifying-glass text-sky-600" aria-hidden="true"></i>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900">분명하게 만들어라</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">독서를 원한다면 베개 위에 책을 두고, 운동을 원한다면 <b>현관 앞에 운동화</b>를 꺼내 두십시오.</p>
+        </div>
+        <div class="pt-2 border-t border-slate-200/80 text-[11px] text-rose-700 bg-rose-50/70 px-2.5 py-1.5 rounded-lg">
+          <b>🦸‍♂️ 악당 격퇴(역발상):</b> 보이지 않게 하라 (간식을 찬장 깊숙이 숨기기)
+        </div>
+      </div>
+
+      <!-- 제2법칙: 열망 -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2.5 flex flex-col justify-between">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-purple-100 text-purple-800 rounded border border-purple-200">제2법칙 · 열망 (Craving)</span>
+            <i class="fa-solid fa-magnet text-purple-600" aria-hidden="true"></i>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900">매력적으로 만들어라</h3>
+          <p class="text-xs text-slate-600 leading-relaxed"><b>유혹 묶기:</b> 해야 할 일(러닝머신)과 하고 싶은 일(넷플릭스·음악)을 짝지어 도파민을 분비시키세요.</p>
+        </div>
+        <div class="pt-2 border-t border-slate-200/80 text-[11px] text-rose-700 bg-rose-50/70 px-2.5 py-1.5 rounded-lg">
+          <b>🦸‍♂️ 악당 격퇴(역발상):</b> 매력적이지 않게 하라 (나쁜 습관의 단점 소리 내어 말하기)
+        </div>
+      </div>
+
+      <!-- 제3법칙: 반응 -->
+      <div class="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/90 space-y-2.5 flex flex-col justify-between">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-amber-300 text-slate-900 rounded pop-badge comic-en">ZAP! 2 MINUTES!</span>
+            <i class="fa-solid fa-feather-pointed text-amber-600" aria-hidden="true"></i>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900">하기 쉽게 만들어라 (2분 규칙)</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">5km 러닝 ➔ <b>운동화 끈 묶기</b>, 독서 1시간 ➔ <b>책 1페이지 펼치기</b>. 습관은 첫 120초 안에 결정됩니다.</p>
+        </div>
+        <div class="pt-2 border-t border-amber-200/80 text-[11px] text-rose-700 bg-rose-50/70 px-2.5 py-1.5 rounded-lg">
+          <b>🦸‍♂️ 악당 격퇴(역발상):</b> 하기 어렵게 하라 (TV 리모컨 건전지 빼서 서랍에 넣기 · 마찰력 극대화)
+        </div>
+      </div>
+
+      <!-- 제4법칙: 보상 -->
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-2.5 flex flex-col justify-between">
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 rounded border border-emerald-200">제4법칙 · 보상 (Reward)</span>
+            <i class="fa-solid fa-trophy text-amber-500" aria-hidden="true"></i>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900">만족스럽게 만들어라</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">운동 후 시원한 탄산수처럼 즉각적 보상을 주고, <b>절대 두 번 연속 거르지 마세요(Never Miss Twice)!</b></p>
+        </div>
+        <div class="pt-2 border-t border-slate-200/80 text-[11px] text-rose-700 bg-rose-50/70 px-2.5 py-1.5 rounded-lg">
+          <b>🦸‍♂️ 악당 격퇴(역발상):</b> 불만족스럽게 하라 (실패 시 벌금 보내는 '습관 계약' 맺기)
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
 </div>
 
 <!-- 습관 수정 모달 -->
@@ -379,6 +564,10 @@
       <div>
         <label for="edit-category" class="block text-xs font-bold text-slate-600 mb-1">카테고리</label>
         <select id="edit-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700"></select>
+      </div>
+      <div>
+        <label for="edit-pillar" class="block text-xs font-bold text-slate-600 mb-1">🧩 만다라트 기둥</label>
+        <select id="edit-pillar" class="w-full px-3 py-2 bg-amber-50/50 border border-amber-200 rounded-xl text-sm font-semibold text-slate-700"></select>
       </div>
       <div>
         <label for="edit-identity" class="block text-xs font-bold text-slate-600 mb-1">🪪 정체성 (Identity)</label>
@@ -426,6 +615,77 @@
   </div>
 </div>
 
+<!-- 슬라이드 바이블 (15장 스토리북) 모달 -->
+<div id="slide-guide-modal" class="modal-wrap fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="slide-guide-title">
+  <div class="bg-white rounded-2xl max-w-3xl w-full p-5 md:p-6 space-y-4 shadow-2xl border-2 border-slate-900 max-h-full overflow-y-auto">
+    <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div class="flex items-center gap-2.5">
+        <span class="px-2.5 py-1 rounded-lg bg-amber-300 text-slate-900 font-extrabold text-xs pop-badge comic-en">ATOMIC HABIT BIBLE</span>
+        <div>
+          <h3 id="slide-guide-title" class="font-extrabold text-slate-900 text-base md:text-lg">아주 작은 습관의 힘: 평범한 일상을 37배의 기적으로 바꾸는 시스템</h3>
+          <p class="text-xs text-slate-500">붙임 슬라이드 15장의 핵심 스토리와 대시보드 100% 활용 가이드</p>
+        </div>
+      </div>
+      <button type="button" data-action="close-slide-guide" aria-label="닫기" class="text-slate-400 hover:text-slate-700 p-1.5"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+      <div class="p-3.5 rounded-xl bg-slate-900 text-white space-y-1 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-amber-300 font-extrabold">Slide 1~3 · 1%의 개선과 시스템</span>
+          <span class="px-1.5 py-0.5 bg-indigo-600 rounded text-[10px] font-bold">1% MAGIC</span>
+        </div>
+        <p class="text-slate-200 leading-relaxed">작심삼일은 의지력 문제가 아니라 잘못된 시스템 탓입니다. 영국 사이클 팀이 안장 쿠션, 손 씻기 등 모든 영역을 1%씩 개선해 올림픽 금메달 60%를 싹쓸이한 것처럼 시스템을 바꾸세요.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-indigo-950 text-white space-y-1 border border-indigo-800">
+        <div class="flex items-center justify-between">
+          <span class="text-amber-300 font-extrabold">Slide 4~5 · 37.78배 복리와 잠복기</span>
+          <span class="px-1.5 py-0.5 bg-rose-500 rounded text-[10px] font-bold comic-en">KABOOM!</span>
+        </div>
+        <p class="text-indigo-100 leading-relaxed">매일 1% 성장은 1년 뒤 <b>1.01^365 = 37.78배</b>의 폭발을 만듭니다. 100번의 망치질과 영하의 잠복기(실망의 계곡)를 견디면 0°C가 되는 순간 얼음이 폭발적으로 녹아내립니다.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-purple-50 border border-purple-200 space-y-1 text-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-purple-800 font-extrabold">Slide 6~7 · 목표 대신 정체성(The Hero)</span>
+          <span class="px-1.5 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold">IDENTITY</span>
+        </div>
+        <p class="text-slate-600 leading-relaxed">"담배를 끊는 중"이 아니라 "나는 비흡연자다"라고 정의하세요. 습관을 체크할 때마다 내가 되고자 하는 정체성에 소중한 <b>한 표(🗳️)</b>를 던지는 것입니다.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1 text-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-amber-900 font-extrabold">Slide 8~10 · 환경 설계와 2분 규칙</span>
+          <span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 rounded text-[10px] font-extrabold comic-en">2 MINUTES!</span>
+        </div>
+        <p class="text-slate-600 leading-relaxed">현관 앞 운동화처럼 시각적 신호를 배치하고, 시작 문턱을 2분으로 낮추세요. 대시보드에서 <b>1번 클릭(⚡)</b>은 '시작하는 사람'의 정체성을 지키는 필살기입니다.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1 text-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-rose-800 font-extrabold">Slide 11~12 · 두 번 거르지 마라 & 악당 격퇴</span>
+          <span class="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[10px] font-bold">NEVER MISS TWICE</span>
+        </div>
+        <p class="text-slate-600 leading-relaxed">한 번은 실수지만 두 번 연속 거르는 건 새로운 나쁜 습관의 시작입니다. 어제 놓친 항목에 뜨는 <b>🚨 경고 배지</b>를 보면 오늘 반드시 2분이라도 실행해 사슬을 지키세요.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1 text-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-emerald-900 font-extrabold">Slide 13~15 · 3.5도 궤도 수정과 오늘의 도장</span>
+          <span class="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold">BEGIN!</span>
+        </div>
+        <p class="text-slate-600 leading-relaxed">비행기 기수를 3.5도만 틀어도 목적지가 바뀝니다. 피곤한 날 스쿼트 10개만 했어도 0으로 돌아간 게 아니라 올바른 궤도를 유지한 것입니다. 오늘 당신의 도장을 찍으세요!</p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+      <span class="text-[11px] text-slate-400">💡 주간 보드에서 1번 클릭: ⚡ 2분 최소실행 ➔ 2번 클릭: ✔ 100% 완수 ➔ 📷 타임스탬프 사진 인증</span>
+      <button type="button" data-action="close-slide-guide" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">대시보드로 돌아가기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 확인 대화상자 (브라우저 confirm 대체) -->
 <div id="confirm-modal" class="modal-wrap fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[70]" role="alertdialog" aria-modal="true" aria-labelledby="confirm-text">
   <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200">
@@ -442,6 +702,8 @@
      class="fixed left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm shadow-lg opacity-0 pointer-events-none translate-y-2 z-[80] max-w-[90vw] text-center"></div>
 
 <script>
+// 습관 대시보드: 만다라트 스크립트와 이름이 겹치지 않도록 함수 안에 둠
+(() => {
   'use strict';
 
   const STORAGE_KEY = 'atomic_habit_system_dashboard_v3';
@@ -609,7 +871,7 @@
     const rawId = (h.id !== undefined && h.id !== null) ? String(h.id) : '';
     const id = ID_RE.test(rawId) ? rawId : newId();
     if (remap && rawId) remap[rawId] = id;
-    return {
+    const habit = {
       id,
       name,
       category: CATEGORIES.includes(h.category) ? h.category : '생활습관',
@@ -620,6 +882,41 @@
       createdAt,
       logs
     };
+    Object.assign(habit, sanitizeMandalartLink(h));
+    return habit;
+  }
+
+  // ===== 만다라트 연결 =====
+  // pillarIdx(0~7): 만다라트 기둥 번호, pillarName: 기둥 이름(기록용), actionRef("기둥-칸"): 만다라트 행동 칸 위치
+  const ACTION_REF_RE = /^[0-7]-[0-7]$/;
+  function sanitizeMandalartLink(src) {
+    if (!src || !Number.isInteger(src.pillarIdx) || src.pillarIdx < 0 || src.pillarIdx > 7) return {};
+    const link = { pillarIdx: src.pillarIdx, pillarName: cleanText(src.pillarName, `기둥 ${src.pillarIdx + 1}`) };
+    if (typeof src.actionRef === 'string' && ACTION_REF_RE.test(src.actionRef) && src.actionRef[0] === String(src.pillarIdx)) {
+      link.actionRef = src.actionRef;
+    }
+    return link;
+  }
+  function setHabitLink(habit, link) {
+    delete habit.pillarIdx;
+    delete habit.pillarName;
+    delete habit.actionRef;
+    Object.assign(habit, sanitizeMandalartLink(link));
+  }
+  let mandalartPillars = [];     // 만다라트에서 받은 기둥 이름 8개
+  let pendingMandalart = null;   // 만다라트 행동 칸에서 넘어온 연결 정보 (추가 버튼을 누를 때 습관에 붙음)
+  const pillarLabel = idx => cleanText(mandalartPillars[idx], `기둥 ${idx + 1}`);
+  function renderPillarOptions(selectEl, selected) {
+    if (!selectEl) return;
+    const opts = ['<option value="">연결 안 함</option>'].concat(
+      Array.from({ length: 8 }, (_, i) => `<option value="${i}">#${i + 1} ${escapeHtml(pillarLabel(i))}</option>`)
+    );
+    selectEl.innerHTML = opts.join('');
+    selectEl.value = selected === undefined || selected === null ? '' : String(selected);
+  }
+  function clearMandalartPending() {
+    pendingMandalart = null;
+    document.getElementById('mandalart-hint').hidden = true;
   }
   function sanitizeHabitList(parsed, remap) {
     const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.habits) ? parsed.habits : null);
@@ -802,6 +1099,7 @@
     document.getElementById('edit-twomin').value = habit.twoMinRule || '';
     document.getElementById('edit-cue').value = habit.cue || '';
     document.getElementById('edit-reward').value = habit.reward || '';
+    renderPillarOptions(document.getElementById('edit-pillar'), habit.pillarIdx);
     showModal('edit-modal');
   }
 
@@ -1329,6 +1627,7 @@
     renderHeatmapSection();
     renderProofGallery();
     updateKPIStats();
+    notifyBridge();
   }
 
   function renderHeaderInfo() {
@@ -1553,6 +1852,7 @@
             <div class="flex flex-wrap items-center gap-1">
               <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded border ${badgeClass}">${escapeHtml(habit.category)}</span>
               <span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🪪 ${escapeHtml(habit.identity)}</span>
+              ${habit.pillarIdx !== undefined ? `<span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-amber-50 text-amber-800 border border-amber-300" title="만다라트 기둥 #${habit.pillarIdx + 1}${habit.actionRef ? ' · 행동 칸과 연결됨' : ''}">🧩 ${escapeHtml(pillarLabel(habit.pillarIdx))}${habit.actionRef ? ' 🔗' : ''}</span>` : ''}
               ${riskBadgeHtml}
             </div>
             <p class="font-bold text-slate-900 leading-snug break-words">${safeName}</p>
@@ -1758,9 +2058,39 @@
     document.getElementById('stat-alert-count').textContent = `${riskCount}건`;
     document.getElementById('stat-alert-sub').textContent = riskCount > 0 ? `🚨 2분실행 필요!` : `궤도 순항 중`;
     const currentTemp = (-10 + (totalActionsCount * 0.1)).toFixed(1);
-    document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 임계점 돌파!` : `❄️ 현재 온도: ${currentTemp}°C`;
-    document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 (${valleyPercent}%)`;
+    document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 KABOOM! 임계점(0°C) 돌파!` : `❄️ 현재 온도: ${currentTemp}°C (0°C에 폭발적 융해)`;
+    document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 타격 (${valleyPercent}%)`;
     document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
+    const stagePill = document.getElementById('valley-stage-pill');
+    const quoteEl = document.getElementById('valley-quote-text');
+    if (stagePill && quoteEl) {
+      if (totalActionsCount >= 100) {
+        stagePill.textContent = '💥 KABOOM! 101번째 돌파';
+        stagePill.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-rose-500 text-white pop-badge shrink-0 comic-en';
+        quoteEl.textContent = '🎉 101번째 망치질이 돌을 쪼갰습니다! 시스템이 당신의 정체성이 되었습니다.';
+      } else {
+        stagePill.textContent = `잠복기 돌파 ${valleyPercent}%`;
+        stagePill.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-300 text-slate-900 pop-badge shrink-0';
+        quoteEl.textContent = `💡 100번의 망치질 중 ${totalActionsCount}번째 타격 완료! 스쿼트 10개라도 3.5도 궤도를 유지하세요.`;
+      }
+    }
+  }
+
+  const SLIDE_QUOTES = [
+    "💡 <b>슬라이드 2p:</b> 실패는 당신의 의지력 문제가 아닙니다. 변화를 가로막는 잘못된 '시스템'의 결과일 뿐입니다.",
+    "🚴 <b>슬라이드 3p (1%의 개선):</b> 안장 쿠션 교체부터 손 씻기까지, 단 1%씩 개선하는 시스템이 5년 뒤 올림픽 금메달 60% 싹쓸이를 만들었습니다.",
+    "💥 <b>슬라이드 4p (복리의 마법):</b> 매일 1% 성장 = 1.01^365 = 37.78배! 원자처럼 작지만 누적되면 핵폭발(KABOOM!) 같은 에너지를 냅니다.",
+    "🔨 <b>슬라이드 5p (잠재력 잠복기):</b> 100번 망치질에도 안 깨지던 돌이 101번째에 쪼개지는 것은 마지막 타격 때문이 아닙니다. 보이지 않는 곳에서 쌓인 힘입니다.",
+    "🦸‍♂️ <b>슬라이드 7p (The Hero):</b> 목표는 책을 읽는 것이 아니라 '독서가'가 되는 것입니다. 습관을 반복할 때마다 당신의 정체성에 한 표를 던지세요!",
+    "⚡ <b>슬라이드 10p (2분 규칙):</b> 매일 5km 러닝 ➔ 운동화 끈 묶기! 습관은 오직 첫 120초 안에 결정됩니다. 2분만 하고 그만둬도 좋습니다.",
+    "🚨 <b>슬라이드 11p (Never Miss Twice):</b> 한 번은 실수할 수 있습니다. 하지만 두 번 연속 거르는 것은 루틴을 파괴하는 새로운 나쁜 습관의 시작입니다.",
+    "✈️ <b>슬라이드 13p (3.5도 궤도 수정):</b> 너무 피곤해서 체육관에 가 스쿼트 10개만 하고 나왔더라도, 당신은 0으로 돌아간 게 아니라 올바른 궤도를 유지한 것입니다."
+  ];
+  let quoteIdx = 0;
+  function cycleSlideQuote() {
+    quoteIdx = (quoteIdx + 1) % SLIDE_QUOTES.length;
+    const el = document.getElementById('slide-rotating-quote');
+    if (el) el.innerHTML = SLIDE_QUOTES[quoteIdx];
   }
 
   // ===== 이벤트 =====
@@ -1794,6 +2124,10 @@
       case 'proof-delete': deleteProof(); break;
       case 'logout': logout(); break;
       case 'retry-load': if (sb && userId) startCloud({ id: userId, email: userEmail }); break;
+      case 'open-slide-guide': showModal('slide-guide-modal'); break;
+      case 'close-slide-guide': hideModal('slide-guide-modal'); break;
+      case 'next-quote': cycleSlideQuote(); break;
+      case 'mandalart-cancel': clearMandalartPending(); document.getElementById('habit-pillar').value = ''; showToast('만다라트 칸 연결을 취소했습니다.'); break;
     }
   });
   document.getElementById('import-json-input').addEventListener('change', importBackupJson);
@@ -1804,10 +2138,12 @@
   document.getElementById('confirm-modal').addEventListener('click', e => { if (e.target.id === 'confirm-modal') settleConfirm(false); });
   document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') hideModal('edit-modal'); });
   document.getElementById('proof-modal').addEventListener('click', e => { if (e.target.id === 'proof-modal' && !proofBusy) closeProofModal(); });
+  document.getElementById('slide-guide-modal').addEventListener('click', e => { if (e.target.id === 'slide-guide-modal') hideModal('slide-guide-modal'); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (confirmResolve) { settleConfirm(false); return; }
     hideModal('edit-modal');
+    hideModal('slide-guide-modal');
     if (!proofBusy) closeProofModal();
   });
 
@@ -1823,17 +2159,28 @@
     habit.twoMinRule = cleanText(document.getElementById('edit-twomin').value, '2분만 시작하기');
     habit.cue = cleanText(document.getElementById('edit-cue').value, '');
     habit.reward = cleanText(document.getElementById('edit-reward').value, '');
+    const pillarVal = document.getElementById('edit-pillar').value;
+    if (pillarVal === '') setHabitLink(habit, null);
+    else if (Number(pillarVal) !== habit.pillarIdx) setHabitLink(habit, { pillarIdx: Number(pillarVal), pillarName: pillarLabel(Number(pillarVal)) });
     saveData();
     renderAll();
     hideModal('edit-modal');
     showToast('수정되었습니다.');
   });
 
-  document.getElementById('add-habit-form').addEventListener('submit', e => {
+  document.getElementById('add-habit-form').addEventListener('submit', async e => {
     e.preventDefault();
     refreshDates();
     const name = cleanText(document.getElementById('habit-name').value, '');
     if (!name) return;
+    const pillarVal = document.getElementById('habit-pillar').value;
+    let link = null;
+    if (pendingMandalart && String(pendingMandalart.pillarIdx) === pillarVal) link = pendingMandalart;
+    else if (pillarVal !== '') link = { pillarIdx: Number(pillarVal), pillarName: pillarLabel(Number(pillarVal)) };
+    if (link && link.actionRef) {
+      const dup = habits.find(h => h.actionRef === link.actionRef);
+      if (dup && !await askConfirm(`만다라트의 이 칸은 이미 '${dup.name}' 습관과 연결되어 있어요.\n하나 더 추가할까요?`, '추가')) return;
+    }
     habits.push({
       id: newId(),
       name,
@@ -1843,13 +2190,16 @@
       cue: cleanText(document.getElementById('habit-cue').value, ''),
       reward: cleanText(document.getElementById('habit-reward').value, ''),
       createdAt: todayKey,
-      logs: {}
+      logs: {},
+      ...sanitizeMandalartLink(link)
     });
     ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
       .forEach(fid => { document.getElementById(fid).value = ''; });
+    document.getElementById('habit-pillar').value = '';
+    clearMandalartPending();
     saveData();
     renderAll();
-    showToast('추가되었습니다.');
+    showToast(link ? `추가되었습니다. 만다라트 '${pillarLabel(link.pillarIdx)}' 기둥과 연결했어요.` : '추가되었습니다.');
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -2014,7 +2364,80 @@
     await sb.auth.signOut();
   }
 
+  // ===== 만다라트와 데이터 주고받기 (같은 페이지의 만다라트 화면이 사용) =====
+  const bridgeListeners = new Set();
+  function bridgeSnapshot() {
+    return {
+      mode: storeMode,               // loading | auth | cloud | local | error
+      userId,
+      email: userEmail,
+      todayKey,
+      habits: JSON.parse(JSON.stringify(habits))
+    };
+  }
+  function notifyBridge() {
+    const snap = bridgeSnapshot();
+    bridgeListeners.forEach(fn => { try { fn(snap); } catch (e) { console.error(e); } });
+  }
+  const canWrite = () => storeMode === 'cloud' || storeMode === 'local';
+  window.HabitBridge = {
+    getState: bridgeSnapshot,
+    subscribe(fn) { bridgeListeners.add(fn); return () => bridgeListeners.delete(fn); },
+    getClient: () => sb,
+    // 오늘(또는 지난 날짜) 기록: 0 해제 · 1 ⚡ 2분 실행 · 2 ✔ 완수. 같은 값을 다시 누르면 해제
+    setState(habitId, dateKey, value) {
+      if (!canWrite()) return false;
+      refreshDates();
+      setDateState(habitId, dateKey || todayKey, value);
+      return true;
+    },
+    // 습관을 만다라트 기둥/칸에 연결하거나(link) 연결 해제(null)
+    linkHabit(habitId, link) {
+      const habit = findHabit(habitId);
+      if (!habit || !canWrite()) return false;
+      setHabitLink(habit, link);
+      saveData();
+      renderAll();
+      return true;
+    },
+    // 만다라트 기둥 이름 받기 (선택 목록·배지에 사용, 연결된 습관의 pillarName도 맞춤)
+    setPillars(names) {
+      const next = Array.from({ length: 8 }, (_, i) => cleanText(names && names[i], ''));
+      if (JSON.stringify(next) === JSON.stringify(mandalartPillars)) return;
+      mandalartPillars = next;
+      const pillarSel = document.getElementById('habit-pillar');
+      renderPillarOptions(pillarSel, pillarSel.value);
+      let changed = false;
+      habits.forEach(h => {
+        if (h.pillarIdx === undefined) return;
+        const label = pillarLabel(h.pillarIdx);
+        if (h.pillarName !== label) { h.pillarName = label; changed = true; }
+      });
+      if (changed && canWrite()) saveData();
+      renderAll();
+    },
+    // 만다라트 행동 칸 → 습관 추가 폼 채우기
+    prefill(payload) {
+      const link = sanitizeMandalartLink(payload);
+      const name = payload ? cleanText(payload.name, '') : '';
+      if (!name || link.pillarIdx === undefined) return false;
+      pendingMandalart = link;
+      document.getElementById('habit-name').value = name;
+      document.getElementById('habit-pillar').value = String(link.pillarIdx);
+      document.getElementById('mandalart-hint-text').textContent =
+        `🧩 만다라트 '${pillarLabel(link.pillarIdx)}' 기둥의 행동을 가져왔어요. 정체성과 2분 규칙을 적고 '추가'를 누르면 그 칸과 연결됩니다.`;
+      document.getElementById('mandalart-hint').hidden = false;
+      setTimeout(() => {
+        document.getElementById('add-habit-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('habit-identity').focus({ preventScroll: true });
+      }, 80);
+      return true;
+    },
+    logout: () => logout()
+  };
+
   function init() {
+    renderPillarOptions(document.getElementById('habit-pillar'), '');
     const options = renderCategoryOptions();
     document.getElementById('habit-category').innerHTML = options;
     document.getElementById('edit-category').innerHTML = options;
@@ -2023,6 +2446,1884 @@
   }
 
   init();
+})();
+</script>
+
+<script type="text/babel">
+
+    const { useState, useEffect, useRef } = React;
+
+    const STORAGE_KEY = "vibe_mandalart_data_v1";
+    const MONTH_KEYS = ["m1", "m2", "m3"];
+    const MONTH_LABEL = { m1: "1달차", m2: "2달차", m3: "3달차" };
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+    // 초기 샘플 데이터 (오타니 쇼헤이의 철학 & 구체적 동사 예시 반영)
+    const INITIAL_DATA = {
+      coreGoal: "단 하나의 핵심 목표 달성",
+      pillars: [
+        "신체 & 에너지", "전문성 강화", "멘탈 & 마인드", "환경 설계",
+        "운(Luck) 모으기", "인간관계", "루틴 자동화", "회고 & 유연함"
+      ],
+      actions: {
+        0: ["하루에 물 5잔 마시기", "엘리베이터 대신 계단 이용", "밤 11시 스마트폰 거실에 두기", "", "", "", "", ""],
+        1: ["매일 아침 뉴스 1개 읽기", "출퇴근길 팟캐스트 10분 듣기", "업무 시작 전 핵심 1가지 적기", "", "", "", "", ""],
+        2: ["아침 거울 보며 웃기", "실패 시 '메아리'라고 외치기", "감사 일기 1줄 쓰기", "", "", "", "", ""],
+        3: ["스마트폰 배경화면 목표 설정", "양치 거울 앞에 목표 붙이기", "책상 위 하루 1분 정리", "", "", "", "", ""],
+        4: ["길거리 쓰레기 1개 줍기", "먼저 밝게 인사하기", "쓰는 도구 매일 닦고 아끼기", "타인의 의견 경청하기", "", "", "", ""],
+        5: ["동료에게 칭찬 1마디 건네기", "약속 시간 5분 일찍 도착", "안부 메시지 주 1회 보내기", "", "", "", "", ""],
+        6: ["기상 직후 이불 정리하기", "운동복 전날 밤 미리 꺼두기", "영양제 식탁 위에 꺼내두기", "", "", "", "", ""],
+        7: ["매월 말일 계획 업데이트", "안 맞는 목표 과감히 지우기", "빈칸에서 보물찾기 영감 메모", "", "", "", "", ""]
+      },
+      echoTriangle: {
+        quarter: "2026 Q4",
+        bigGoal: "3개월 동안 내 삶에 울려 퍼질 가장 큰 변화 만들기",
+        m1: { title: "1달차(이번 달): 환경 세팅 및 기상 루틴 정착", deadline: "2026-10-31", status: "active" },
+        m2: { title: "2달차(다음 달): 매일 10분 인풋(뉴스/팟캐스트) 습관화", deadline: "2026-11-30", status: "active" },
+        m3: { title: "3달차(다다음 달): 60점 달성 점검 및 분기 회고", deadline: "2026-12-31", status: "active" }
+      },
+      echoBox: [
+        { id: 1, text: "매일 저녁 30분 독서하기 (지난 분기에서 넘어온 메아리)", fromQuarter: "2026 Q3" }
+      ],
+      dailyChecks: {} // { "2026-10-18": { "0-0": true, "4-0": true } } 형태 (날짜별)
+    };
+
+    // 편집 모달의 칸 종류별 코칭 문구
+    const GUIDES = {
+      core: {
+        title: "🎯 1년 뒤 이루고 싶은 단 하나",
+        desc: <>측정할 수 있는 <strong>한 문장</strong>으로 적어보세요. 이 칸이 81칸 전체의 나침반이 됩니다.</>,
+        bad: "성공하기 / 부자 되기",
+        good: "2027년 6월까지 첫 개인 앱 출시하기"
+      },
+      pillar: {
+        title: "🏛️ 핵심 목표를 떠받치는 기둥",
+        desc: <>목표에 꼭 필요한 <strong>영역의 이름</strong>을 짧게 적어보세요. 구체적인 행동은 바깥 칸에서 정합니다.</>,
+        bad: "이것저것 / 기타",
+        good: "체력 / 전문성 / 인간관계"
+      },
+      action: {
+        title: "⚡ 뇌는 모호함을 싫어하고 명확함을 사랑합니다!",
+        desc: <>모호한 명사 대신 <strong>당장 1분 안에 할 수 있는 구체적인 동사</strong>로 적어보세요.</>,
+        bad: "영어 공부 / 건강 관리 / 열심히 살기",
+        good: "출퇴근길 팟캐스트 10분 듣기 / 하루 물 5잔 마시기 / 아침 뉴스 1개 읽기"
+      }
+    };
+
+    // ---------- 유틸 ----------
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const str = (v, fallback = "") => (typeof v === "string" ? v : fallback);
+    const pad = (n) => String(n).padStart(2, "0");
+
+    // 로컬 시간 기준 날짜 키 (toISOString은 UTC라 한국에서 오전 9시 전엔 어제 날짜가 나옴)
+    const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    // 마감일까지 남은 일수 (오늘=0, 지남=음수)
+    const getDaysLeft = (deadline) => {
+      if (!DATE_RE.test(deadline || "")) return null;
+      const [y, m, d] = deadline.split("-").map(Number);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Math.round((new Date(y, m - 1, d) - today) / 86400000);
+    };
+    const ddayLabel = (diff) => (diff === 0 ? "D-Day" : diff > 0 ? `D-${diff}` : `D+${-diff}`);
+
+    const normalizeMonth = (m, fallback) => {
+      if (!m || typeof m !== "object") return { ...fallback };
+      return {
+        title: str(m.title),
+        deadline: str(m.deadline),
+        status: m.status === "done" ? "done" : "active"
+      };
+    };
+
+    // 저장/복원 데이터를 현재 구조로 맞춤 (빠진 필드는 기본값, 구버전 체크 데이터는 이관)
+    const normalizeData = (raw) => {
+      const base = clone(INITIAL_DATA);
+      if (!raw || typeof raw !== "object") return base;
+
+      const pillars = Array.isArray(raw.pillars)
+        ? Array.from({ length: 8 }, (_, i) => str(raw.pillars[i]))
+        : base.pillars;
+
+      const hasActions = raw.actions && typeof raw.actions === "object";
+      const actions = {};
+      for (let i = 0; i < 8; i++) {
+        const src = hasActions ? raw.actions[i] : base.actions[i];
+        actions[i] = Array.from({ length: 8 }, (_, j) => str(Array.isArray(src) ? src[j] : ""));
+      }
+
+      const et = raw.echoTriangle && typeof raw.echoTriangle === "object" ? raw.echoTriangle : null;
+      const echoTriangle = et
+        ? {
+            quarter: str(et.quarter, base.echoTriangle.quarter),
+            bigGoal: str(et.bigGoal),
+            m1: normalizeMonth(et.m1, base.echoTriangle.m1),
+            m2: normalizeMonth(et.m2, base.echoTriangle.m2),
+            m3: normalizeMonth(et.m3, base.echoTriangle.m3)
+          }
+        : base.echoTriangle;
+
+      const echoBox = Array.isArray(raw.echoBox)
+        ? raw.echoBox
+            .filter((e) => e && typeof e.text === "string")
+            .map((e, i) => ({ id: e.id != null ? e.id : Date.now() + i, text: e.text, fromQuarter: str(e.fromQuarter) }))
+        : base.echoBox;
+
+      const dailyChecks = {};
+      const today = dayKey(new Date());
+      if (raw.dailyChecks && typeof raw.dailyChecks === "object") {
+        Object.entries(raw.dailyChecks).forEach(([k, v]) => {
+          if (DATE_RE.test(k) && v && typeof v === "object") {
+            const day = {};
+            Object.entries(v).forEach(([ck, cv]) => { if (cv === true) day[ck] = true; });
+            if (Object.keys(day).length) dailyChecks[k] = day;
+          } else if (v === true) {
+            // 구버전(날짜 없는 체크) → 오늘 날짜로 이관
+            if (!dailyChecks[today]) dailyChecks[today] = {};
+            dailyChecks[today][k] = true;
+          }
+        });
+      }
+
+      return { coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, dailyChecks };
+    };
+
+    const loadData = () => {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return normalizeData(JSON.parse(saved));
+      } catch (err) {
+        // 깨진 데이터는 덮어쓰기 전에 따로 보관
+        try { if (saved) localStorage.setItem(`${STORAGE_KEY}_corrupt_${Date.now()}`, saved); } catch (e) {}
+        console.warn("저장된 데이터를 읽지 못해 예시 데이터로 시작합니다.", err);
+      }
+      return clone(INITIAL_DATA);
+    };
+
+    // 특정 행동 칸의 체크 기록을 모든 날짜에서 제거
+    const removeChecksFor = (dailyChecks, checkKey) => {
+      const next = {};
+      Object.entries(dailyChecks).forEach(([date, day]) => {
+        if (!day[checkKey]) { next[date] = day; return; }
+        const { [checkKey]: _, ...rest } = day;
+        if (Object.keys(rest).length) next[date] = rest;
+      });
+      return next;
+    };
+
+    // 칸 편집 내용을 데이터에 반영 (순수 함수)
+    const applyCellEdit = (prev, cell) => {
+      const { type, pIdx, aIdx } = cell;
+      const value = cell.value.trim();
+      const next = { ...prev };
+      if (type === "core") {
+        next.coreGoal = value;
+      } else if (type === "pillar") {
+        const newPillars = [...prev.pillars];
+        newPillars[pIdx] = value;
+        next.pillars = newPillars;
+      } else if (type === "action") {
+        const newActions = { ...prev.actions };
+        const blockActions = [...(newActions[pIdx] || Array(8).fill(""))];
+        blockActions[aIdx] = value;
+        newActions[pIdx] = blockActions;
+        next.actions = newActions;
+        // 칸을 비우면 그 칸의 체크 기록도 정리
+        if (!value) next.dailyChecks = removeChecksFor(prev.dailyChecks, `${pIdx}-${aIdx}`);
+      }
+      return next;
+    };
+
+    // 에코 트라이앵글의 특정 달에 텍스트를 넣음. 기존 내용이 있으면 메아리 보관함으로 이동
+    const placeInMonth = (prev, monthKey, text) => {
+      const cur = prev.echoTriangle[monthKey];
+      const echoBox = cur.title.trim()
+        ? [{ id: Date.now(), text: cur.title, fromQuarter: prev.echoTriangle.quarter }, ...prev.echoBox]
+        : prev.echoBox;
+      return {
+        ...prev,
+        echoBox,
+        echoTriangle: { ...prev.echoTriangle, [monthKey]: { ...cur, title: text, status: "active" } }
+      };
+    };
+
+    const downloadBlob = (blob, filename) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    // ---------- 습관 대시보드 연결 (같은 페이지의 습관 화면과 데이터를 함께 씀) ----------
+    const bridge = window.HabitBridge || null;
+    const EMPTY_HB = { mode: "off", userId: null, email: "", todayKey: dayKey(new Date()), habits: [] };
+    const TAB_KEY = "vibe_integrated_tab";
+    const TABS = [
+      { key: "mandalart", label: "🧩 만다라트" },
+      { key: "echo", label: "📐 에코 트라이앵글" },
+      { key: "daily", label: "☀️ 오늘" },
+      { key: "habits", label: "⚡ 습관 시스템" }
+    ];
+    const HABIT_STATE_TEXT = ["– 미기록", "⚡ 2분 실행", "✔ 완수"];
+
+    // 습관 기록 읽기 (0 미기록 · 1 ⚡ 2분 실행 · 2 ✔ 완수) — 습관 대시보드와 같은 규칙
+    const habitLogState = (habit, key) => {
+      const v = (habit.logs || {})[key];
+      return v === 2 || v === true ? 2 : v === 1 ? 1 : 0;
+    };
+    const habitTodayState = (habit) => habitLogState(habit, dayKey(new Date()));
+    // 투표 수: 완수 1표, 2분 실행 0.5표
+    const countHabitVotes = (habit) => {
+      let votes = 0;
+      Object.keys(habit.logs || {}).forEach(k => {
+        const s = habitLogState(habit, k);
+        if (s === 2) votes += 1;
+        else if (s === 1) votes += 0.5;
+      });
+      return votes;
+    };
+    // 오늘(또는 어제)부터 이어진 연속 실천 일수 (2분 실행 포함)
+    const habitStreak = (habit) => {
+      const d = new Date();
+      if (!habitLogState(habit, dayKey(d))) d.setDate(d.getDate() - 1);
+      let n = 0;
+      while (habitLogState(habit, dayKey(d))) {
+        n++;
+        d.setDate(d.getDate() - 1);
+      }
+      return n;
+    };
+    const fmtVotes = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+    function App() {
+      const [data, setData] = useState(loadData);
+
+      const [activeTab, setActiveTab] = useState(() => {
+        try {
+          const saved = localStorage.getItem(TAB_KEY);
+          return TABS.some(t => t.key === saved) ? saved : "mandalart";
+        } catch (e) {
+          return "mandalart";
+        }
+      });
+      const [mobileZoomBlock, setMobileZoomBlock] = useState(null); // 모바일에서 특정 블록 확대용 (null이면 전체)
+      const [editingCell, setEditingCell] = useState(null); // { type: 'core' | 'pillar' | 'action', pIdx, aIdx, value }
+      const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+      const [savingWallpaper, setSavingWallpaper] = useState(false);
+      const fileInputRef = useRef(null);
+      const wallpaperRef = useRef(null);
+
+      // ---------- 습관 데이터 (습관 화면이 가진 것을 그대로 받음) ----------
+      const [hb, setHb] = useState(() => (bridge ? bridge.getState() : EMPTY_HB));
+      useEffect(() => (bridge ? bridge.subscribe(setHb) : undefined), []);
+
+      // 탭 전환: 습관 화면 보이기/숨기기 + 마지막 탭 기억
+      useEffect(() => {
+        try { localStorage.setItem(TAB_KEY, activeTab); } catch (e) {}
+        const habitView = document.getElementById("habit-view");
+        if (habitView) habitView.hidden = activeTab !== "habits";
+        document.body.dataset.tab = activeTab;
+      }, [activeTab]);
+
+      // 만다라트 기둥 이름 → 습관 화면 (기둥 선택 목록·배지)
+      useEffect(() => {
+        if (bridge) bridge.setPillars(data.pillars);
+      }, [data.pillars]);
+
+      // ---------- 만다라트 클라우드 저장 (습관 화면과 같은 로그인 사용) ----------
+      // idle: 로그인 전 · loading: 불러오는 중 · on: 동기화 중 · error: 저장/불러오기 실패
+      const [syncStatus, setSyncStatus] = useState("idle");
+      const getSb = () => (bridge ? bridge.getClient() : null);
+      const userIdRef = useRef(null);
+      const syncedJsonRef = useRef(null);    // 서버에 있는 것과 같은 내용 (다시 올리지 않음)
+      const remoteUpdatedRef = useRef(null); // 서버 updated_at
+      const uploadTimerRef = useRef(null);
+      const dataRef = useRef(data);
+      dataRef.current = data;
+
+      const uploadNow = async () => {
+        clearTimeout(uploadTimerRef.current);
+        uploadTimerRef.current = null;
+        const sb = getSb();
+        const uid = userIdRef.current;
+        if (!sb || !uid) return;
+        const json = JSON.stringify(dataRef.current);
+        if (json === syncedJsonRef.current) return;
+        const updatedAt = new Date().toISOString();
+        const { error } = await sb.from("mandalart_state")
+          .upsert({ user_id: uid, data: JSON.parse(json), updated_at: updatedAt });
+        if (error) {
+          console.warn("만다라트 클라우드 저장 실패", error);
+          setSyncStatus("error");
+          return;
+        }
+        syncedJsonRef.current = json;
+        remoteUpdatedRef.current = updatedAt;
+      };
+
+      const startCloud = async (uid) => {
+        const sb = getSb();
+        if (!sb) return;
+        userIdRef.current = uid;
+        setSyncStatus("loading");
+        const ms = await sb.from("mandalart_state").select("data, updated_at").eq("user_id", uid).maybeSingle();
+        if (userIdRef.current !== uid) return; // 그 사이 로그아웃
+        if (ms.error) {
+          console.warn("만다라트 클라우드 불러오기 실패", ms.error);
+          setSyncStatus("error");
+          return;
+        }
+        if (ms.data) {
+          // 서버에 저장된 만다라트가 있으면 그것을 사용. 이 기기에서 쓰던 내용은 따로 보관
+          const remote = normalizeData(ms.data.data);
+          const remoteJson = JSON.stringify(remote);
+          const localJson = JSON.stringify(dataRef.current);
+          if (localJson !== remoteJson) {
+            try { localStorage.setItem(`${STORAGE_KEY}_local_backup`, localJson); } catch (e) {}
+          }
+          syncedJsonRef.current = remoteJson;
+          remoteUpdatedRef.current = ms.data.updated_at;
+          setData(remote);
+        } else {
+          syncedJsonRef.current = null; // 첫 로그인: 이 기기 내용을 서버에 올림
+        }
+        setSyncStatus("on");
+      };
+
+      // 로그인/로그아웃 따라가기
+      useEffect(() => {
+        if (!hb.userId) {
+          if (userIdRef.current) {
+            userIdRef.current = null;
+            syncedJsonRef.current = null;
+            clearTimeout(uploadTimerRef.current);
+            uploadTimerRef.current = null;
+          }
+          setSyncStatus("idle");
+          return;
+        }
+        if (hb.mode === "cloud" && userIdRef.current !== hb.userId) startCloud(hb.userId);
+      }, [hb.mode, hb.userId]);
+
+      // 저장: 이 기기(localStorage)에는 항상, 로그인 중이면 클라우드에도 (0.7초 모아서)
+      useEffect(() => {
+        const json = JSON.stringify(data);
+        try {
+          localStorage.setItem(STORAGE_KEY, json);
+        } catch (err) {
+          console.warn("브라우저 저장소에 저장하지 못했습니다. 백업 기능을 이용해 주세요.", err);
+        }
+        if (syncStatus !== "on" || json === syncedJsonRef.current) return;
+        clearTimeout(uploadTimerRef.current);
+        uploadTimerRef.current = setTimeout(uploadNow, 700);
+      }, [data, syncStatus]);
+
+      // 다른 기기에서 바뀐 만다라트 반영: 화면으로 돌아올 때 다시 불러옴 (습관 기록은 습관 화면이 실시간으로 받음)
+      useEffect(() => {
+        const onVisible = async () => {
+          if (document.hidden) {
+            if (uploadTimerRef.current) uploadNow();
+            return;
+          }
+          const sb = getSb();
+          const uid = userIdRef.current;
+          if (!sb || !uid) return;
+          const ms = await sb.from("mandalart_state").select("data, updated_at").eq("user_id", uid).maybeSingle();
+          const changed = ms.data && new Date(ms.data.updated_at).getTime() !== new Date(remoteUpdatedRef.current).getTime();
+          if (!ms.error && changed && !uploadTimerRef.current) {
+            const remote = normalizeData(ms.data.data);
+            syncedJsonRef.current = JSON.stringify(remote);
+            remoteUpdatedRef.current = ms.data.updated_at;
+            setData(remote);
+          }
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        window.addEventListener("pagehide", onVisible);
+        return () => {
+          document.removeEventListener("visibilitychange", onVisible);
+          window.removeEventListener("pagehide", onVisible);
+        };
+      }, []);
+
+      const retryCloud = () => {
+        if (hb.userId) startCloud(hb.userId);
+        else setActiveTab("habits");
+      };
+
+      // ---------- 습관 연결 정보 ----------
+      const habits = hb.habits || [];
+      const habitsLinked = hb.mode === "cloud" || hb.mode === "local"; // 습관 기록을 읽고 쓸 수 있는 상태
+      const pillarVotes = Array(8).fill(0);
+      const linkedByRef = {};
+      habits.forEach(h => {
+        if (!h || typeof h !== "object") return;
+        const votes = countHabitVotes(h);
+        if (Number.isInteger(h.pillarIdx) && h.pillarIdx >= 0 && h.pillarIdx < 8) pillarVotes[h.pillarIdx] += votes;
+        if (typeof h.actionRef === "string") {
+          if (!linkedByRef[h.actionRef]) linkedByRef[h.actionRef] = [];
+          linkedByRef[h.actionRef].push(h);
+        }
+      });
+
+      const goHabits = () => {
+        setActiveTab("habits");
+        window.scrollTo(0, 0);
+      };
+
+      // 오늘 기록 (같은 값을 다시 누르면 해제)
+      const setHabitToday = (habitId, value) => {
+        if (bridge && habitsLinked) bridge.setState(habitId, null, value);
+      };
+
+      // 행동 칸 → 새 습관 (습관 화면의 추가 폼이 채워진 채 열림)
+      const growHabit = () => {
+        if (!editingCell || !bridge) return;
+        const cell = editingCell;
+        const name = cell.value.trim();
+        if (!name) return;
+        setData(prev => applyCellEdit(prev, cell));
+        const payload = {
+          name,
+          pillarIdx: cell.pIdx,
+          pillarName: data.pillars[cell.pIdx] || `기둥 ${cell.pIdx + 1}`,
+          actionRef: `${cell.pIdx}-${cell.aIdx}`
+        };
+        setEditingCell(null);
+        setActiveTab("habits");
+        setTimeout(() => bridge.prefill(payload), 60);
+      };
+
+      // 행동 칸 ↔ 이미 있는 습관 연결
+      const linkExistingHabit = (habitId) => {
+        if (!editingCell || !bridge || !habitId) return;
+        const cell = editingCell;
+        setData(prev => applyCellEdit(prev, cell));
+        bridge.linkHabit(habitId, {
+          pillarIdx: cell.pIdx,
+          pillarName: data.pillars[cell.pIdx] || `기둥 ${cell.pIdx + 1}`,
+          actionRef: `${cell.pIdx}-${cell.aIdx}`
+        });
+      };
+      // 칸 연결만 풀기 (기둥 연결은 유지)
+      const unlinkHabitFromCell = (habit) => {
+        if (!bridge) return;
+        if (!confirm(`'${habit.name}' 습관과 이 칸의 연결을 풀까요?\n습관과 기록은 그대로 남고, 기둥 연결도 유지됩니다.`)) return;
+        bridge.linkHabit(habit.id, { pillarIdx: habit.pillarIdx, pillarName: habit.pillarName });
+      };
+
+      // Esc로 모달 닫기
+      useEffect(() => {
+        const onKey = (e) => {
+          if (e.key === "Escape") {
+            setEditingCell(null);
+            setShowWallpaperModal(false);
+          }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+      }, []);
+
+      // 창이 넓어지면(lg 이상) 모바일 확대 뷰 해제
+      useEffect(() => {
+        const mq = window.matchMedia("(min-width: 1024px)");
+        const onChange = (e) => { if (e.matches) setMobileZoomBlock(null); };
+        mq.addEventListener("change", onChange);
+        return () => mq.removeEventListener("change", onChange);
+      }, []);
+
+      // 각 외곽 블록의 채워진 칸 수 계산 (60점 보물찾기 모드: 3개 이상이면 통과!)
+      const getFilledCount = (pIdx) => {
+        return (data.actions[pIdx] || []).filter(t => t && t.trim() !== "").length;
+      };
+
+      const totalReadyBlocks = [0,1,2,3,4,5,6,7].filter(idx => getFilledCount(idx) >= 3).length;
+
+      // 셀 수정 모달 저장
+      const handleSaveCell = () => {
+        if (!editingCell) return;
+        const cell = editingCell;
+        setData(prev => applyCellEdit(prev, cell));
+        setEditingCell(null);
+      };
+
+      // 덮어쓰기 전 확인 (기존 내용은 보관함으로 이동)
+      const confirmOverwrite = (monthKey) => {
+        const cur = data.echoTriangle[monthKey];
+        return !cur.title.trim() ||
+          confirm(`${MONTH_LABEL[monthKey]}에 이미 "${cur.title}"이(가) 있어요.\n기존 내용은 메아리 보관함으로 옮기고 교체할까요?`);
+      };
+
+      // 만다라트 행동 칸 → 에코 트라이앵글의 특정 달로 보내기
+      const sendActionToMonth = (monthKey) => {
+        if (!editingCell) return;
+        const cell = editingCell;
+        const text = cell.value.trim();
+        if (!text) return;
+        if (!confirmOverwrite(monthKey)) return;
+        setData(prev => placeInMonth(applyCellEdit(prev, cell), monthKey, text));
+        setEditingCell(null);
+      };
+
+      // 에코 트라이앵글 실패 -> 다음 분기 메아리 보관함으로 이동
+      const sendToEchoBox = (monthKey) => {
+        const target = data.echoTriangle[monthKey];
+        if (!target || !target.title.trim()) return;
+        if (!confirm(`"${target.title}"을(를) 메아리 보관함으로 보낼까요?\n보관함에서 언제든 다시 불러올 수 있어요.`)) return;
+
+        setData(prev => ({
+          ...prev,
+          echoBox: [
+            { id: Date.now(), text: target.title, fromQuarter: prev.echoTriangle.quarter },
+            ...prev.echoBox
+          ],
+          echoTriangle: {
+            ...prev.echoTriangle,
+            [monthKey]: { ...target, title: "", status: "active" }
+          }
+        }));
+      };
+
+      // 메아리 보관함에서 현재 스몰 에코로 다시 불러오기 (기존 내용은 보관함과 맞교환)
+      const restoreFromEchoBox = (item, monthKey) => {
+        if (!confirmOverwrite(monthKey)) return;
+        setData(prev =>
+          placeInMonth({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }, monthKey, item.text)
+        );
+      };
+
+      const deleteFromEchoBox = (item) => {
+        if (!confirm(`"${item.text}"을(를) 보관함에서 삭제할까요?`)) return;
+        setData(prev => ({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }));
+      };
+
+      // 완료 / 진행 중 토글
+      const toggleMonthDone = (monthKey) => {
+        setData(prev => {
+          const cur = prev.echoTriangle[monthKey];
+          return {
+            ...prev,
+            echoTriangle: {
+              ...prev.echoTriangle,
+              [monthKey]: { ...cur, status: cur.status === "done" ? "active" : "done" }
+            }
+          };
+        });
+      };
+
+      // 다음 분기로 넘기기: 미완료 → 보관함, 마감일 재설정
+      const rollToNextQuarter = () => {
+        const match = data.echoTriangle.quarter.match(/(\d{4})\s*Q([1-4])/i);
+        if (!match) {
+          alert("분기를 '2026 Q4' 형식으로 입력해야 자동으로 넘길 수 있어요.");
+          return;
+        }
+        let year = Number(match[1]);
+        let q = Number(match[2]) + 1;
+        if (q > 4) { q = 1; year += 1; }
+        const nextQuarter = `${year} Q${q}`;
+        const pending = MONTH_KEYS.filter(k => data.echoTriangle[k].title.trim() && data.echoTriangle[k].status !== "done");
+
+        if (!confirm(
+          `${nextQuarter}로 넘어갈까요?\n\n` +
+          `• 미완료 ${pending.length}개는 메아리 보관함으로 이동\n` +
+          `• 완료한 항목은 정리\n` +
+          `• 1~3달차 마감일을 ${nextQuarter}의 각 월 말일로 재설정`
+        )) return;
+
+        const startMonth = (q - 1) * 3;
+        setData(prev => {
+          const moved = pending.map((k, i) => ({
+            id: Date.now() + i,
+            text: prev.echoTriangle[k].title,
+            fromQuarter: prev.echoTriangle.quarter
+          }));
+          const echoTriangle = { ...prev.echoTriangle, quarter: nextQuarter };
+          MONTH_KEYS.forEach((k, i) => {
+            echoTriangle[k] = { title: "", deadline: dayKey(new Date(year, startMonth + i + 1, 0)), status: "active" };
+          });
+          return { ...prev, echoTriangle, echoBox: [...moved, ...prev.echoBox] };
+        });
+      };
+
+      // 데일리 체크 토글 (오늘 날짜에 기록)
+      const toggleDailyCheck = (key) => {
+        const today = dayKey(new Date());
+        setData(prev => {
+          const day = { ...(prev.dailyChecks[today] || {}) };
+          if (day[key]) delete day[key];
+          else day[key] = true;
+          const dailyChecks = { ...prev.dailyChecks };
+          if (Object.keys(day).length) dailyChecks[today] = day;
+          else delete dailyChecks[today];
+          return { ...prev, dailyChecks };
+        });
+      };
+
+      const resetTodayChecks = () => {
+        const today = dayKey(new Date());
+        setData(prev => {
+          const dailyChecks = { ...prev.dailyChecks };
+          delete dailyChecks[today];
+          return { ...prev, dailyChecks };
+        });
+      };
+
+      // 오늘(또는 어제)부터 거꾸로 이어진 연속 체크 일수
+      const getStreak = (checkKey) => {
+        const d = new Date();
+        if (!(data.dailyChecks[dayKey(d)] || {})[checkKey]) d.setDate(d.getDate() - 1);
+        let n = 0;
+        while ((data.dailyChecks[dayKey(d)] || {})[checkKey]) {
+          n++;
+          d.setDate(d.getDate() - 1);
+        }
+        return n;
+      };
+
+      // JSON 백업 내보내기
+      const exportJSON = () => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        downloadBlob(blob, `mandalart_backup_${dayKey(new Date())}.json`);
+      };
+
+      // JSON 복원 가져오기
+      const importJSON = (e) => {
+        const file = e.target.files[0];
+        e.target.value = ""; // 같은 파일을 다시 골라도 동작하도록 초기화
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            if (!parsed || typeof parsed.coreGoal !== "string" || !Array.isArray(parsed.pillars)) {
+              alert("만다라트 백업 파일 형식이 아닙니다.");
+              return;
+            }
+            if (!confirm("현재 작성 중인 내용을 백업 파일 내용으로 바꿀까요?")) return;
+            setData(normalizeData(parsed));
+            alert("데이터가 성공적으로 복원되었습니다!");
+          } catch (err) {
+            alert("올바른 JSON 백업 파일이 아닙니다.");
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // 초기 샘플로 리셋
+      const resetData = () => {
+        if (confirm("작성 중인 내용을 초기 예시 상태로 되돌리시겠습니까?\n(필요하면 먼저 '백업'으로 저장해 두세요)")) {
+          setData(clone(INITIAL_DATA));
+        }
+      };
+
+      // 배경화면 카드 PNG 저장 (가로 1080px)
+      const downloadWallpaper = async () => {
+        const el = wallpaperRef.current;
+        if (!el || !window.html2canvas) {
+          alert("이미지 저장 기능을 불러오지 못했어요. 화면을 캡처해서 사용해 주세요.");
+          return;
+        }
+        setSavingWallpaper(true);
+        try {
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          const canvas = await window.html2canvas(el, {
+            scale: 1080 / el.offsetWidth,
+            backgroundColor: "#1c1917",
+            useCORS: true,
+            // html2canvas가 Tailwind와 함께 쓰일 때 글자가 잘리는 문제 보정 (복제본에만 적용)
+            onclone: (doc) => {
+              const s = doc.createElement("style");
+              s.innerHTML = "img{display:inline-block !important} .truncate{overflow:visible !important;text-overflow:clip !important}";
+              doc.head.appendChild(s);
+            }
+          });
+          await new Promise((resolve) =>
+            canvas.toBlob((blob) => {
+              if (blob) downloadBlob(blob, `mandalart_wallpaper_${dayKey(new Date())}.png`);
+              resolve();
+            }, "image/png")
+          );
+        } catch (err) {
+          console.error(err);
+          alert("이미지 저장에 실패했어요. 화면을 캡처해서 사용해 주세요.");
+        } finally {
+          setSavingWallpaper(false);
+        }
+      };
+
+      // 3x3 블록 내 9칸의 인덱스 매핑 (중앙=4, 주변 8칸=0..7)
+      // gridPos(0~8) -> 주변 8칸 배열 index(0~7) 변환
+      const posToIdx = [0, 1, 2, 3, null, 4, 5, 6, 7];
+
+      // 단일 3x3 서브 그리드 렌더링 함수
+      const render3x3Block = (blockPos) => {
+        const isCenterBlock = blockPos === 4;
+        const pillarIdx = posToIdx[blockPos];
+        const filledCount = !isCenterBlock ? getFilledCount(pillarIdx) : 8;
+        const is60PercentReady = !isCenterBlock && filledCount >= 3;
+
+        return (
+          <div
+            key={blockPos}
+            className={`p-1.5 sm:p-2 rounded-xl transition-all duration-200 ${
+              isCenterBlock
+                ? "bg-stone-800 text-stone-50 sketch-border"
+                : is60PercentReady
+                ? "bg-amber-50/90 sketch-active"
+                : "bg-white sketch-border"
+            }`}
+          >
+            {/* 외곽 블록 상단 상태 바 (60점 보물찾기 피드백) */}
+            {!isCenterBlock && (
+              <div className="flex items-center justify-between px-1 mb-1 text-[11px] font-medium">
+                <span className="text-stone-500 truncate max-w-[60%]">
+                  기둥 #{pillarIdx + 1}
+                  {habitsLinked && pillarVotes[pillarIdx] > 0 && (
+                    <span className="ml-1 text-purple-700 font-bold" title="연결된 습관의 실천 투표 수 (완수 1표 · 2분 0.5표)">
+                      · 🗳️ {fmtVotes(pillarVotes[pillarIdx])}표
+                    </span>
+                  )}
+                </span>
+                {is60PercentReady ? (
+                  <span className="bg-amber-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5">
+                    ✨ 충분함 ({filledCount}/8)
+                  </span>
+                ) : (
+                  <span className="text-stone-400 text-[10px]">
+                    🌱 3칸만 채워도 OK ({filledCount}/3)
+                  </span>
+                )}
+              </div>
+            )}
+            {isCenterBlock && (
+              <div className="flex items-center justify-between px-1 mb-1 text-[11px] font-bold text-amber-300">
+                <span>🎯 THE CORE & 8 PILLARS</span>
+                <span>중심 블록</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((cellPos) => {
+                const isCellCenter = cellPos === 4;
+                const subIdx = posToIdx[cellPos];
+
+                // 1) 정중앙 블록의 정중앙 셀 (핵심 목표 1개)
+                if (isCenterBlock && isCellCenter) {
+                  return (
+                    <button
+                      key={cellPos}
+                      onClick={() => setEditingCell({ type: "core", value: data.coreGoal })}
+                      className="aspect-square p-1.5 rounded-lg bg-amber-400 text-stone-900 font-bold text-xs sm:text-sm flex flex-col items-center justify-center text-center leading-tight hover:bg-amber-300 transition shadow-inner"
+                    >
+                      <span className="text-[10px] uppercase tracking-wider opacity-75 mb-0.5">Core Goal</span>
+                      <span className="line-clamp-3 break-keep">{data.coreGoal || "핵심 목표 입력"}</span>
+                    </button>
+                  );
+                }
+
+                // 2) 정중앙 블록의 주변 8칸 (세부 목표 8개)
+                if (isCenterBlock && !isCellCenter) {
+                  const pillarText = data.pillars[subIdx];
+                  return (
+                    <button
+                      key={cellPos}
+                      onClick={() => setEditingCell({ type: "pillar", pIdx: subIdx, value: pillarText })}
+                      className="aspect-square p-1.5 rounded-lg bg-stone-700 hover:bg-stone-600 text-stone-100 font-semibold text-xs flex flex-col items-center justify-center text-center leading-tight transition"
+                    >
+                      <span className="text-[9px] text-amber-300/80 mb-0.5">기둥 {subIdx + 1}</span>
+                      <span className="line-clamp-3 break-keep">{pillarText || "세부 목표"}</span>
+                    </button>
+                  );
+                }
+
+                // 3) 외곽 8개 블록의 정중앙 셀 (세부 목표 자동 동기화)
+                if (!isCenterBlock && isCellCenter) {
+                  const syncedPillarText = data.pillars[pillarIdx];
+                  return (
+                    <button
+                      key={cellPos}
+                      onClick={() => setEditingCell({ type: "pillar", pIdx: pillarIdx, value: syncedPillarText })}
+                      className="aspect-square p-1.5 rounded-lg bg-stone-800 text-amber-300 font-bold text-xs flex flex-col items-center justify-center text-center leading-tight hover:bg-stone-700 transition"
+                    >
+                      <span className="text-[9px] text-stone-400 mb-0.5">세부 목표</span>
+                      <span className="line-clamp-3 break-keep">{syncedPillarText || `기둥 ${pillarIdx + 1}`}</span>
+                    </button>
+                  );
+                }
+
+                // 4) 외곽 8개 블록의 주변 8칸 (구체적 행동 64개 / 보물찾기 슬롯)
+                const actionText = (data.actions[pillarIdx] || [])[subIdx] || "";
+                const isEmpty = !actionText.trim();
+                const linked = !isEmpty && habitsLinked ? linkedByRef[`${pillarIdx}-${subIdx}`] : null;
+                const linkedVotes = linked ? linked.reduce((s, h) => s + countHabitVotes(h), 0) : 0;
+
+                return (
+                  <button
+                    key={cellPos}
+                    onClick={() => setEditingCell({ type: "action", pIdx: pillarIdx, aIdx: subIdx, value: actionText })}
+                    className={`relative aspect-square p-1.5 rounded-lg text-xs flex flex-col items-center justify-center text-center leading-snug transition ${
+                      isEmpty
+                        ? "border border-dashed border-stone-300 bg-stone-50/60 hover:bg-stone-100 text-stone-400"
+                        : "bg-white border border-stone-200 hover:border-amber-500 text-stone-800 font-medium shadow-sm"
+                    }`}
+                  >
+                    {isEmpty ? (
+                      <div className="flex flex-col items-center opacity-70">
+                        <span className="text-sm mb-0.5">💎</span>
+                        <span className="text-[10px] leading-tight break-keep">보물찾기 슬롯</span>
+                      </div>
+                    ) : (
+                      <span className="line-clamp-3 break-keep">{actionText}</span>
+                    )}
+                    {linked && (
+                      <span
+                        className="absolute top-0.5 right-0.5 text-[9px] font-bold bg-purple-100 text-purple-700 border border-purple-200 rounded px-1 leading-tight"
+                        title="습관 대시보드와 연결된 행동"
+                      >
+                        🔗{linkedVotes > 0 ? ` ${fmtVotes(linkedVotes)}` : ""}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
+      // ---------- 오늘 탭 계산 ----------
+      // 습관과 연결된 행동 칸은 습관 기록으로, 나머지 행동 칸은 만다라트 체크로 셉니다
+      const todayKey = dayKey(new Date());
+      const todayChecks = data.dailyChecks[todayKey] || {};
+      const filledKeys = [];
+      for (let p = 0; p < 8; p++) {
+        (data.actions[p] || []).forEach((t, a) => { if (t && t.trim()) filledKeys.push(`${p}-${a}`); });
+      }
+      const isCellLinked = (k) => habitsLinked && !!(linkedByRef[k] && linkedByRef[k].length);
+      const localKeys = filledKeys.filter(k => !isCellLinked(k));
+      const trackHabits = habitsLinked ? habits : [];
+      const totalTrack = localKeys.length + trackHabits.length;
+      const doneOn = (k) => {
+        const day = data.dailyChecks[k] || {};
+        return localKeys.filter(fk => day[fk]).length + trackHabits.filter(h => habitLogState(h, k) > 0).length;
+      };
+      const todayDone = doneOn(todayKey);
+      const last30 = Array.from({ length: 30 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (29 - i));
+        const k = dayKey(d);
+        return { k, d, cnt: doneOn(k) };
+      });
+      const heatClass = (cnt) => {
+        if (!cnt || !totalTrack) return "bg-stone-200";
+        const r = cnt / totalTrack;
+        if (r < 0.34) return "bg-amber-200";
+        if (r < 0.67) return "bg-amber-400";
+        return "bg-amber-600";
+      };
+
+      const utilBtn = "px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-800 font-semibold text-xs rounded-lg border border-stone-400 whitespace-nowrap";
+      const guide = editingCell ? GUIDES[editingCell.type] : null;
+      const onHabits = activeTab === "habits";
+
+      // 로그인·저장 상태 표시 (습관과 만다라트가 같은 계정을 씀)
+      const pillBase = "px-2.5 py-1.5 font-bold text-xs rounded-lg border whitespace-nowrap";
+      const statusPill = (() => {
+        if (hb.mode === "loading" || (hb.mode === "cloud" && syncStatus === "loading")) {
+          return <span className="px-2 py-1.5 text-xs text-stone-500 whitespace-nowrap">☁️ 연결 중…</span>;
+        }
+        if (hb.mode === "auth") {
+          return (
+            <button onClick={goHabits} className={`${pillBase} bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-300`}
+              title="로그인하면 만다라트와 습관 기록이 모든 기기에서 함께 동기화됩니다">
+              ☁️ 로그인
+            </button>
+          );
+        }
+        if (hb.mode === "cloud" && syncStatus === "error") {
+          return (
+            <button onClick={retryCloud} className={`${pillBase} bg-red-50 hover:bg-red-100 text-red-700 border-red-300`}
+              title="만다라트를 클라우드에 저장하지 못했어요. 인터넷 연결을 확인한 뒤 눌러 주세요">
+              ⚠️ 다시 연결
+            </button>
+          );
+        }
+        if (hb.mode === "cloud") {
+          return (
+            <button onClick={() => bridge && bridge.logout()} className={`${pillBase} bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300`}
+              title={`${hb.email} · 누르면 로그아웃`}>
+              ☁️ 동기화 중
+            </button>
+          );
+        }
+        if (hb.mode === "error") {
+          return (
+            <button onClick={goHabits} className={`${pillBase} bg-red-50 hover:bg-red-100 text-red-700 border-red-300`}>
+              ⚠️ 연결 오류
+            </button>
+          );
+        }
+        if (hb.mode === "local") {
+          return <span className="px-2 py-1.5 text-xs text-stone-500 whitespace-nowrap" title="Supabase 설정이 없어 이 브라우저에만 저장됩니다">💾 이 기기에만 저장</span>;
+        }
+        return null;
+      })();
+
+      return (
+        <div className={onHabits ? "" : "min-h-screen flex flex-col"}>
+          {/* 숨겨진 파일 입력 (만다라트 복원용) */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={importJSON}
+            accept=".json,application/json"
+            className="hidden"
+          />
+
+          {/* 공용 상단 바: 4개 화면 전환 + 로그인 상태 */}
+          <header className={`sm:sticky top-0 z-30 backdrop-blur border-b-2 border-stone-800 px-4 py-3 ${onHabits ? "bg-[#f8fafc]/95" : "bg-[#F7F6F2]/95"}`}>
+            <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-bold uppercase tracking-widest bg-amber-400 text-stone-900 px-2 py-0.5 rounded mr-2">
+                    LIFE DASHBOARD
+                  </span>
+                  <h1 className="text-base sm:text-xl font-bold inline-block">
+                    수영's 라이프 대시보드
+                  </h1>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {statusPill}
+                  {!onHabits && (
+                    <button
+                      onClick={() => setShowWallpaperModal(true)}
+                      className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-xs rounded-lg sketch-border-sm whitespace-nowrap"
+                    >
+                      📱 <span className="hidden sm:inline">시각적 세뇌 </span>카드
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+                {/* 화면 전환 탭 */}
+                <nav className="grid grid-cols-4 gap-1 bg-stone-200/80 p-1 rounded-xl border border-stone-800 lg:min-w-[560px]">
+                  {TABS.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-sm font-bold transition leading-tight ${
+                        activeTab === tab.key
+                          ? tab.key === "habits" ? "bg-indigo-600 text-white shadow" : "bg-stone-900 text-amber-300 shadow"
+                          : "text-stone-700 hover:bg-stone-300/60"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {/* 만다라트 백업/복원/초기화 (습관 화면은 자체 버튼 사용) */}
+                {!onHabits && (
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <button onClick={exportJSON} className={utilBtn} title="만다라트·에코 트라이앵글을 JSON 파일로 백업">💾 만다라트 백업</button>
+                    <button onClick={() => fileInputRef.current?.click()} className={utilBtn} title="만다라트 JSON 백업 파일에서 복원">📂 복원</button>
+                    <button onClick={resetData} className="px-2 py-1.5 text-stone-500 hover:text-stone-800 text-xs" title="만다라트를 예시 데이터로 초기화">초기화</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* 메인 콘텐츠 영역 (습관 시스템 화면은 아래 #habit-view가 담당) */}
+          {!onHabits && (
+          <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-6">
+            {/* ==========================================
+                TAB 1: 전체 81칸 만다라트 뷰 (60점 보물찾기 모드)
+               ========================================== */}
+            {activeTab === "mandalart" && (
+              <div className="space-y-5">
+                {/* 상단 철학 배너 & 60점 게이지 */}
+                <div className="bg-white rounded-2xl p-4 sketch-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-md border border-amber-300">
+                        💡 60점 보물찾기 모드 작동 중
+                      </span>
+                      <span className="text-xs text-stone-500">
+                        완벽주의를 버리세요! 기둥당 3칸만 채워도 인생은 바뀝니다.
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-stone-600">
+                      빈칸은 실패의 흔적이 아니라 살아가며 영감이 떠오를 때 하나씩 채워 넣는 <strong>'💎 보물찾기 슬롯'</strong>입니다.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-stone-100 px-3.5 py-2.5 rounded-xl border border-stone-300 shrink-0">
+                    <div className="text-right">
+                      <div className="text-[11px] text-stone-500 font-medium">활성화된 기둥 (3칸 이상)</div>
+                      <div className="text-lg font-extrabold text-amber-600">
+                        {totalReadyBlocks} <span className="text-xs text-stone-500 font-normal">/ 8 기둥 충분함!</span>
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 shrink-0 rounded-full bg-amber-400 text-stone-900 font-extrabold flex items-center justify-center text-sm border-2 border-stone-900">
+                      {Math.round((totalReadyBlocks / 8) * 100)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* 모바일 전용 빠른 블록 필터 (작은 화면에서 인지 과부하 방지) */}
+                <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setMobileZoomBlock(null)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 border ${
+                      mobileZoomBlock === null
+                        ? "bg-stone-900 text-white border-stone-900"
+                        : "bg-white text-stone-700 border-stone-300"
+                    }`}
+                  >
+                    전체 9블록 보기
+                  </button>
+                  <button
+                    onClick={() => setMobileZoomBlock(4)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 border ${
+                      mobileZoomBlock === 4
+                        ? "bg-amber-400 text-stone-900 border-stone-900"
+                        : "bg-white text-stone-700 border-stone-300"
+                    }`}
+                  >
+                    🎯 중앙 블록만
+                  </button>
+                  {[0,1,2,3,5,6,7,8].map((bPos) => {
+                    const pIdx = posToIdx[bPos];
+                    return (
+                      <button
+                        key={bPos}
+                        onClick={() => setMobileZoomBlock(bPos)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 border ${
+                          mobileZoomBlock === bPos
+                            ? "bg-amber-400 text-stone-900 border-stone-900"
+                            : "bg-white text-stone-700 border-stone-300"
+                        }`}
+                      >
+                        #{pIdx + 1} {data.pillars[pIdx] || `기둥 ${pIdx+1}`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 9x9 전체 만다라트 그리드 (3x3 블록 x 9개) */}
+                {mobileZoomBlock !== null ? (
+                  <div className="max-w-md mx-auto">
+                    {render3x3Block(mobileZoomBlock)}
+                    <button
+                      onClick={() => setMobileZoomBlock(null)}
+                      className="mt-3 w-full py-2 bg-stone-200 hover:bg-stone-300 rounded-xl text-xs font-bold text-stone-700"
+                    >
+                      ← 전체 81칸 보기로 돌아가기
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((blockPos) => render3x3Block(blockPos))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ==========================================
+                TAB 2: 90일 에코 트라이앵글 뷰 (시간 축 & 순환 구조)
+               ========================================== */}
+            {activeTab === "echo" && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                      <span className="bg-stone-900 text-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-md">
+                        90-Day Echo Triangle
+                      </span>
+                      <h2 className="text-lg font-bold mt-1">
+                        평면에 시간을 부여하는 '에코 트라이앵글'
+                      </h2>
+                      <p className="text-xs text-stone-500">
+                        막연한 다짐에 90일(1분기) 마감 기한을 부여하세요. 실패해도 괜찮습니다. 메아리는 다음 분기의 재료로 다시 돌아옵니다.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <label className="text-xs font-bold text-stone-600" htmlFor="quarter-input">현재 분기:</label>
+                      <input
+                        id="quarter-input"
+                        type="text"
+                        value={data.echoTriangle.quarter}
+                        onChange={(e) =>
+                          setData(prev => ({
+                            ...prev,
+                            echoTriangle: { ...prev.echoTriangle, quarter: e.target.value }
+                          }))
+                        }
+                        className="px-2.5 py-1 bg-amber-50 border border-stone-800 rounded-lg font-bold text-sm w-28 text-center"
+                      />
+                      <button
+                        onClick={rollToNextQuarter}
+                        className="px-2.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold text-xs rounded-lg"
+                        title="미완료 항목을 보관함으로 옮기고 다음 분기로 전환"
+                      >
+                        ⏭ 다음 분기로
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 에코 트라이앵글 다이어그램 레이아웃 */}
+                  <div className="relative bg-[#F7F6F2] rounded-2xl p-4 sm:p-8 border-2 border-dashed border-stone-400">
+                    {/* 중앙 빅 에코 (분기 핵심 목표 1개) */}
+                    <div className="max-w-lg mx-auto mb-8 bg-stone-900 text-white p-5 rounded-2xl sketch-border text-center">
+                      <div className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-1">
+                        🔔 CENTER: 이번 분기(3개월) 삶에 울려 퍼질 가장 큰 메아리
+                      </div>
+                      <input
+                        type="text"
+                        value={data.echoTriangle.bigGoal}
+                        onChange={(e) =>
+                          setData(prev => ({
+                            ...prev,
+                            echoTriangle: { ...prev.echoTriangle, bigGoal: e.target.value }
+                          }))
+                        }
+                        placeholder="이번 분기 빅 목표 1개를 적어주세요"
+                        className="w-full bg-stone-800 text-amber-200 font-bold text-center text-sm sm:text-base px-3 py-2 rounded-lg border border-stone-600 focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+
+                    {/* 3개의 꼭짓점 (이번 달 M1, 다음 달 M2, 다다음 달 M3) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { key: "m1", label: "Corner 1 · 이번 달 (M1)", badge: "Month 1" },
+                        { key: "m2", label: "Corner 2 · 다음 달 (M2)", badge: "Month 2" },
+                        { key: "m3", label: "Corner 3 · 다다음 달 (M3)", badge: "Month 3" }
+                      ].map((corner) => {
+                        const item = data.echoTriangle[corner.key];
+                        const isDone = item.status === "done";
+                        const daysLeft = getDaysLeft(item.deadline);
+                        const ddayClass = isDone
+                          ? "bg-emerald-100 text-emerald-800"
+                          : daysLeft === null
+                          ? ""
+                          : daysLeft < 0
+                          ? "bg-red-100 text-red-700"
+                          : daysLeft <= 7
+                          ? "bg-amber-200 text-amber-900"
+                          : "bg-stone-200 text-stone-700";
+                        return (
+                          <div
+                            key={corner.key}
+                            className={`rounded-xl p-4 sketch-border flex flex-col justify-between space-y-3 ${
+                              isDone ? "bg-emerald-50" : "bg-white"
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-extrabold text-stone-800">
+                                  {corner.label}
+                                </span>
+                                <span className="text-[11px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded shrink-0">
+                                  {isDone ? "✅ 완료" : corner.badge}
+                                </span>
+                              </div>
+
+                              <textarea
+                                rows="2"
+                                value={item.title}
+                                onChange={(e) =>
+                                  setData(prev => ({
+                                    ...prev,
+                                    echoTriangle: {
+                                      ...prev.echoTriangle,
+                                      [corner.key]: { ...prev.echoTriangle[corner.key], title: e.target.value }
+                                    }
+                                  }))
+                                }
+                                placeholder="구체적인 스몰 에코 프로젝트를 입력하세요"
+                                className={`w-full text-xs sm:text-sm p-2 rounded-lg bg-stone-50 border border-stone-300 focus:outline-none focus:border-amber-500 ${
+                                  isDone ? "line-through text-stone-500" : ""
+                                }`}
+                              />
+
+                              <div className="flex items-center justify-between gap-2 text-xs pt-1">
+                                <span className="text-stone-500 font-medium shrink-0">⏰ 마감:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="date"
+                                    value={item.deadline}
+                                    onChange={(e) =>
+                                      setData(prev => ({
+                                        ...prev,
+                                        echoTriangle: {
+                                          ...prev.echoTriangle,
+                                          [corner.key]: { ...prev.echoTriangle[corner.key], deadline: e.target.value }
+                                        }
+                                      }))
+                                    }
+                                    className="text-xs bg-stone-100 px-2 py-1 rounded border border-stone-300 font-medium"
+                                  />
+                                  {daysLeft !== null && (
+                                    <span className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${ddayClass}`}>
+                                      {isDone ? "DONE" : ddayLabel(daysLeft)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 완료 표시 & 실패를 죄책감 대신 순환으로 바꾸는 버튼 */}
+                            <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2">
+                              <button
+                                onClick={() => toggleMonthDone(corner.key)}
+                                disabled={!item.title.trim()}
+                                className={`px-2.5 py-1.5 font-bold text-[11px] rounded-lg border transition disabled:opacity-40 ${
+                                  isDone
+                                    ? "bg-white hover:bg-stone-100 text-stone-700 border-stone-300"
+                                    : "bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-400"
+                                }`}
+                              >
+                                {isDone ? "↩ 진행 중으로" : "✅ 완료!"}
+                              </button>
+                              {!isDone && (
+                                <button
+                                  onClick={() => sendToEchoBox(corner.key)}
+                                  disabled={!item.title.trim()}
+                                  className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] rounded-lg border border-amber-400 transition disabled:opacity-40"
+                                  title="장벽에 부딪혔나요? 다음 분기 재료로 보관하세요"
+                                >
+                                  🔄 메아리로 보내기
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 다음 분기 준비 보관함 (Echo Box) */}
+                <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="text-base font-bold flex flex-wrap items-center gap-1.5">
+                        <span>📦 다음 분기 메아리 보관함 (Echo Box)</span>
+                        <span className="text-xs bg-stone-200 px-2 py-0.5 rounded-full">
+                          {data.echoBox.length}개 대기 중
+                        </span>
+                      </h3>
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        "메아리는 거대한 장벽에 부딪힐 때 더 단단하게 돌아옵니다." 미달성 목표는 X표 치지 않고 이곳에 모아 다음 분기 재료로 재활용합니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  {data.echoBox.length === 0 ? (
+                    <div className="text-center py-6 bg-stone-50 rounded-xl border border-dashed border-stone-300 text-xs text-stone-400">
+                      아직 보관된 메아리가 없습니다. 실패한 목표가 생기면 언제든 이곳으로 보내주세요!
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.echoBox.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-stone-50 rounded-xl border border-stone-200"
+                        >
+                          <div>
+                            {item.fromQuarter && (
+                              <span className="text-[10px] font-bold bg-stone-200 text-stone-700 px-1.5 py-0.5 rounded mr-2">
+                                From {item.fromQuarter}
+                              </span>
+                            )}
+                            <span className="text-xs sm:text-sm font-medium text-stone-800">
+                              {item.text}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] text-stone-400 mr-1">다시 불러오기:</span>
+                            {MONTH_KEYS.map((mKey) => (
+                              <button
+                                key={mKey}
+                                onClick={() => restoreFromEchoBox(item, mKey)}
+                                className="px-2 py-1 bg-white hover:bg-amber-100 text-stone-700 font-bold text-xs rounded border border-stone-300"
+                              >
+                                {MONTH_LABEL[mKey]}로
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => deleteFromEchoBox(item)}
+                              className="px-1.5 py-1 text-stone-400 hover:text-red-600 text-xs"
+                              title="보관함에서 삭제"
+                              aria-label="보관함에서 삭제"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ==========================================
+                TAB 3: 오늘 (만다라트 행동 + 습관 기록 통합 체크)
+                - 습관과 연결된 칸: ⚡ 2분 실행 / ✔ 완수 → 습관 시스템 기록에 바로 저장
+                - 연결 안 된 칸: 만다라트 체크 (+ 습관으로 키우기)
+               ========================================== */}
+            {activeTab === "daily" && (() => {
+              const shownHabitIds = new Set();
+              const stateBtn = (active, tone) =>
+                `px-2 py-1 rounded-md text-[11px] font-bold border transition whitespace-nowrap disabled:opacity-40 ${
+                  active
+                    ? tone === "amber" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-indigo-600 border-indigo-600 text-white"
+                    : "bg-white border-stone-300 text-stone-600 hover:border-stone-500"
+                }`;
+              const renderHabitRow = (h) => {
+                shownHabitIds.add(h.id);
+                const st = habitTodayState(h);
+                const streak = habitStreak(h);
+                return (
+                  <div
+                    key={h.id}
+                    className={`p-2 rounded-lg border transition ${
+                      st === 2 ? "bg-indigo-50 border-indigo-300" : st === 1 ? "bg-amber-50 border-amber-300" : "bg-stone-50/70 border-stone-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 min-w-0 text-xs sm:text-sm font-medium text-stone-800 break-keep">
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded px-1 py-0.5 mr-1 align-middle">⚡ 습관</span>
+                        {h.name}
+                      </span>
+                      {streak >= 2 && (
+                        <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">🔥 {streak}일</span>
+                      )}
+                      <button onClick={() => setHabitToday(h.id, 1)} disabled={!habitsLinked} className={stateBtn(st === 1, "amber")}
+                        title="⚡ 2분 최소실행 (다시 누르면 해제)">⚡ 2분</button>
+                      <button onClick={() => setHabitToday(h.id, 2)} disabled={!habitsLinked} className={stateBtn(st === 2, "indigo")}
+                        title="✔ 100% 완수 (다시 누르면 해제)">✔ 완수</button>
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-1 pl-0.5 break-keep">
+                      ⚡ {h.twoMinRule}{h.cue ? ` · 📍 ${h.cue}` : ""} · 🗳️ {fmtVotes(countHabitVotes(h))}표
+                    </div>
+                  </div>
+                );
+              };
+              const growFromAction = (pIdx, aIdx, text) => {
+                if (!bridge) return;
+                setActiveTab("habits");
+                setTimeout(() => bridge.prefill({
+                  name: text.trim(),
+                  pillarIdx: pIdx,
+                  pillarName: data.pillars[pIdx] || `기둥 ${pIdx + 1}`,
+                  actionRef: `${pIdx}-${aIdx}`
+                }), 60);
+              };
+              const unassigned = habitsLinked ? habits.filter(h => !Number.isInteger(h.pillarIdx)) : [];
+
+              return (
+              <div className="space-y-5">
+                <div className="bg-stone-900 text-white rounded-2xl p-5 sketch-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                      ☀️ Morning Visual Brainwashing · {todayKey}
+                    </span>
+                    <h2 className="text-lg sm:text-xl font-bold mt-0.5">
+                      {data.coreGoal}
+                    </h2>
+                    <p className="text-xs text-stone-300 mt-1">
+                      오늘 당장 2분 안에 할 수 있는 것 하나만 찍으세요. ⚡ 2분 실행도 정체성에 0.5표가 쌓입니다.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
+                    <div className="text-right">
+                      <div className="text-[11px] text-stone-400">오늘 실행</div>
+                      <div className="text-xl font-extrabold text-amber-300">
+                        {todayDone}<span className="text-xs text-stone-400 font-normal"> / {totalTrack}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={resetTodayChecks}
+                      className="px-3 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-200 text-xs font-semibold rounded-lg"
+                      title="연결 안 된 만다라트 행동의 오늘 체크만 지웁니다 (습관 기록은 그대로)"
+                    >
+                      만다라트 체크 초기화
+                    </button>
+                  </div>
+                </div>
+
+                {/* 연결 상태 안내 */}
+                {habitsLinked ? (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
+                    <span>
+                      🔗 <b>⚡ 습관</b> 표시가 있는 항목은 습관 시스템과 같은 기록이에요. 여기서 누르면 주간 보드·히트맵·투표함에 바로 반영돼요.
+                      나머지 행동은 <b>⚡ 습관으로</b>를 눌러 습관으로 키울 수 있어요.
+                    </span>
+                    <button onClick={goHabits}
+                      className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">
+                      습관 시스템 보기 →
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-sky-900">
+                    <span>☁️ 로그인하면 습관 시스템의 기록(⚡ 2분 실행 · ✔ 완수 · 연속 기록)이 이 화면과 하나로 합쳐져요.</span>
+                    <button onClick={goHabits}
+                      className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg">
+                      로그인하러 가기 →
+                    </button>
+                  </div>
+                )}
+
+                {/* 최근 30일 히트맵 (만다라트 체크 + 습관 기록) */}
+                <div className="bg-white rounded-xl p-4 sketch-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-sm">🌿 최근 30일 실행 기록</span>
+                    <span className="flex items-center gap-1 text-[10px] text-stone-500">
+                      적음
+                      <span className="w-3 h-3 rounded-sm bg-stone-200 inline-block" />
+                      <span className="w-3 h-3 rounded-sm bg-amber-200 inline-block" />
+                      <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" />
+                      <span className="w-3 h-3 rounded-sm bg-amber-600 inline-block" />
+                      많음
+                    </span>
+                  </div>
+                  <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}>
+                    {last30.map(({ k, d, cnt }) => (
+                      <div
+                        key={k}
+                        title={`${k} · ${cnt}개 실행`}
+                        className={`aspect-square rounded-sm ${heatClass(cnt)} ${k === todayKey ? "ring-2 ring-stone-900" : ""}`}
+                      >
+                        <span className="sr-only">{`${d.getMonth() + 1}월 ${d.getDate()}일 ${cnt}개`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 기둥별 오늘 체크리스트 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {data.pillars.map((pillar, pIdx) => {
+                    const filledActions = (data.actions[pIdx] || [])
+                      .map((text, aIdx) => ({ text, aIdx }))
+                      .filter(item => item.text && item.text.trim() !== "");
+                    const rows = [];
+                    filledActions.forEach(({ text, aIdx }) => {
+                      const checkKey = `${pIdx}-${aIdx}`;
+                      const linked = isCellLinked(checkKey) ? linkedByRef[checkKey] : null;
+                      if (linked) {
+                        linked.forEach(h => rows.push(renderHabitRow(h)));
+                        return;
+                      }
+                      const isChecked = !!todayChecks[checkKey];
+                      const streak = getStreak(checkKey);
+                      rows.push(
+                        <div
+                          key={checkKey}
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition ${
+                            isChecked ? "bg-amber-50 border-amber-400 text-stone-500" : "bg-stone-50/70 border-stone-200 text-stone-800"
+                          }`}
+                        >
+                          <label className="flex-1 min-w-0 flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleDailyCheck(checkKey)}
+                              className="w-4 h-4 accent-amber-500 rounded shrink-0"
+                            />
+                            <span className={`text-xs sm:text-sm font-medium break-keep ${isChecked ? "line-through" : ""}`}>{text}</span>
+                          </label>
+                          {streak >= 2 && (
+                            <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">🔥 {streak}일</span>
+                          )}
+                          {bridge && habitsLinked && (
+                            <button
+                              onClick={() => growFromAction(pIdx, aIdx, text)}
+                              className="px-1.5 py-1 rounded-md text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 whitespace-nowrap shrink-0"
+                              title="이 행동을 습관 시스템의 습관으로 키우기 (2분 규칙·신호·보상 설계)"
+                            >
+                              ⚡ 습관으로
+                            </button>
+                          )}
+                        </div>
+                      );
+                    });
+                    // 이 기둥에 연결됐지만 칸과는 연결 안 된 습관
+                    if (habitsLinked) {
+                      habits
+                        .filter(h => h.pillarIdx === pIdx && !shownHabitIds.has(h.id))
+                        .forEach(h => rows.push(renderHabitRow(h)));
+                    }
+                    const pillarHabitCount = habitsLinked ? habits.filter(h => h.pillarIdx === pIdx).length : 0;
+
+                    return (
+                      <div key={pIdx} className="bg-white rounded-xl p-4 sketch-border">
+                        <div className="flex items-center justify-between gap-2 pb-2 mb-3 border-b border-stone-200">
+                          <span className="font-bold text-sm text-stone-900">
+                            #{pIdx + 1}. {pillar || `세부 목표 ${pIdx + 1}`}
+                          </span>
+                          <span className="flex items-center gap-1 shrink-0">
+                            {pillarHabitCount > 0 && (
+                              <span className="text-[11px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                                🗳️ {fmtVotes(pillarVotes[pIdx])}표
+                              </span>
+                            )}
+                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                              행동 {filledActions.length}{pillarHabitCount ? ` · 습관 ${pillarHabitCount}` : ""}
+                            </span>
+                          </span>
+                        </div>
+
+                        {rows.length === 0 ? (
+                          <p className="text-xs text-stone-400 py-2">
+                            아직 등록된 구체적 행동이 없습니다. 만다라트 탭에서 3칸만 먼저 채워보세요!
+                          </p>
+                        ) : (
+                          <div className="space-y-2">{rows}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 기둥이 정해지지 않은 습관 */}
+                {unassigned.length > 0 && (
+                  <div className="bg-white rounded-xl p-4 sketch-border space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-stone-200">
+                      <span className="font-bold text-sm text-stone-900">🧩 기둥이 정해지지 않은 습관 ({unassigned.length})</span>
+                      <span className="text-[11px] text-stone-500">기둥을 고르면 만다라트 블록에 실천 투표 수가 쌓여요</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {unassigned.map(h => (
+                        <div key={h.id} className="space-y-1">
+                          {renderHabitRow(h)}
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const idx = Number(e.target.value);
+                              if (e.target.value !== "" && bridge) {
+                                bridge.linkHabit(h.id, { pillarIdx: idx, pillarName: data.pillars[idx] || `기둥 ${idx + 1}` });
+                              }
+                            }}
+                            className="w-full px-2 py-1.5 text-xs bg-amber-50 border border-amber-300 rounded-lg font-semibold text-stone-700"
+                            aria-label={`${h.name} 기둥 지정`}
+                          >
+                            <option value="">🧩 기둥 지정하기…</option>
+                            {data.pillars.map((p, i) => (
+                              <option key={i} value={i}>#{i + 1} {p || `기둥 ${i + 1}`}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              );
+            })()}
+          </main>)}
+
+          {/* ==========================================
+              MODAL 1: 칸 입력 및 코칭 가이드 모달
+             ========================================== */}
+          {editingCell && (
+            <div
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setEditingCell(null); }}
+            >
+              <div className="bg-white w-full max-w-md rounded-2xl p-5 sketch-border space-y-4" role="dialog" aria-modal="true">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider bg-amber-400 text-stone-900 px-2.5 py-0.5 rounded">
+                    {editingCell.type === "core"
+                      ? "Step 1 · 정중앙 핵심 목표"
+                      : editingCell.type === "pillar"
+                      ? `Step 2 · 세부 기둥 #${editingCell.pIdx + 1}`
+                      : `Step 3 · 구체적 마이크로 액션`}
+                  </span>
+                  <button
+                    onClick={() => setEditingCell(null)}
+                    className="text-stone-400 hover:text-stone-700 font-bold text-sm"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
+
+                {/* 칸 종류별 코칭 가이드 */}
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs space-y-1.5 text-stone-700">
+                  <div className="font-bold text-amber-900">{guide.title}</div>
+                  <p className="leading-relaxed">{guide.desc}</p>
+                  <div className="bg-white/80 p-2 rounded-lg border border-amber-200 text-[11px] space-y-0.5">
+                    <div>❌ <span className="line-through text-stone-400">{guide.bad}</span></div>
+                    <div>⭕ <span className="font-bold text-stone-900">{guide.good}</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <textarea
+                    rows="3"
+                    autoFocus
+                    value={editingCell.value}
+                    onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        handleSaveCell();
+                      }
+                    }}
+                    placeholder="여기에 목표나 행동을 입력하세요..."
+                    className="w-full p-3 rounded-xl border-2 border-stone-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                  <div className="text-[10px] text-stone-400 text-right mt-0.5">Ctrl+Enter 저장 · Esc 닫기</div>
+                </div>
+
+                {/* 행동 칸 ↔ 습관 시스템 연결 */}
+                {editingCell.type === "action" && editingCell.value.trim() && bridge && (() => {
+                  const ref = `${editingCell.pIdx}-${editingCell.aIdx}`;
+                  if (!habitsLinked) {
+                    return (
+                      <div className="bg-sky-50 border border-sky-200 rounded-xl p-2.5 text-[11px] text-sky-900 flex items-center justify-between gap-2">
+                        <span>☁️ 로그인하면 이 행동을 습관으로 키우고, 실천 기록을 여기서 바로 볼 수 있어요.</span>
+                        <button onClick={() => { setEditingCell(null); goHabits(); }}
+                          className="shrink-0 px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg">로그인</button>
+                      </div>
+                    );
+                  }
+                  const linkedHabits = linkedByRef[ref] || [];
+                  if (linkedHabits.length) {
+                    return (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 text-[11px] space-y-2">
+                        {linkedHabits.map(h => {
+                          const st = habitTodayState(h);
+                          return (
+                            <div key={h.id} className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-indigo-900">
+                                <span className="font-bold">🔗 '{h.name}' 습관과 연결됨</span>
+                                <span>🗳️ {fmtVotes(countHabitVotes(h))}표</span>
+                                <span>🔥 {habitStreak(h)}일</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-indigo-800">오늘:</span>
+                                <button onClick={() => setHabitToday(h.id, 1)}
+                                  className={`px-2 py-1 rounded-md font-bold border ${st === 1 ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white border-stone-300 text-stone-600"}`}>
+                                  ⚡ 2분 실행
+                                </button>
+                                <button onClick={() => setHabitToday(h.id, 2)}
+                                  className={`px-2 py-1 rounded-md font-bold border ${st === 2 ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-stone-300 text-stone-600"}`}>
+                                  ✔ 완수
+                                </button>
+                                <button onClick={() => unlinkHabitFromCell(h)} className="ml-auto text-stone-400 hover:text-red-600 underline">
+                                  칸 연결 풀기
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <button onClick={() => { setEditingCell(null); goHabits(); }} className="font-bold text-indigo-700 underline">
+                          ⚡ 습관 시스템에서 자세히 보기 →
+                        </button>
+                      </div>
+                    );
+                  }
+                  const candidates = habits.filter(h => !h.actionRef);
+                  return (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 text-[11px] space-y-2">
+                      <button
+                        onClick={growHabit}
+                        className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs"
+                      >
+                        🌱 이 행동을 습관으로 키우기
+                      </button>
+                      <p className="text-indigo-900/80 leading-relaxed">
+                        습관 시스템 화면으로 넘어가 추가 폼이 채워져요. 정체성과 2분 규칙만 적고 '추가'를 누르면 이 칸과 연결됩니다.
+                      </p>
+                      {candidates.length > 0 && (
+                        <select
+                          value=""
+                          onChange={(e) => { if (e.target.value) linkExistingHabit(e.target.value); }}
+                          className="w-full px-2 py-1.5 bg-white border border-indigo-200 rounded-lg font-semibold text-stone-700"
+                          aria-label="이미 있는 습관과 연결"
+                        >
+                          <option value="">🔗 또는 이미 있는 습관과 연결하기…</option>
+                          {candidates.map(h => (
+                            <option key={h.id} value={h.id}>
+                              {h.name}{Number.isInteger(h.pillarIdx) ? ` (기둥 #${h.pillarIdx + 1})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 행동 칸 → 이번 분기 에코 트라이앵글로 보내기 */}
+                {editingCell.type === "action" && editingCell.value.trim() && (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="text-stone-500">📐 {data.echoTriangle.quarter} 프로젝트로:</span>
+                    {MONTH_KEYS.map(mKey => (
+                      <button
+                        key={mKey}
+                        onClick={() => sendActionToMonth(mKey)}
+                        className="px-2 py-1 bg-stone-100 hover:bg-amber-100 text-stone-700 font-bold rounded border border-stone-300"
+                      >
+                        {MONTH_LABEL[mKey]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    onClick={() => setEditingCell({ ...editingCell, value: "" })}
+                    className="px-3 py-2 text-xs font-semibold text-stone-500 hover:text-red-600"
+                  >
+                    {editingCell.type === "action" ? "비우기(보물찾기 슬롯으로 두기)" : "비우기"}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingCell(null)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-200 text-stone-700"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSaveCell}
+                      className="px-5 py-2 rounded-xl text-xs font-bold bg-stone-900 text-amber-300 hover:bg-stone-800"
+                    >
+                      저장하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==========================================
+              MODAL 2: '시각적 세뇌(Visual Brainwashing)' 스마트폰 배경화면 카드 모달
+             ========================================== */}
+          {showWallpaperModal && (
+            <div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setShowWallpaperModal(false); }}
+            >
+              <div className="bg-[#F7F6F2] w-full max-w-sm rounded-3xl p-4 sketch-border space-y-3 my-auto" role="dialog" aria-modal="true">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-600">
+                    📱 스마트폰 배경화면 / 거울 부착용 프리뷰
+                  </span>
+                  <button
+                    onClick={() => setShowWallpaperModal(false)}
+                    className="text-stone-500 hover:text-stone-900 text-xs font-bold px-2 py-1"
+                  >
+                    ✕ 닫기
+                  </button>
+                </div>
+
+                {/* 9:16 비율 스마트폰 잠금화면 스타일 카드 (PNG 저장 대상) */}
+                <div
+                  ref={wallpaperRef}
+                  className="aspect-[9/16] w-full bg-stone-900 text-stone-100 rounded-2xl p-5 flex flex-col justify-between border-2 border-stone-800 relative overflow-hidden"
+                >
+                  {/* 상단: 잠금화면 시계 자리를 비워 둠 */}
+                  <div className="text-center pt-1 pb-14">
+                    <div className="text-[10px] tracking-widest uppercase text-amber-400 font-bold">
+                      VISUAL BRAINWASHING
+                    </div>
+                  </div>
+
+                  {/* 중앙 핵심 목표 & 8기둥 미니 그리드 */}
+                  <div className="space-y-3 my-auto">
+                    <div className="bg-amber-400 text-stone-900 p-3 rounded-xl text-center">
+                      <div className="text-[9px] font-extrabold uppercase tracking-wider opacity-75">
+                        MY CORE GOAL
+                      </div>
+                      <div className="text-sm font-extrabold leading-snug mt-0.5 break-keep">
+                        {data.coreGoal}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {data.pillars.map((p, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-stone-800 border border-stone-700 px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 overflow-hidden"
+                        >
+                          <span className="text-amber-400 font-bold">{idx + 1}.</span>
+                          <span className="truncate font-medium text-stone-200">{p || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 오늘의 2분 규칙 (습관 시스템에서 최대 3개) */}
+                    {habitsLinked && habits.length > 0 && (
+                      <div className="bg-stone-800 border border-indigo-400/40 rounded-xl p-2.5 text-[11px] space-y-1">
+                        <div className="text-indigo-300 font-bold text-[10px]">⚡ TODAY 2-MINUTE RULES</div>
+                        {habits.slice(0, 3).map(h => (
+                          <div key={h.id} className="overflow-hidden py-0.5 -my-0.5">
+                            <span className="truncate block text-stone-200">• {h.twoMinRule}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 이번 분기 에코 요약 (D-day 포함) */}
+                    <div className="bg-stone-800 border border-amber-500/40 rounded-xl p-2.5 text-[11px] space-y-1">
+                      <div className="text-amber-300 font-bold text-[10px]">
+                        📐 {data.echoTriangle.quarter} ECHO TRIANGLE
+                      </div>
+                      {MONTH_KEYS.map((mKey, i) => {
+                        const m = data.echoTriangle[mKey];
+                        const left = getDaysLeft(m.deadline);
+                        return (
+                          <div key={mKey} className={`flex items-center gap-1.5 ${i === 0 ? "text-stone-200 font-semibold" : i === 1 ? "text-stone-300" : "text-stone-400"}`}>
+                            <div className="flex-1 min-w-0 overflow-hidden py-0.5 -my-0.5">
+                              <span className="truncate block">
+                                {m.status === "done" ? "✅" : "•"} M{i + 1}: {m.title || "미설정"}
+                              </span>
+                            </div>
+                            {m.title && m.status !== "done" && left !== null && (
+                              <span className="text-amber-300 font-bold shrink-0 text-[10px]">{ddayLabel(left)}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 하단 문구 */}
+                  <div className="text-center text-[10px] text-stone-400 border-t border-stone-800 pt-2">
+                    "쓰레기를 줍는 것은 남이 버린 행운을 줍는 것이다."
+                  </div>
+                </div>
+
+                <button
+                  onClick={downloadWallpaper}
+                  disabled={savingWallpaper}
+                  className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-900 font-bold text-sm rounded-xl sketch-border-sm disabled:opacity-60"
+                >
+                  {savingWallpaper ? "이미지 만드는 중..." : "🖼️ 배경화면 이미지(PNG)로 저장"}
+                </button>
+                <p className="text-[11px] text-center text-stone-500">
+                  💡 저장한 이미지를 스마트폰 잠금화면이나 배경화면으로 설정해 매일 아침 시각적 세뇌를 실행하세요!
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  
 </script>
 </body>
 </html>
