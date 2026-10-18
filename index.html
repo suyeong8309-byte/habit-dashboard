@@ -2405,12 +2405,20 @@
         6: ["기상 직후 이불 정리하기", "운동복 전날 밤 미리 꺼두기", "영양제 식탁 위에 꺼내두기", "", "", "", "", ""],
         7: ["매월 말일 계획 업데이트", "안 맞는 목표 과감히 지우기", "빈칸에서 보물찾기 영감 메모", "", "", "", "", ""]
       },
+      // 에코 트라이앵글: 분기 하나에 목표(트랙)를 여러 개 둘 수 있음
       echoTriangle: {
         quarter: "2026 Q4",
-        bigGoal: "3개월 동안 내 삶에 울려 퍼질 가장 큰 변화 만들기",
-        m1: { title: "1달차(이번 달): 환경 세팅 및 기상 루틴 정착", deadline: "2026-10-31", status: "active" },
-        m2: { title: "2달차(다음 달): 매일 10분 인풋(뉴스/팟캐스트) 습관화", deadline: "2026-11-30", status: "active" },
-        m3: { title: "3달차(다다음 달): 60점 달성 점검 및 분기 회고", deadline: "2026-12-31", status: "active" }
+        tracks: [
+          {
+            id: "t1",
+            name: "핵심 변화",
+            pillarIdx: null,
+            bigGoal: "3개월 동안 내 삶에 울려 퍼질 가장 큰 변화 만들기",
+            m1: { title: "1달차(이번 달): 환경 세팅 및 기상 루틴 정착", deadline: "2026-10-31", status: "active" },
+            m2: { title: "2달차(다음 달): 매일 10분 인풋(뉴스/팟캐스트) 습관화", deadline: "2026-11-30", status: "active" },
+            m3: { title: "3달차(다다음 달): 60점 달성 점검 및 분기 회고", deadline: "2026-12-31", status: "active" }
+          }
+        ]
       },
       echoBox: [
         { id: 1, text: "매일 저녁 30분 독서하기 (지난 분기에서 넘어온 메아리)", fromQuarter: "2026 Q3" }
@@ -2467,6 +2475,50 @@
       };
     };
 
+    // ---------- 에코 트라이앵글 트랙(목표) ----------
+    const newTrackId = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    // "2026 Q4" → 그 분기 각 달의 말일 3개 (형식이 다르면 빈 값)
+    const quarterMonthEnds = (quarter) => {
+      const m = str(quarter).match(/(\d{4})\s*Q([1-4])/i);
+      if (!m) return ["", "", ""];
+      const year = Number(m[1]);
+      const start = (Number(m[2]) - 1) * 3;
+      return [0, 1, 2].map(i => dayKey(new Date(year, start + i + 1, 0)));
+    };
+    const makeTrack = (quarter, name) => {
+      const ends = quarterMonthEnds(quarter);
+      return {
+        id: newTrackId(),
+        name: name || "새 목표",
+        pillarIdx: null,
+        bigGoal: "",
+        m1: { title: "", deadline: ends[0], status: "active" },
+        m2: { title: "", deadline: ends[1], status: "active" },
+        m3: { title: "", deadline: ends[2], status: "active" }
+      };
+    };
+    const normalizeTrack = (t, i, quarter) => {
+      const ends = quarterMonthEnds(quarter);
+      const emptyMonth = (k) => ({ title: "", deadline: ends[k], status: "active" });
+      return {
+        id: str(t.id) || newTrackId(),
+        name: str(t.name, `목표 ${i + 1}`) || `목표 ${i + 1}`,
+        pillarIdx: Number.isInteger(t.pillarIdx) && t.pillarIdx >= 0 && t.pillarIdx < 8 ? t.pillarIdx : null,
+        bigGoal: str(t.bigGoal),
+        m1: normalizeMonth(t.m1, emptyMonth(0)),
+        m2: normalizeMonth(t.m2, emptyMonth(1)),
+        m3: normalizeMonth(t.m3, emptyMonth(2))
+      };
+    };
+    const findTrack = (et, trackId) => et.tracks.find(t => t.id === trackId) || et.tracks[0];
+    const mapTrack = (prev, trackId, fn) => ({
+      ...prev,
+      echoTriangle: {
+        ...prev.echoTriangle,
+        tracks: prev.echoTriangle.tracks.map(t => (t.id === trackId ? fn(t) : t))
+      }
+    });
+
     // 저장/복원 데이터를 현재 구조로 맞춤 (빠진 필드는 기본값, 구버전 체크 데이터는 이관)
     const normalizeData = (raw) => {
       const base = clone(INITIAL_DATA);
@@ -2484,20 +2536,34 @@
       }
 
       const et = raw.echoTriangle && typeof raw.echoTriangle === "object" ? raw.echoTriangle : null;
-      const echoTriangle = et
-        ? {
-            quarter: str(et.quarter, base.echoTriangle.quarter),
+      let echoTriangle = base.echoTriangle;
+      if (et) {
+        const quarter = str(et.quarter, base.echoTriangle.quarter);
+        const baseTrack = base.echoTriangle.tracks[0];
+        let tracks;
+        if (Array.isArray(et.tracks)) {
+          tracks = et.tracks.filter(t => t && typeof t === "object").map((t, i) => normalizeTrack(t, i, quarter));
+        } else {
+          // 구버전(목표 1개) → 첫 번째 트랙으로 이관
+          tracks = [normalizeTrack({
+            id: "t1",
+            name: "목표 1",
             bigGoal: str(et.bigGoal),
-            m1: normalizeMonth(et.m1, base.echoTriangle.m1),
-            m2: normalizeMonth(et.m2, base.echoTriangle.m2),
-            m3: normalizeMonth(et.m3, base.echoTriangle.m3)
-          }
-        : base.echoTriangle;
+            m1: et.m1 && typeof et.m1 === "object" ? et.m1 : baseTrack.m1,
+            m2: et.m2 && typeof et.m2 === "object" ? et.m2 : baseTrack.m2,
+            m3: et.m3 && typeof et.m3 === "object" ? et.m3 : baseTrack.m3
+          }, 0, quarter)];
+        }
+        if (!tracks.length) tracks = [makeTrack(quarter, "목표 1")];
+        const seen = new Set();
+        tracks.forEach(t => { if (seen.has(t.id)) t.id = newTrackId(); seen.add(t.id); });
+        echoTriangle = { quarter, tracks };
+      }
 
       const echoBox = Array.isArray(raw.echoBox)
         ? raw.echoBox
             .filter((e) => e && typeof e.text === "string")
-            .map((e, i) => ({ id: e.id != null ? e.id : Date.now() + i, text: e.text, fromQuarter: str(e.fromQuarter) }))
+            .map((e, i) => ({ id: e.id != null ? e.id : Date.now() + i, text: e.text, fromQuarter: str(e.fromQuarter), trackName: str(e.trackName) }))
         : base.echoBox;
 
       const dailyChecks = {};
@@ -2567,15 +2633,15 @@
     };
 
     // 에코 트라이앵글의 특정 달에 텍스트를 넣음. 기존 내용이 있으면 메아리 보관함으로 이동
-    const placeInMonth = (prev, monthKey, text) => {
-      const cur = prev.echoTriangle[monthKey];
+    const placeInMonth = (prev, trackId, monthKey, text) => {
+      const track = findTrack(prev.echoTriangle, trackId);
+      const cur = track[monthKey];
       const echoBox = cur.title.trim()
-        ? [{ id: Date.now(), text: cur.title, fromQuarter: prev.echoTriangle.quarter }, ...prev.echoBox]
+        ? [{ id: Date.now(), text: cur.title, fromQuarter: prev.echoTriangle.quarter, trackName: track.name }, ...prev.echoBox]
         : prev.echoBox;
       return {
-        ...prev,
-        echoBox,
-        echoTriangle: { ...prev.echoTriangle, [monthKey]: { ...cur, title: text, status: "active" } }
+        ...mapTrack(prev, track.id, t => ({ ...t, [monthKey]: { ...cur, title: text, status: "active" } })),
+        echoBox
       };
     };
 
@@ -2882,48 +2948,95 @@
         setEditingCell(null);
       };
 
-      // 덮어쓰기 전 확인 (기존 내용은 보관함으로 이동)
-      const confirmOverwrite = (monthKey) => {
-        const cur = data.echoTriangle[monthKey];
-        return !cur.title.trim() ||
-          confirm(`${MONTH_LABEL[monthKey]}에 이미 "${cur.title}"이(가) 있어요.\n기존 내용은 메아리 보관함으로 옮기고 교체할까요?`);
+      // ---------- 에코 트라이앵글: 여러 목표(트랙) ----------
+      const [activeTrackId, setActiveTrackId] = useState(null);
+      const tracks = data.echoTriangle.tracks;
+      const activeTrack = findTrack(data.echoTriangle, activeTrackId);
+
+      const updateTrack = (trackId, fn) => setData(prev => mapTrack(prev, trackId, fn));
+
+      const addTrack = () => {
+        const track = makeTrack(data.echoTriangle.quarter, `목표 ${tracks.length + 1}`);
+        setData(prev => ({
+          ...prev,
+          echoTriangle: { ...prev.echoTriangle, tracks: [...prev.echoTriangle.tracks, track] }
+        }));
+        setActiveTrackId(track.id);
       };
 
-      // 만다라트 행동 칸 → 에코 트라이앵글의 특정 달로 보내기
+      const deleteTrack = (track) => {
+        const pending = MONTH_KEYS.filter(k => track[k].title.trim() && track[k].status !== "done");
+        const msg = `'${track.name}' 목표를 삭제할까요?` +
+          (pending.length ? `\n진행 중인 프로젝트 ${pending.length}개는 메아리 보관함으로 옮겨 둘게요.` : "");
+        if (!confirm(msg)) return;
+        setData(prev => {
+          const rest = prev.echoTriangle.tracks.filter(t => t.id !== track.id);
+          const moved = pending.map((k, i) => ({
+            id: Date.now() + i, text: track[k].title, fromQuarter: prev.echoTriangle.quarter, trackName: track.name
+          }));
+          return {
+            ...prev,
+            echoTriangle: {
+              ...prev.echoTriangle,
+              tracks: rest.length ? rest : [makeTrack(prev.echoTriangle.quarter, "목표 1")]
+            },
+            echoBox: [...moved, ...prev.echoBox]
+          };
+        });
+        setActiveTrackId(null);
+      };
+
+      const moveTrack = (trackId, dir) => {
+        setData(prev => {
+          const list = [...prev.echoTriangle.tracks];
+          const i = list.findIndex(t => t.id === trackId);
+          const j = i + dir;
+          if (i < 0 || j < 0 || j >= list.length) return prev;
+          [list[i], list[j]] = [list[j], list[i]];
+          return { ...prev, echoTriangle: { ...prev.echoTriangle, tracks: list } };
+        });
+      };
+
+      // 덮어쓰기 전 확인 (기존 내용은 보관함으로 이동)
+      const confirmOverwrite = (trackId, monthKey) => {
+        const track = findTrack(data.echoTriangle, trackId);
+        const cur = track[monthKey];
+        return !cur.title.trim() ||
+          confirm(`'${track.name}'의 ${MONTH_LABEL[monthKey]}에 이미 "${cur.title}"이(가) 있어요.\n기존 내용은 메아리 보관함으로 옮기고 교체할까요?`);
+      };
+
+      // 만다라트 행동 칸 → 에코 트라이앵글의 (선택한 목표의) 특정 달로 보내기
       const sendActionToMonth = (monthKey) => {
         if (!editingCell) return;
         const cell = editingCell;
         const text = cell.value.trim();
         if (!text) return;
-        if (!confirmOverwrite(monthKey)) return;
-        setData(prev => placeInMonth(applyCellEdit(prev, cell), monthKey, text));
+        const trackId = activeTrack.id;
+        if (!confirmOverwrite(trackId, monthKey)) return;
+        setData(prev => placeInMonth(applyCellEdit(prev, cell), trackId, monthKey, text));
         setEditingCell(null);
       };
 
       // 에코 트라이앵글 실패 -> 다음 분기 메아리 보관함으로 이동
-      const sendToEchoBox = (monthKey) => {
-        const target = data.echoTriangle[monthKey];
+      const sendToEchoBox = (track, monthKey) => {
+        const target = track[monthKey];
         if (!target || !target.title.trim()) return;
         if (!confirm(`"${target.title}"을(를) 메아리 보관함으로 보낼까요?\n보관함에서 언제든 다시 불러올 수 있어요.`)) return;
-
         setData(prev => ({
-          ...prev,
+          ...mapTrack(prev, track.id, t => ({ ...t, [monthKey]: { ...t[monthKey], title: "", status: "active" } })),
           echoBox: [
-            { id: Date.now(), text: target.title, fromQuarter: prev.echoTriangle.quarter },
+            { id: Date.now(), text: target.title, fromQuarter: prev.echoTriangle.quarter, trackName: track.name },
             ...prev.echoBox
-          ],
-          echoTriangle: {
-            ...prev.echoTriangle,
-            [monthKey]: { ...target, title: "", status: "active" }
-          }
+          ]
         }));
       };
 
-      // 메아리 보관함에서 현재 스몰 에코로 다시 불러오기 (기존 내용은 보관함과 맞교환)
+      // 메아리 보관함에서 지금 보고 있는 목표의 특정 달로 다시 불러오기 (기존 내용은 보관함과 맞교환)
       const restoreFromEchoBox = (item, monthKey) => {
-        if (!confirmOverwrite(monthKey)) return;
+        const trackId = activeTrack.id;
+        if (!confirmOverwrite(trackId, monthKey)) return;
         setData(prev =>
-          placeInMonth({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }, monthKey, item.text)
+          placeInMonth({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }, trackId, monthKey, item.text)
         );
       };
 
@@ -2933,20 +3046,14 @@
       };
 
       // 완료 / 진행 중 토글
-      const toggleMonthDone = (monthKey) => {
-        setData(prev => {
-          const cur = prev.echoTriangle[monthKey];
-          return {
-            ...prev,
-            echoTriangle: {
-              ...prev.echoTriangle,
-              [monthKey]: { ...cur, status: cur.status === "done" ? "active" : "done" }
-            }
-          };
-        });
+      const toggleMonthDone = (trackId, monthKey) => {
+        updateTrack(trackId, t => ({
+          ...t,
+          [monthKey]: { ...t[monthKey], status: t[monthKey].status === "done" ? "active" : "done" }
+        }));
       };
 
-      // 다음 분기로 넘기기: 미완료 → 보관함, 마감일 재설정
+      // 다음 분기로 넘기기: 모든 목표의 미완료 → 보관함, 마감일 재설정 (목표 이름·빅 에코는 유지)
       const rollToNextQuarter = () => {
         const match = data.echoTriangle.quarter.match(/(\d{4})\s*Q([1-4])/i);
         if (!match) {
@@ -2957,27 +3064,37 @@
         let q = Number(match[2]) + 1;
         if (q > 4) { q = 1; year += 1; }
         const nextQuarter = `${year} Q${q}`;
-        const pending = MONTH_KEYS.filter(k => data.echoTriangle[k].title.trim() && data.echoTriangle[k].status !== "done");
+        const pendingCount = tracks.reduce(
+          (n, t) => n + MONTH_KEYS.filter(k => t[k].title.trim() && t[k].status !== "done").length, 0);
 
         if (!confirm(
           `${nextQuarter}로 넘어갈까요?\n\n` +
-          `• 미완료 ${pending.length}개는 메아리 보관함으로 이동\n` +
-          `• 완료한 항목은 정리\n` +
+          `• 목표 ${tracks.length}개의 미완료 프로젝트 ${pendingCount}개는 메아리 보관함으로 이동\n` +
+          `• 완료한 프로젝트는 정리 (목표 이름·빅 에코는 그대로)\n` +
           `• 1~3달차 마감일을 ${nextQuarter}의 각 월 말일로 재설정`
         )) return;
 
-        const startMonth = (q - 1) * 3;
+        const ends = quarterMonthEnds(nextQuarter);
         setData(prev => {
-          const moved = pending.map((k, i) => ({
-            id: Date.now() + i,
-            text: prev.echoTriangle[k].title,
-            fromQuarter: prev.echoTriangle.quarter
-          }));
-          const echoTriangle = { ...prev.echoTriangle, quarter: nextQuarter };
-          MONTH_KEYS.forEach((k, i) => {
-            echoTriangle[k] = { title: "", deadline: dayKey(new Date(year, startMonth + i + 1, 0)), status: "active" };
+          const moved = [];
+          prev.echoTriangle.tracks.forEach(t => {
+            MONTH_KEYS.forEach(k => {
+              if (t[k].title.trim() && t[k].status !== "done") {
+                moved.push({ id: Date.now() + moved.length, text: t[k].title, fromQuarter: prev.echoTriangle.quarter, trackName: t.name });
+              }
+            });
           });
-          return { ...prev, echoTriangle, echoBox: [...moved, ...prev.echoBox] };
+          const nextTracks = prev.echoTriangle.tracks.map(t => ({
+            ...t,
+            m1: { title: "", deadline: ends[0], status: "active" },
+            m2: { title: "", deadline: ends[1], status: "active" },
+            m3: { title: "", deadline: ends[2], status: "active" }
+          }));
+          return {
+            ...prev,
+            echoTriangle: { quarter: nextQuarter, tracks: nextTracks },
+            echoBox: [...moved, ...prev.echoBox]
+          };
         });
       };
 
@@ -3509,23 +3626,89 @@
                     </div>
                   </div>
 
-                  {/* 에코 트라이앵글 다이어그램 레이아웃 */}
+                  {/* 목표(트랙) 탭: 개수 제한 없이 추가 가능. 점 3개 = 1·2·3달차 상태 */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                    {tracks.map((t, i) => {
+                      const active = t.id === activeTrack.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setActiveTrackId(t.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border transition flex items-center gap-1.5 ${
+                            active ? "bg-stone-900 text-amber-300 border-stone-900" : "bg-white text-stone-700 border-stone-300 hover:border-stone-500"
+                          }`}
+                        >
+                          <span className="max-w-[10rem] truncate">{t.name || `목표 ${i + 1}`}</span>
+                          <span className="flex gap-0.5" aria-hidden="true">
+                            {MONTH_KEYS.map(k => {
+                              const has = t[k].title.trim();
+                              const cls = has && t[k].status === "done"
+                                ? "bg-emerald-500"
+                                : has ? (active ? "bg-amber-300" : "bg-amber-500") : (active ? "bg-stone-600" : "bg-stone-300");
+                              return <span key={k} className={`w-1.5 h-1.5 rounded-full ${cls}`} />;
+                            })}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={addTrack}
+                      className="px-3 py-1.5 rounded-full text-xs font-bold border border-dashed border-stone-400 text-stone-600 hover:bg-stone-100"
+                    >
+                      ＋ 목표 추가
+                    </button>
+                  </div>
+
+                  {/* 선택한 목표 설정: 이름 · 연결 기둥 · 순서 · 삭제 */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
+                    <label className="font-bold text-stone-600" htmlFor="track-name">목표 이름</label>
+                    <input
+                      id="track-name"
+                      type="text"
+                      value={activeTrack.name}
+                      onChange={(e) => updateTrack(activeTrack.id, t => ({ ...t, name: e.target.value }))}
+                      placeholder="예: 유산소 운동"
+                      className="px-2.5 py-1.5 bg-white border border-stone-400 rounded-lg font-bold text-sm w-40 sm:w-48"
+                    />
+                    <select
+                      value={activeTrack.pillarIdx === null ? "" : String(activeTrack.pillarIdx)}
+                      onChange={(e) => updateTrack(activeTrack.id, t => ({ ...t, pillarIdx: e.target.value === "" ? null : Number(e.target.value) }))}
+                      className="px-2 py-1.5 bg-amber-50 border border-amber-300 rounded-lg font-semibold text-stone-700 max-w-[12rem]"
+                      aria-label="연결할 만다라트 기둥"
+                    >
+                      <option value="">🧩 기둥 연결 안 함</option>
+                      {data.pillars.map((p, i) => (
+                        <option key={i} value={i}>🧩 #{i + 1} {p || `기둥 ${i + 1}`}</option>
+                      ))}
+                    </select>
+                    <span className="flex items-center gap-1 sm:ml-auto">
+                      {tracks.length > 1 && (
+                        <>
+                          <button onClick={() => moveTrack(activeTrack.id, -1)} aria-label="목표 순서 앞으로" title="앞으로"
+                            className="px-2 py-1 rounded border border-stone-300 bg-white hover:bg-stone-100">◀</button>
+                          <button onClick={() => moveTrack(activeTrack.id, 1)} aria-label="목표 순서 뒤로" title="뒤로"
+                            className="px-2 py-1 rounded border border-stone-300 bg-white hover:bg-stone-100">▶</button>
+                        </>
+                      )}
+                      <button onClick={() => deleteTrack(activeTrack)}
+                        className="px-2 py-1 rounded border border-stone-300 bg-white text-stone-500 hover:text-red-600 hover:border-red-300">
+                        🗑 목표 삭제
+                      </button>
+                    </span>
+                  </div>
+
+                  {/* 에코 트라이앵글 다이어그램 레이아웃 (선택한 목표) */}
                   <div className="relative bg-[#F7F6F2] rounded-2xl p-4 sm:p-8 border-2 border-dashed border-stone-400">
-                    {/* 중앙 빅 에코 (분기 핵심 목표 1개) */}
+                    {/* 중앙 빅 에코 (이 목표의 분기 핵심 목표) */}
                     <div className="max-w-lg mx-auto mb-8 bg-stone-900 text-white p-5 rounded-2xl sketch-border text-center">
                       <div className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-1">
-                        🔔 CENTER: 이번 분기(3개월) 삶에 울려 퍼질 가장 큰 메아리
+                        🔔 {activeTrack.name || "이 목표"} · 3개월 뒤 울려 퍼질 가장 큰 메아리
                       </div>
                       <input
                         type="text"
-                        value={data.echoTriangle.bigGoal}
-                        onChange={(e) =>
-                          setData(prev => ({
-                            ...prev,
-                            echoTriangle: { ...prev.echoTriangle, bigGoal: e.target.value }
-                          }))
-                        }
-                        placeholder="이번 분기 빅 목표 1개를 적어주세요"
+                        value={activeTrack.bigGoal}
+                        onChange={(e) => updateTrack(activeTrack.id, t => ({ ...t, bigGoal: e.target.value }))}
+                        placeholder="이 목표의 이번 분기 빅 목표를 적어주세요"
                         className="w-full bg-stone-800 text-amber-200 font-bold text-center text-sm sm:text-base px-3 py-2 rounded-lg border border-stone-600 focus:outline-none focus:border-amber-400"
                       />
                     </div>
@@ -3537,7 +3720,7 @@
                         { key: "m2", label: "Corner 2 · 다음 달 (M2)", badge: "Month 2" },
                         { key: "m3", label: "Corner 3 · 다다음 달 (M3)", badge: "Month 3" }
                       ].map((corner) => {
-                        const item = data.echoTriangle[corner.key];
+                        const item = activeTrack[corner.key];
                         const isDone = item.status === "done";
                         const daysLeft = getDaysLeft(item.deadline);
                         const ddayClass = isDone
@@ -3549,6 +3732,8 @@
                           : daysLeft <= 7
                           ? "bg-amber-200 text-amber-900"
                           : "bg-stone-200 text-stone-700";
+                        const setMonth = (patch) =>
+                          updateTrack(activeTrack.id, t => ({ ...t, [corner.key]: { ...t[corner.key], ...patch } }));
                         return (
                           <div
                             key={corner.key}
@@ -3569,15 +3754,7 @@
                               <textarea
                                 rows="2"
                                 value={item.title}
-                                onChange={(e) =>
-                                  setData(prev => ({
-                                    ...prev,
-                                    echoTriangle: {
-                                      ...prev.echoTriangle,
-                                      [corner.key]: { ...prev.echoTriangle[corner.key], title: e.target.value }
-                                    }
-                                  }))
-                                }
+                                onChange={(e) => setMonth({ title: e.target.value })}
                                 placeholder="구체적인 스몰 에코 프로젝트를 입력하세요"
                                 className={`w-full text-xs sm:text-sm p-2 rounded-lg bg-stone-50 border border-stone-300 focus:outline-none focus:border-amber-500 ${
                                   isDone ? "line-through text-stone-500" : ""
@@ -3590,15 +3767,7 @@
                                   <input
                                     type="date"
                                     value={item.deadline}
-                                    onChange={(e) =>
-                                      setData(prev => ({
-                                        ...prev,
-                                        echoTriangle: {
-                                          ...prev.echoTriangle,
-                                          [corner.key]: { ...prev.echoTriangle[corner.key], deadline: e.target.value }
-                                        }
-                                      }))
-                                    }
+                                    onChange={(e) => setMonth({ deadline: e.target.value })}
                                     className="text-xs bg-stone-100 px-2 py-1 rounded border border-stone-300 font-medium"
                                   />
                                   {daysLeft !== null && (
@@ -3613,7 +3782,7 @@
                             {/* 완료 표시 & 실패를 죄책감 대신 순환으로 바꾸는 버튼 */}
                             <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2">
                               <button
-                                onClick={() => toggleMonthDone(corner.key)}
+                                onClick={() => toggleMonthDone(activeTrack.id, corner.key)}
                                 disabled={!item.title.trim()}
                                 className={`px-2.5 py-1.5 font-bold text-[11px] rounded-lg border transition disabled:opacity-40 ${
                                   isDone
@@ -3625,7 +3794,7 @@
                               </button>
                               {!isDone && (
                                 <button
-                                  onClick={() => sendToEchoBox(corner.key)}
+                                  onClick={() => sendToEchoBox(activeTrack, corner.key)}
                                   disabled={!item.title.trim()}
                                   className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] rounded-lg border border-amber-400 transition disabled:opacity-40"
                                   title="장벽에 부딪혔나요? 다음 분기 재료로 보관하세요"
@@ -3674,19 +3843,26 @@
                                 From {item.fromQuarter}
                               </span>
                             )}
+                            {item.trackName && (
+                              <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded mr-2">
+                                {item.trackName}
+                              </span>
+                            )}
                             <span className="text-xs sm:text-sm font-medium text-stone-800">
                               {item.text}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[11px] text-stone-400 mr-1">다시 불러오기:</span>
+                            <span className="text-[11px] text-stone-400 mr-1 max-w-[9rem] truncate" title={`지금 선택한 목표 '${activeTrack.name}'로 불러옵니다`}>
+                              '{activeTrack.name}'로:
+                            </span>
                             {MONTH_KEYS.map((mKey) => (
                               <button
                                 key={mKey}
                                 onClick={() => restoreFromEchoBox(item, mKey)}
                                 className="px-2 py-1 bg-white hover:bg-amber-100 text-stone-700 font-bold text-xs rounded border border-stone-300"
                               >
-                                {MONTH_LABEL[mKey]}로
+                                {MONTH_LABEL[mKey]}
                               </button>
                             ))}
                             <button
@@ -4097,7 +4273,20 @@
                 {/* 행동 칸 → 이번 분기 에코 트라이앵글로 보내기 */}
                 {editingCell.type === "action" && editingCell.value.trim() && (
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                    <span className="text-stone-500">📐 {data.echoTriangle.quarter} 프로젝트로:</span>
+                    <span className="text-stone-500">📐 {data.echoTriangle.quarter}</span>
+                    {tracks.length > 1 ? (
+                      <select
+                        value={activeTrack.id}
+                        onChange={(e) => setActiveTrackId(e.target.value)}
+                        className="px-1.5 py-1 bg-amber-50 border border-amber-300 rounded font-semibold text-stone-700 max-w-[9rem]"
+                        aria-label="보낼 목표 선택"
+                      >
+                        {tracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    ) : (
+                      <span className="font-bold text-stone-700">'{activeTrack.name}'</span>
+                    )}
+                    <span className="text-stone-500">프로젝트로:</span>
                     {MONTH_KEYS.map(mKey => (
                       <button
                         key={mKey}
@@ -4209,22 +4398,27 @@
                       <div className="text-amber-300 font-bold text-[10px]">
                         📐 {data.echoTriangle.quarter} ECHO TRIANGLE
                       </div>
-                      {MONTH_KEYS.map((mKey, i) => {
-                        const m = data.echoTriangle[mKey];
-                        const left = getDaysLeft(m.deadline);
+                      {/* 목표마다 지금 진행 중인 단계 1줄 (최대 4개) */}
+                      {tracks.slice(0, 4).map((t, i) => {
+                        const k = MONTH_KEYS.find(mk => t[mk].title.trim() && t[mk].status !== "done");
+                        const m = k ? t[k] : null;
+                        const left = m ? getDaysLeft(m.deadline) : null;
                         return (
-                          <div key={mKey} className={`flex items-center gap-1.5 ${i === 0 ? "text-stone-200 font-semibold" : i === 1 ? "text-stone-300" : "text-stone-400"}`}>
+                          <div key={t.id} className={`flex items-center gap-1.5 ${i === 0 ? "text-stone-200 font-semibold" : "text-stone-300"}`}>
                             <div className="flex-1 min-w-0 overflow-hidden py-0.5 -my-0.5">
                               <span className="truncate block">
-                                {m.status === "done" ? "✅" : "•"} M{i + 1}: {m.title || "미설정"}
+                                • {t.name}: {m ? `M${MONTH_KEYS.indexOf(k) + 1} ${m.title}` : "✅ 모두 완료 또는 미설정"}
                               </span>
                             </div>
-                            {m.title && m.status !== "done" && left !== null && (
+                            {m && left !== null && (
                               <span className="text-amber-300 font-bold shrink-0 text-[10px]">{ddayLabel(left)}</span>
                             )}
                           </div>
                         );
                       })}
+                      {tracks.length > 4 && (
+                        <div className="text-stone-400 text-[10px]">외 목표 {tracks.length - 4}개</div>
+                      )}
                     </div>
                   </div>
 
