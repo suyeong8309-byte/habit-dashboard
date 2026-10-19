@@ -169,6 +169,9 @@
       <button type="button" data-action="open-slide-guide" class="px-3.5 py-2 text-xs font-extrabold text-slate-900 bg-amber-300 hover:bg-amber-400 rounded-xl pop-badge flex items-center gap-1.5">
         <i class="fa-solid fa-book-open-reader" aria-hidden="true"></i> 슬라이드 바이블 (15장)
       </button>
+      <button type="button" data-action="ics-all" title="알림 시간이 정해진 습관을 캘린더 파일로 저장 (아이폰·애플워치 알림)" class="px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-bell" aria-hidden="true"></i> 알림 캘린더
+      </button>
       <button type="button" data-action="export-xlsx" class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i> 엑셀
       </button>
@@ -381,6 +384,24 @@
         </button>
       </div>
     </form>
+    <!-- 빈도 · 숫자 기록 · 알림 (선택) -->
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs bg-slate-50/70 border border-slate-200/80 rounded-xl px-3 py-2.5">
+      <span class="flex items-center gap-1.5">
+        <label for="habit-freq" class="font-bold text-slate-600">🔁 빈도</label>
+        <select id="habit-freq" class="px-2 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold text-slate-700"></select>
+      </span>
+      <span id="habit-days" hidden class="flex items-center gap-1" role="group" aria-label="요일 선택"></span>
+      <span class="flex items-center gap-1.5">
+        <label for="habit-unit" class="font-bold text-slate-600">📏 숫자 기록</label>
+        <input type="text" id="habit-unit" maxlength="10" placeholder="단위 (분·km·쪽)" class="w-28 px-2 py-1.5 bg-white border border-slate-200 rounded-lg">
+        <input type="number" id="habit-target" min="0" step="any" inputmode="decimal" placeholder="목표값" aria-label="목표값" class="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg">
+      </span>
+      <span class="flex items-center gap-1.5">
+        <label for="habit-remind" class="font-bold text-slate-600">🔔 알림</label>
+        <input type="time" id="habit-remind" class="px-2 py-1 bg-white border border-slate-200 rounded-lg">
+      </span>
+      <span class="text-slate-400">모두 선택 사항이에요. 숫자 기록을 쓰면 목표값 이상은 ✔, 미만은 ⚡로 자동 기록돼요.</span>
+    </div>
   </section>
 
   <!-- 1. 주간 시스템 실행 보드 -->
@@ -519,12 +540,56 @@
         <label for="edit-reward" class="block text-xs font-bold text-slate-600 mb-1">🎁 즉각 보상 (Reward)</label>
         <input type="text" id="edit-reward" maxlength="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
       </div>
+      <div class="space-y-2.5 p-3 bg-slate-50/70 border border-slate-200/80 rounded-xl text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="edit-freq" class="font-bold text-slate-600 w-20">🔁 빈도</label>
+          <select id="edit-freq" class="px-2 py-1.5 bg-white border border-slate-200 rounded-lg font-semibold text-slate-700"></select>
+          <span id="edit-days" hidden class="flex items-center gap-1" role="group" aria-label="요일 선택"></span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="edit-unit" class="font-bold text-slate-600 w-20">📏 숫자 기록</label>
+          <input type="text" id="edit-unit" maxlength="10" placeholder="단위 (분·km·쪽)" class="w-28 px-2 py-1.5 bg-white border border-slate-200 rounded-lg">
+          <input type="number" id="edit-target" min="0" step="any" inputmode="decimal" placeholder="목표값" aria-label="목표값" class="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg">
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="edit-remind" class="font-bold text-slate-600 w-20">🔔 알림</label>
+          <input type="time" id="edit-remind" class="px-2 py-1 bg-white border border-slate-200 rounded-lg">
+          <button type="button" data-action="ics-one" class="px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 font-bold rounded-lg border border-indigo-200">📅 이 알림을 캘린더에 추가</button>
+        </div>
+        <p class="text-slate-400 leading-relaxed">숫자 기록을 켜면 칸을 누를 때 값을 입력해요. 목표값 이상이면 ✔ 완수, 미만이면 ⚡ 2분 실행으로 자동 기록돼요.</p>
+      </div>
       <div class="flex justify-end gap-2 pt-2">
         <button type="button" data-action="close-edit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
         <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">수정 완료</button>
       </div>
     </form>
   </div>
+</div>
+
+<!-- 숫자 기록 입력 모달 -->
+<div id="value-modal" class="modal-wrap fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="value-modal-title">
+  <form id="value-form" class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h3 id="value-modal-title" class="font-bold text-slate-900 text-base">📏 기록 입력</h3>
+        <p id="value-modal-sub" class="text-xs text-slate-500 mt-0.5 truncate"></p>
+      </div>
+      <button type="button" data-action="close-value" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+    <div class="flex items-center gap-2">
+      <input id="value-input" type="number" inputmode="decimal" min="0" step="any" placeholder="0" aria-label="기록값"
+        class="flex-1 min-w-0 px-3 py-3 text-2xl font-extrabold tabular bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <span id="value-unit" class="text-sm font-bold text-slate-600"></span>
+    </div>
+    <p id="value-hint" class="text-xs text-slate-500 leading-relaxed"></p>
+    <div class="flex items-center justify-between gap-2">
+      <button type="button" data-action="value-clear" class="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-rose-600">기록 지우기</button>
+      <div class="flex gap-2">
+        <button type="button" data-action="close-value" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">취소</button>
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">저장</button>
+      </div>
+    </div>
+  </form>
 </div>
 
 <!-- 사진 인증 모달 -->
@@ -812,8 +877,207 @@
       createdAt,
       logs
     };
-    Object.assign(habit, sanitizeMandalartLink(h));
+    Object.assign(habit, sanitizeMandalartLink(h), sanitizeHabitExtras(h));
     return habit;
+  }
+
+  // ===== 빈도 · 숫자 기록 · 알림 =====
+  // schedule: { type: 'daily' } | { type: 'weekly', count: 1~6 } | { type: 'days', days: [0~6] (0=월) }
+  // unit/target: 숫자 기록 단위와 목표값, values: { 날짜: 값 }, remindAt: 'HH:MM'
+  const DAILY = { type: 'daily' };
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const MAX_VALUE = 100000;
+  const roundValue = v => Math.round(v * 100) / 100;
+  function sanitizeSchedule(s) {
+    if (s && s.type === 'weekly') {
+      const n = Math.round(Number(s.count));
+      if (n >= 1 && n <= 6) return { type: 'weekly', count: n };
+    }
+    if (s && s.type === 'days' && Array.isArray(s.days)) {
+      const days = [...new Set(s.days.map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+      if (days.length && days.length < 7) return { type: 'days', days };
+    }
+    return { ...DAILY };
+  }
+  function sanitizeHabitExtras(h) {
+    const out = { schedule: sanitizeSchedule(h && h.schedule) };
+    const unit = typeof h.unit === 'string' ? h.unit.trim().slice(0, 10) : '';
+    if (unit) {
+      out.unit = unit;
+      const target = Number(h.target);
+      if (h.target !== '' && h.target !== null && isFinite(target) && target > 0 && target <= MAX_VALUE) out.target = roundValue(target);
+      if (h.values && typeof h.values === 'object') {
+        const values = {};
+        Object.keys(h.values).forEach(k => {
+          const v = Number(h.values[k]);
+          if (isDateKey(k) && isFinite(v) && v > 0 && v <= MAX_VALUE) values[k] = roundValue(v);
+        });
+        if (Object.keys(values).length) out.values = values;
+      }
+    }
+    if (typeof h.remindAt === 'string' && TIME_RE.test(h.remindAt)) out.remindAt = h.remindAt;
+    return out;
+  }
+  function applyHabitExtras(habit, extras) {
+    const keepValues = habit.values;
+    ['schedule', 'unit', 'target', 'values', 'remindAt'].forEach(k => delete habit[k]);
+    Object.assign(habit, sanitizeHabitExtras({ ...extras, values: keepValues }));
+  }
+
+  const dayIdxOf = key => (parseDateKey(key).getDay() + 6) % 7; // 0=월 … 6=일
+  const isWeekly = h => !!h.schedule && h.schedule.type === 'weekly';
+  function isScheduledDay(habit, key) {
+    const s = habit.schedule || DAILY;
+    return s.type !== 'days' || s.days.includes(dayIdxOf(key));
+  }
+  function scheduleLabel(habit) {
+    const s = habit.schedule || DAILY;
+    if (s.type === 'weekly') return `주 ${s.count}회`;
+    if (s.type === 'days') return s.days.map(d => DAYS_KR[d]).join('·');
+    return '매일';
+  }
+  function weekKeysFor(key) {
+    const monday = parseDateKey(key);
+    monday.setDate(monday.getDate() - dayIdxOf(key));
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return formatDateKey(d);
+    });
+  }
+  const weekDone = (habit, key) => weekKeysFor(key).filter(k => getLogState(habit.logs, k) > 0).length;
+  // 오늘 해야 하는 습관인지 (주 n회는 이번 주 목표를 아직 못 채웠거나 오늘 이미 했으면 포함)
+  function isDueToday(habit) {
+    const s = habit.schedule || DAILY;
+    if (s.type === 'weekly') return weekDone(habit, todayKey) < s.count || getLogState(habit.logs, todayKey) > 0;
+    return isScheduledDay(habit, todayKey);
+  }
+  const habitValue = (habit, key) => (habit.values && habit.values[key]) || 0;
+  const fmtNum = n => (Number.isInteger(n) ? String(n) : String(roundValue(n)));
+  const sumValues = (habit, keys) => roundValue(keys.reduce((s, k) => s + habitValue(habit, k), 0));
+
+  // 습관 추가·수정 폼의 빈도 컨트롤
+  const FREQ_OPTIONS = [['daily', '매일']]
+    .concat([1, 2, 3, 4, 5, 6].map(n => [`weekly-${n}`, `주 ${n}회`]))
+    .concat([['days', '요일 지정']]);
+  function setupScheduleControls(prefix) {
+    const sel = document.getElementById(`${prefix}-freq`);
+    const box = document.getElementById(`${prefix}-days`);
+    sel.innerHTML = FREQ_OPTIONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    box.innerHTML = DAYS_KR.map((d, i) => `
+      <label class="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white cursor-pointer font-bold text-slate-600 has-[:checked]:bg-indigo-600 has-[:checked]:text-white has-[:checked]:border-indigo-600">
+        <input type="checkbox" class="sr-only" value="${i}" data-day-of="${prefix}">${d}
+      </label>`).join('');
+    sel.addEventListener('change', () => { box.hidden = sel.value !== 'days'; });
+  }
+  function readExtras(prefix) {
+    const v = document.getElementById(`${prefix}-freq`).value;
+    let schedule = { ...DAILY };
+    if (v.startsWith('weekly-')) schedule = { type: 'weekly', count: Number(v.split('-')[1]) };
+    else if (v === 'days') {
+      const days = [...document.querySelectorAll(`input[data-day-of="${prefix}"]:checked`)].map(i => Number(i.value));
+      schedule = { type: 'days', days };
+    }
+    return {
+      schedule,
+      unit: document.getElementById(`${prefix}-unit`).value,
+      target: document.getElementById(`${prefix}-target`).value,
+      remindAt: document.getElementById(`${prefix}-remind`).value
+    };
+  }
+  function fillExtras(prefix, habit) {
+    const s = (habit && habit.schedule) || DAILY;
+    const sel = document.getElementById(`${prefix}-freq`);
+    sel.value = s.type === 'weekly' ? `weekly-${s.count}` : s.type;
+    document.querySelectorAll(`input[data-day-of="${prefix}"]`).forEach(cb => {
+      cb.checked = s.type === 'days' && s.days.includes(Number(cb.value));
+    });
+    document.getElementById(`${prefix}-days`).hidden = s.type !== 'days';
+    document.getElementById(`${prefix}-unit`).value = (habit && habit.unit) || '';
+    document.getElementById(`${prefix}-target`).value = habit && habit.target ? habit.target : '';
+    document.getElementById(`${prefix}-remind`).value = (habit && habit.remindAt) || '';
+  }
+
+  // 숫자 기록 입력 모달
+  let valueTarget = null;
+  function openValueModal(habitId, dateKey) {
+    const habit = findHabit(habitId);
+    if (!habit || !isDateKey(dateKey) || isFutureKey(dateKey)) return;
+    valueTarget = { habitId, dateKey };
+    document.getElementById('value-modal-sub').textContent = `${habit.name} · ${keyLabel(dateKey)}`;
+    document.getElementById('value-unit').textContent = habit.unit || '';
+    const cur = habitValue(habit, dateKey);
+    document.getElementById('value-input').value = cur ? cur : '';
+    document.getElementById('value-hint').textContent = habit.target
+      ? `목표 ${fmtNum(habit.target)}${habit.unit} 이상이면 ✔ 완수, 그보다 적으면 ⚡ 2분 실행으로 기록돼요.`
+      : '0보다 크면 ✔ 완수로 기록돼요. 습관 수정에서 목표값을 정하면 ⚡/✔를 자동으로 나눠요.';
+    showModal('value-modal');
+    setTimeout(() => document.getElementById('value-input').focus(), 50);
+  }
+  function saveValue(raw) {
+    if (!valueTarget) return;
+    const habit = findHabit(valueTarget.habitId);
+    const key = valueTarget.dateKey;
+    if (!habit) { hideModal('value-modal'); return; }
+    const v = raw === '' ? 0 : Number(raw);
+    if (!isFinite(v) || v < 0 || v > MAX_VALUE) { showToast('0 이상의 숫자를 입력해 주세요.'); return; }
+    if (!habit.values) habit.values = {};
+    if (v > 0) {
+      habit.values[key] = roundValue(v);
+      setLog(habit, key, habit.target ? (v >= habit.target ? 2 : 1) : 2);
+    } else {
+      delete habit.values[key];
+      setLog(habit, key, 0);
+    }
+    if (!Object.keys(habit.values).length) delete habit.values;
+    hideModal('value-modal');
+    valueTarget = null;
+    saveData();
+    renderAll();
+  }
+
+  // 알림: 습관별 시간을 캘린더 파일(.ics)로 내보내면 아이폰·애플워치에서 매일 알림이 옴
+  const ICS_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  const icsEscape = s => String(s).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+  function habitToVevent(h) {
+    const [hh, mm] = h.remindAt.split(':');
+    const s = h.schedule || DAILY;
+    const rrule = s.type === 'days' ? `RRULE:FREQ=WEEKLY;BYDAY=${s.days.map(d => ICS_DAYS[d]).join(',')}` : 'RRULE:FREQ=DAILY';
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const desc = [
+      `⚡ 2분 규칙: ${h.twoMinRule}`,
+      h.cue ? `📍 신호: ${h.cue}` : '',
+      h.reward ? `🎁 보상: ${h.reward}` : '',
+      h.target ? `📏 목표: ${fmtNum(h.target)}${h.unit}` : '',
+      `🔁 ${scheduleLabel(h)}`
+    ].filter(Boolean).join('\n');
+    return [
+      'BEGIN:VEVENT',
+      `UID:habit-${h.id}@life-dashboard`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${todayKey.replace(/-/g, '')}T${hh}${mm}00`,
+      'DURATION:PT10M',
+      rrule,
+      `SUMMARY:${icsEscape('⚡ ' + h.name)}`,
+      `DESCRIPTION:${icsEscape(desc)}`,
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${icsEscape('⚡ ' + h.twoMinRule)}`,
+      'TRIGGER:PT0M',
+      'END:VALARM',
+      'END:VEVENT'
+    ];
+  }
+  async function exportReminders(list, filename) {
+    const withTime = list.filter(h => h && h.remindAt);
+    if (!withTime.length) {
+      showToast('🔔 알림 시간이 정해진 습관이 없어요. 습관 수정에서 알림 시간을 정해 주세요.', 4500);
+      return;
+    }
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Suyeong Life Dashboard//KO', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH']
+      .concat(...withTime.map(habitToVevent), ['END:VCALENDAR']).join('\r\n');
+    const ok = await saveFile(filename, new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    if (ok) showToast(`🔔 알림 ${withTime.length}개를 캘린더 파일로 저장했어요. 파일을 열어 캘린더에 추가하면 정해진 시간에 알림이 와요.`, 5500);
   }
 
   // ===== 만다라트 연결 =====
@@ -890,8 +1154,13 @@
       delete habit.logs[dateKey];
     }
   }
+  // 기간 안에서 해야 했던 횟수 (빈도 반영: 요일 지정은 그 요일만, 주 n회는 일수 × n/7)
   function countEligibleDays(habit, keys) {
-    return keys.filter(k => k <= todayKey && k >= habit.createdAt).length;
+    const valid = keys.filter(k => k <= todayKey && k >= habit.createdAt);
+    const s = habit.schedule || DAILY;
+    if (s.type === 'days') return valid.filter(k => isScheduledDay(habit, k)).length;
+    if (s.type === 'weekly') return valid.length ? Math.max(1, Math.round(valid.length * s.count / 7)) : 0;
+    return valid.length;
   }
 
   function createSampleHabits() {
@@ -962,6 +1231,8 @@
     if (!isDateKey(dateKey) || isFutureKey(dateKey)) return;
     const habit = findHabit(habitId);
     if (!habit) return;
+    // 숫자 기록 습관은 값을 입력받아 ⚡/✔를 자동으로 정함
+    if (habit.unit) { openValueModal(habitId, dateKey); return; }
     const current = getLogState(habit.logs, dateKey);
     setLog(habit, dateKey, current === 0 ? 1 : current === 1 ? 2 : 0);
     saveData();
@@ -1030,6 +1301,7 @@
     document.getElementById('edit-cue').value = habit.cue || '';
     document.getElementById('edit-reward').value = habit.reward || '';
     renderPillarOptions(document.getElementById('edit-pillar'), habit.pillarIdx);
+    fillExtras('edit', habit);
     showModal('edit-modal');
   }
 
@@ -1424,17 +1696,21 @@
     if (habits.length === 0) { showToast('데이터가 없습니다.'); return; }
     const mark = st => (st === 2 ? 'O' : st === 1 ? '△' : '-');
     const wb = XLSX.utils.book_new();
-    const header = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상',
+    const header = ['카테고리', '정체성', '목표명', '2분규칙', '신호', '보상', '빈도', '단위', '목표값', '알림',
       ...currentWeekDates.map((d, i) => `${DAYS_KR[i]} (${d.getMonth() + 1}/${d.getDate()})`),
-      '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표', '사진인증'];
+      '궤도유지일', '기준일수', '궤도유지율', '연속스트릭', '정체성투표', '사진인증', '이번주 기록합계'];
     const rows = habits.map(h => {
       const states = currentWeekKeys.map(k => getLogState(h.logs, k));
       const active = states.filter(s => s > 0).length;
-      const eligible = countEligibleDays(h, currentWeekKeys);
-      const rate = eligible ? `${Math.round((active / eligible) * 100)}%` : '-';
+      const eligible = isWeekly(h) ? h.schedule.count : countEligibleDays(h, currentWeekKeys);
+      const rate = eligible ? `${Math.min(100, Math.round((active / eligible) * 100))}%` : '-';
+      // 숫자 기록 습관은 칸에 기록값을 함께 표시
+      const cells = currentWeekKeys.map((k, i) => (h.unit && habitValue(h, k) ? `${mark(states[i])} ${fmtNum(habitValue(h, k))}` : mark(states[i])));
       return [h.category, h.identity, h.name, h.twoMinRule, h.cue, h.reward,
-        ...states.map(mark), active, eligible, rate, calculateStreak(h), countVotes(h).votes,
-        currentWeekKeys.filter(k => getProof(h.id, k)).length];
+        scheduleLabel(h), h.unit || '', h.target || '', h.remindAt || '',
+        ...cells, active, eligible, rate, `${calculateStreak(h)}${streakUnit(h)}`, countVotes(h).votes,
+        currentWeekKeys.filter(k => getProof(h.id, k)).length,
+        h.unit ? `${fmtNum(sumValues(h, currentWeekKeys))}${h.unit}` : ''];
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), '주간시스템');
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -1515,20 +1791,55 @@
   }
 
   // ===== 계산 =====
+  // 연속 기록: 매일·요일 지정은 '일'(쉬는 날은 건너뜀), 주 n회는 목표를 채운 '주' 단위
   function calculateStreak(habit) {
+    const s = habit.schedule || DAILY;
     let streak = 0;
     const cursor = new Date(today);
+    if (s.type === 'weekly') {
+      if (weekDone(habit, formatDateKey(cursor)) < s.count) cursor.setDate(cursor.getDate() - 7);
+      for (let guard = 0; guard < 530; guard++) {
+        const k = formatDateKey(cursor);
+        if (weekDone(habit, k) < s.count) break;
+        streak++;
+        cursor.setDate(cursor.getDate() - 7);
+      }
+      return streak;
+    }
     if (getLogState(habit.logs, formatDateKey(cursor)) === 0) cursor.setDate(cursor.getDate() - 1);
     for (let guard = 0; guard < 3660; guard++) {
-      if (getLogState(habit.logs, formatDateKey(cursor)) === 0) break;
-      streak++;
+      const k = formatDateKey(cursor);
+      if (k < habit.createdAt && getLogState(habit.logs, k) === 0) break;
+      if (getLogState(habit.logs, k) > 0) streak++;
+      else if (isScheduledDay(habit, k)) break;
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
   }
+  const streakUnit = habit => (isWeekly(habit) ? '주' : '일');
+  // 두 번 거르기 경고: 매일·요일 지정은 '직전 예정일 + 오늘' 연속 미실행, 주 n회는 남은 날이 모자랄 때
   function isNeverMissTwiceRisk(habit) {
-    if (habit.createdAt > yesterdayKey) return false;
-    return getLogState(habit.logs, yesterdayKey) === 0 && getLogState(habit.logs, todayKey) === 0;
+    const s = habit.schedule || DAILY;
+    if (getLogState(habit.logs, todayKey) > 0) return false;
+    if (s.type === 'weekly') {
+      const week = weekKeysFor(todayKey);
+      if (habit.createdAt > week[0]) return false;
+      const need = s.count - weekDone(habit, todayKey);
+      return need > 0 && 7 - dayIdxOf(todayKey) <= need;
+    }
+    if (!isScheduledDay(habit, todayKey)) return false;
+    const c = parseDateKey(todayKey);
+    for (let i = 0; i < 7; i++) {
+      c.setDate(c.getDate() - 1);
+      const k = formatDateKey(c);
+      if (k < habit.createdAt) return false;
+      if (isScheduledDay(habit, k)) return getLogState(habit.logs, k) === 0;
+    }
+    return false;
+  }
+  function riskText(habit) {
+    if (isWeekly(habit)) return `🚨 이번 주 ${habit.schedule.count - weekDone(habit, todayKey)}회 남음 · 오늘 꼭!`;
+    return '🚨 절대 두 번 거르지 마라!';
   }
   function countVotes(habit) {
     let full = 0, min = 0;
@@ -1653,16 +1964,26 @@
         <button type="button" data-action="proof" data-id="${id}" data-date="${todayKey}" class="py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 ${proofBadgeClass(proof)}">
           <i class="fa-solid fa-camera" aria-hidden="true"></i> ${proof ? '인증됨' : '사진 인증'}
         </button>` : '';
+      const due = isDueToday(h);
+      const weekly = isWeekly(h) ? ` · 이번 주 ${weekDone(h, todayKey)}/${h.schedule.count}` : '';
+      const val = habitValue(h, todayKey);
+      // 숫자 기록 습관은 값 입력 버튼 하나로 (⚡/✔ 자동 판정)
+      const recordBtns = h.unit
+        ? `<button type="button" data-action="value" data-id="${id}" data-date="${todayKey}" class="check-btn col-span-2 py-2.5 rounded-xl border text-xs font-bold ${st === 2 ? fullCls : st === 1 ? minCls : 'bg-white border-slate-200 text-slate-600'}">
+             📏 ${val ? `${fmtNum(val)}${escapeHtml(h.unit)} 기록됨 (${st === 2 ? '✔' : '⚡'})` : `오늘 ${escapeHtml(h.unit)} 기록하기`}
+           </button>`
+        : `<button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="1" aria-pressed="${st === 1}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${minCls}">⚡ 2분 실행</button>
+           <button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="2" aria-pressed="${st === 2}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${fullCls}">✔ 완수</button>`;
       return `
-        <div class="p-3 rounded-xl border ${risk ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200/80 bg-slate-50/60'} space-y-2.5">
+        <div class="p-3 rounded-xl border ${risk ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200/80 bg-slate-50/60'} ${due || st ? '' : 'opacity-60'} space-y-2.5">
           <div class="min-w-0">
-            ${risk ? '<span class="never-miss-badge inline-block mb-1 px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-rose-100 text-rose-700 border border-rose-300">🚨 어제 놓쳤어요 · 2분만 해도 OK</span>' : ''}
+            ${risk ? `<span class="never-miss-badge inline-block mb-1 px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-rose-100 text-rose-700 border border-rose-300">${isWeekly(h) ? escapeHtml(riskText(h)) : '🚨 지난번에 놓쳤어요 · 2분만 해도 OK'}</span>` : ''}
             <p class="font-bold text-sm text-slate-900 break-words">${escapeHtml(h.name)}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">🔁 ${escapeHtml(scheduleLabel(h))}${weekly}${!due && !st ? ' · 오늘은 쉬는 날' : ''}${h.target ? ` · 📏 목표 ${fmtNum(h.target)}${escapeHtml(h.unit)}` : ''}</p>
             <p class="text-[11px] text-amber-700 mt-0.5 break-words">⚡ ${escapeHtml(h.twoMinRule)}</p>
           </div>
           <div class="grid ${withPhoto ? 'grid-cols-3' : 'grid-cols-2'} gap-2">
-            <button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="1" aria-pressed="${st === 1}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${minCls}">⚡ 2분 실행</button>
-            <button type="button" data-action="set" data-id="${id}" data-date="${todayKey}" data-value="2" aria-pressed="${st === 2}" class="check-btn py-2.5 rounded-xl border text-xs font-bold ${fullCls}">✔ 완수</button>
+            ${recordBtns}
             ${camBtn}
           </div>
         </div>`;
@@ -1722,21 +2043,27 @@
       const weekStates = currentWeekKeys.map(k => getLogState(habit.logs, k));
       const fullDays = weekStates.filter(s => s === 2).length;
       const minDays = weekStates.filter(s => s === 1).length;
-      const eligible = countEligibleDays(habit, currentWeekKeys);
-      const orbitRate = eligible ? Math.round(((fullDays + minDays) / eligible) * 100) : 0;
-      const fullPct = eligible ? Math.round((fullDays / eligible) * 100) : 0;
+      // 주 n회는 이번 주 목표 n회 기준, 나머지는 지금까지 해야 했던 날 기준 (100% 넘지 않게)
+      const sched = habit.schedule || DAILY;
+      const eligible = sched.type === 'weekly' ? sched.count : countEligibleDays(habit, currentWeekKeys);
+      const orbitRate = eligible ? Math.min(100, Math.round(((fullDays + minDays) / eligible) * 100)) : 0;
+      const fullPct = eligible ? Math.min(100, Math.round((fullDays / eligible) * 100)) : 0;
       const minPct = eligible ? Math.min(100 - fullPct, Math.round((minDays / eligible) * 100)) : 0;
       const streak = calculateStreak(habit);
       const isRisk = isNeverMissTwiceRisk(habit);
+      const weekSum = habit.unit ? sumValues(habit, currentWeekKeys) : 0;
       const badgeClass = categoryStyles[habit.category] || categoryStyles['생활습관'];
 
       const dayCells = currentWeekKeys.map((dKey, idx) => {
         const state = weekStates[idx];
         const isToday = dKey === todayKey;
         const future = isFutureKey(dKey);
-        let btnStyle = 'bg-white border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500';
-        let iconHtml = `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
-        let nextHint = '1번 클릭: ⚡ 2분 최소실행';
+        const restDay = !isScheduledDay(habit, dKey);
+        let btnStyle = restDay
+          ? 'bg-slate-50 border-dashed border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500'
+          : 'bg-white border-slate-200 text-slate-300 hover:border-amber-400 hover:text-amber-500';
+        let iconHtml = restDay ? '<span class="text-[9px] font-semibold">쉼</span>' : `<i class="fa-solid fa-check opacity-0" aria-hidden="true"></i>`;
+        let nextHint = habit.unit ? `📏 ${habit.unit} 기록 입력` : (restDay ? '쉬는 날 (해도 기록됨) · 1번 클릭: ⚡ 2분 최소실행' : '1번 클릭: ⚡ 2분 최소실행');
         if (future) {
           btnStyle = 'bg-slate-50 border-dashed border-slate-200 text-slate-200';
           nextHint = '예정';
@@ -1771,10 +2098,16 @@
                 ${iconHtml}
               </button>${proofHtml}
             </div>
+            ${habit.unit && habitValue(habit, dKey) ? `<div class="text-[10px] font-bold text-slate-500 tabular mt-0.5">${fmtNum(habitValue(habit, dKey))}</div>` : ''}
           </td>`;
       }).join('');
 
-      const riskBadgeHtml = isRisk ? `<span class="never-miss-badge inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-extrabold rounded-md bg-rose-100 text-rose-700 border border-rose-300 ml-1">🚨 절대 두 번 거르지 마라!</span>` : '';
+      const riskBadgeHtml = isRisk ? `<span class="never-miss-badge inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-extrabold rounded-md bg-rose-100 text-rose-700 border border-rose-300 ml-1">${escapeHtml(riskText(habit))}</span>` : '';
+      const extraBadges = [
+        `<span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-sky-50 text-sky-700 border border-sky-200">🔁 ${escapeHtml(scheduleLabel(habit))}</span>`,
+        habit.unit ? `<span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-teal-50 text-teal-700 border border-teal-200">📏 ${habit.target ? `목표 ${fmtNum(habit.target)}` : '기록'}${escapeHtml(habit.unit)} · 이번 주 ${fmtNum(weekSum)}${escapeHtml(habit.unit)}</span>` : '',
+        habit.remindAt ? `<span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200">🔔 ${habit.remindAt}</span>` : ''
+      ].join('');
 
       return `
         <tr class="transition ${isRisk ? 'bg-rose-50/30 hover:bg-rose-50/60' : 'hover:bg-slate-50/80'}">
@@ -1790,6 +2123,7 @@
               <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡ 2분 규칙</span>
               <span>${escapeHtml(habit.twoMinRule)}</span>
             </p>
+            <div class="flex flex-wrap items-center gap-1 pt-0.5">${extraBadges}</div>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 pt-0.5">
               <span>📍 <b>신호:</b> ${escapeHtml(habit.cue || '-')}</span>
               <span>🎁 <b>보상:</b> ${escapeHtml(habit.reward || '-')}</span>
@@ -1799,13 +2133,13 @@
           <td class="py-3.5 px-3 text-center">
             <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${streak >= 3 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
               <i class="fa-solid fa-fire ${streak >= 3 ? 'text-amber-500' : 'text-slate-400'}" aria-hidden="true"></i>
-              <span class="tabular">${streak}일 연속</span>
+              <span class="tabular">${streak}${streakUnit(habit)} 연속</span>
             </div>
           </td>
           <td class="py-3.5 px-4">
             <div class="flex items-center justify-between text-xs font-bold mb-1">
               <span class="tabular ${orbitRate === 100 ? 'text-emerald-600' : 'text-slate-700'}">${orbitRate}% 궤도유지</span>
-              <span class="text-[11px] text-slate-400 tabular">⚡${minDays} · ✔${fullDays}</span>
+              <span class="text-[11px] text-slate-400 tabular">${sched.type === 'weekly' ? `${fullDays + minDays}/${sched.count}회 · ` : ''}⚡${minDays} · ✔${fullDays}</span>
             </div>
             <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex" role="progressbar" aria-label="${safeName} 주간 궤도 유지율" aria-valuenow="${orbitRate}" aria-valuemin="0" aria-valuemax="100">
               <div class="h-full bg-indigo-600 transition-all duration-300" style="width:${fullPct}%"></div>
@@ -1898,19 +2232,29 @@
       keys.forEach(dKey => {
         const st = getLogState(h.logs, dKey);
         let sq = 'bg-slate-200';
-        if (isFutureKey(dKey) || dKey < h.createdAt) sq = 'bg-slate-100';
+        if (isFutureKey(dKey) || dKey < h.createdAt || !isScheduledDay(h, dKey)) sq = 'bg-slate-100';
         if (st === 2) { monthFull++; sq = 'bg-emerald-500'; }
         else if (st === 1) { monthMin++; sq = 'bg-amber-400'; }
         squares += `<span class="w-2.5 h-2.5 rounded-[2px] inline-block ${sq}"></span>`;
       });
       const eligible = countEligibleDays(h, keys);
-      const rateText = eligible ? `${Math.round(((monthFull + monthMin) / eligible) * 100)}%` : '-';
+      const rateText = eligible ? `${Math.min(100, Math.round(((monthFull + monthMin) / eligible) * 100))}%` : '-';
+      // 숫자 기록 습관: 이번 달 합계·기록한 날 평균·최고값
+      let valueLine = '';
+      if (h.unit) {
+        const vals = keys.map(k => habitValue(h, k)).filter(v => v > 0);
+        if (vals.length) {
+          const total = roundValue(vals.reduce((a, b) => a + b, 0));
+          valueLine = `<p class="text-[11px] text-teal-700 font-semibold tabular">📏 합계 ${fmtNum(total)}${escapeHtml(h.unit)} · 평균 ${fmtNum(roundValue(total / vals.length))}${escapeHtml(h.unit)} · 최고 ${fmtNum(Math.max(...vals))}${escapeHtml(h.unit)}</p>`;
+        }
+      }
       return `
         <div class="bg-white p-3 rounded-xl border border-slate-200/70 space-y-1.5">
           <div class="flex items-center justify-between gap-2 text-xs">
-            <span class="font-bold text-slate-700 truncate">${escapeHtml(h.name)}</span>
+            <span class="font-bold text-slate-700 truncate">${escapeHtml(h.name)} <span class="font-normal text-slate-400">· ${escapeHtml(scheduleLabel(h))}</span></span>
             <span class="font-extrabold text-emerald-600 shrink-0 tabular">⚡${monthMin} · ✔${monthFull} (${rateText})</span>
           </div>
+          ${valueLine}
           <div class="flex flex-wrap gap-1 pt-0.5">${squares}</div>
         </div>`;
     }).join('');
@@ -1965,17 +2309,20 @@
     const totalHabits = habits.length;
     let todayFull = 0, todayMin = 0, riskCount = 0, bestStreak = 0;
     let totalActionsCount = 0, totalWeightedVotes = 0;
+    // 오늘 유지율은 '오늘 해야 하는 습관'만 기준 (쉬는 날·이번 주 목표를 채운 주 n회 습관 제외)
+    let dueCount = 0;
     habits.forEach(h => {
       const tState = getLogState(h.logs, todayKey);
+      if (isDueToday(h)) dueCount++;
       if (tState === 2) todayFull++;
       else if (tState === 1) todayMin++;
       if (isNeverMissTwiceRisk(h)) riskCount++;
-      bestStreak = Math.max(bestStreak, calculateStreak(h));
+      if (!isWeekly(h)) bestStreak = Math.max(bestStreak, calculateStreak(h));
       const { full, min, votes } = countVotes(h);
       totalActionsCount += full + min;
       totalWeightedVotes += votes;
     });
-    const todayRate = totalHabits > 0 ? Math.round(((todayFull + todayMin) / totalHabits) * 100) : 0;
+    const todayRate = dueCount > 0 ? Math.min(100, Math.round(((todayFull + todayMin) / dueCount) * 100)) : 0;
     const compoundMultiplier = Math.pow(1.01, totalWeightedVotes);
     const valleyPercent = Math.min(100, totalActionsCount);
     document.getElementById('stat-today').textContent = `${todayRate}%`;
@@ -2057,6 +2404,20 @@
       case 'open-slide-guide': showModal('slide-guide-modal'); break;
       case 'close-slide-guide': hideModal('slide-guide-modal'); break;
       case 'next-quote': cycleSlideQuote(); break;
+      case 'value': refreshDates(); openValueModal(id, btn.dataset.date); break;
+      case 'close-value': hideModal('value-modal'); valueTarget = null; break;
+      case 'value-clear': saveValue(''); break;
+      case 'ics-all': exportReminders(habits, `습관알림_${todayKey}.ics`); break;
+      case 'ics-one': {
+        // 수정창에 입력 중인 알림 시간·빈도로 바로 만들기 (저장 전이어도 됨)
+        const h = findHabit(document.getElementById('edit-habit-id').value);
+        if (h) {
+          const draft = { ...h, name: cleanText(document.getElementById('edit-name').value, h.name) };
+          applyHabitExtras(draft, readExtras('edit'));
+          exportReminders([draft], `알림_${draft.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 30)}.ics`);
+        }
+        break;
+      }
       case 'mandalart-cancel': clearMandalartPending(); document.getElementById('habit-pillar').value = ''; showToast('만다라트 칸 연결을 취소했습니다.'); break;
     }
   });
@@ -2074,7 +2435,13 @@
     if (confirmResolve) { settleConfirm(false); return; }
     hideModal('edit-modal');
     hideModal('slide-guide-modal');
+    hideModal('value-modal');
     if (!proofBusy) closeProofModal();
+  });
+  document.getElementById('value-modal').addEventListener('click', e => { if (e.target.id === 'value-modal') hideModal('value-modal'); });
+  document.getElementById('value-form').addEventListener('submit', e => {
+    e.preventDefault();
+    saveValue(document.getElementById('value-input').value.trim());
   });
 
   document.getElementById('edit-habit-form').addEventListener('submit', e => {
@@ -2092,6 +2459,7 @@
     const pillarVal = document.getElementById('edit-pillar').value;
     if (pillarVal === '') setHabitLink(habit, null);
     else if (Number(pillarVal) !== habit.pillarIdx) setHabitLink(habit, { pillarIdx: Number(pillarVal), pillarName: pillarLabel(Number(pillarVal)) });
+    applyHabitExtras(habit, readExtras('edit'));
     saveData();
     renderAll();
     hideModal('edit-modal');
@@ -2121,11 +2489,13 @@
       reward: cleanText(document.getElementById('habit-reward').value, ''),
       createdAt: todayKey,
       logs: {},
-      ...sanitizeMandalartLink(link)
+      ...sanitizeMandalartLink(link),
+      ...sanitizeHabitExtras(readExtras('habit'))
     });
     ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
       .forEach(fid => { document.getElementById(fid).value = ''; });
     document.getElementById('habit-pillar').value = '';
+    fillExtras('habit', null);
     clearMandalartPending();
     saveData();
     renderAll();
@@ -2368,6 +2738,9 @@
 
   function init() {
     renderPillarOptions(document.getElementById('habit-pillar'), '');
+    setupScheduleControls('habit');
+    setupScheduleControls('edit');
+    fillExtras('habit', null);
     const options = renderCategoryOptions();
     document.getElementById('habit-category').innerHTML = options;
     document.getElementById('edit-category').innerHTML = options;
@@ -2416,13 +2789,15 @@
             bigGoal: "3개월 동안 내 삶에 울려 퍼질 가장 큰 변화 만들기",
             m1: { title: "1달차(이번 달): 환경 세팅 및 기상 루틴 정착", deadline: "2026-10-31", status: "active" },
             m2: { title: "2달차(다음 달): 매일 10분 인풋(뉴스/팟캐스트) 습관화", deadline: "2026-11-30", status: "active" },
-            m3: { title: "3달차(다다음 달): 60점 달성 점검 및 분기 회고", deadline: "2026-12-31", status: "active" }
+            m3: { title: "3달차(다다음 달): 60점 달성 점검 및 분기 회고", deadline: "2026-12-31", status: "active" },
+            review: { good: "", blocked: "", next: "" }
           }
         ]
       },
       echoBox: [
         { id: 1, text: "매일 저녁 30분 독서하기 (지난 분기에서 넘어온 메아리)", fromQuarter: "2026 Q3" }
       ],
+      reviews: [], // 지난 분기 회고 기록 [{ quarter, trackName, done, planned, bigGoal, good, blocked, next }]
       dailyChecks: {} // { "2026-10-18": { "0-0": true, "4-0": true } } 형태 (날짜별)
     };
 
@@ -2494,9 +2869,31 @@
         bigGoal: "",
         m1: { title: "", deadline: ends[0], status: "active" },
         m2: { title: "", deadline: ends[1], status: "active" },
-        m3: { title: "", deadline: ends[2], status: "active" }
+        m3: { title: "", deadline: ends[2], status: "active" },
+        review: { ...EMPTY_REVIEW }
       };
     };
+    // 분기 회고 3줄: 잘된 점 / 막힌 점 / 다음엔
+    const EMPTY_REVIEW = { good: "", blocked: "", next: "" };
+    const REVIEW_FIELDS = [
+      { key: "good", label: "👍 잘된 점", placeholder: "예: 퇴근 직후 바로 나가니 빠지는 날이 없었다" },
+      { key: "blocked", label: "🧱 막힌 점", placeholder: "예: 야근한 주에는 3일 연속 못 했다" },
+      { key: "next", label: "➡️ 다음엔", placeholder: "예: 야근 날은 10분 걷기로 ⚡ 2분 실행만 지킨다" }
+    ];
+    const normalizeReview = (r) => ({
+      good: str(r && r.good), blocked: str(r && r.blocked), next: str(r && r.next)
+    });
+    const hasReview = (r) => !!(r && (r.good.trim() || r.blocked.trim() || r.next.trim()));
+    // 분기를 넘기거나 목표를 지울 때 회고를 기록으로 남김
+    const toReviewRecord = (track, quarter) => ({
+      id: Date.now() + Math.random(),
+      quarter,
+      trackName: track.name,
+      done: MONTH_KEYS.filter(k => track[k].title.trim() && track[k].status === "done").length,
+      planned: MONTH_KEYS.filter(k => track[k].title.trim()).length,
+      bigGoal: track.bigGoal,
+      ...normalizeReview(track.review)
+    });
     const normalizeTrack = (t, i, quarter) => {
       const ends = quarterMonthEnds(quarter);
       const emptyMonth = (k) => ({ title: "", deadline: ends[k], status: "active" });
@@ -2507,7 +2904,8 @@
         bigGoal: str(t.bigGoal),
         m1: normalizeMonth(t.m1, emptyMonth(0)),
         m2: normalizeMonth(t.m2, emptyMonth(1)),
-        m3: normalizeMonth(t.m3, emptyMonth(2))
+        m3: normalizeMonth(t.m3, emptyMonth(2)),
+        review: normalizeReview(t.review)
       };
     };
     const findTrack = (et, trackId) => et.tracks.find(t => t.id === trackId) || et.tracks[0];
@@ -2582,7 +2980,22 @@
         });
       }
 
-      return { coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, dailyChecks };
+      const reviews = Array.isArray(raw.reviews)
+        ? raw.reviews
+            .filter(r => r && typeof r === "object")
+            .slice(0, 300)
+            .map((r, i) => ({
+              id: r.id != null ? r.id : Date.now() + i,
+              quarter: str(r.quarter),
+              trackName: str(r.trackName),
+              done: Number.isInteger(r.done) ? r.done : 0,
+              planned: Number.isInteger(r.planned) ? r.planned : 0,
+              bigGoal: str(r.bigGoal),
+              ...normalizeReview(r)
+            }))
+        : [];
+
+      return { coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, reviews, dailyChecks };
     };
 
     const loadData = () => {
@@ -2663,7 +3076,7 @@
     const TABS = [
       { key: "mandalart", label: "🧩 만다라트" },
       { key: "echo", label: "📐 에코 트라이앵글" },
-      { key: "daily", label: "☀️ 오늘" },
+      { key: "daily", label: "☑️ 행동 체크" },
       { key: "habits", label: "⚡ 습관 시스템" }
     ];
     const HABIT_STATE_TEXT = ["– 미기록", "⚡ 2분 실행", "✔ 완수"];
@@ -2872,10 +3285,6 @@
         window.scrollTo(0, 0);
       };
 
-      // 오늘 기록 (같은 값을 다시 누르면 해제)
-      const setHabitToday = (habitId, value) => {
-        if (bridge && habitsLinked) bridge.setState(habitId, null, value);
-      };
 
       // 행동 칸 → 새 습관 (습관 화면의 추가 폼이 채워진 채 열림)
       const growHabit = () => {
@@ -2974,13 +3383,16 @@
           const moved = pending.map((k, i) => ({
             id: Date.now() + i, text: track[k].title, fromQuarter: prev.echoTriangle.quarter, trackName: track.name
           }));
+          // 적어 둔 회고는 지우지 않고 회고 기록으로 남김
+          const kept = hasReview(track.review) ? [toReviewRecord(track, prev.echoTriangle.quarter)] : [];
           return {
             ...prev,
             echoTriangle: {
               ...prev.echoTriangle,
               tracks: rest.length ? rest : [makeTrack(prev.echoTriangle.quarter, "목표 1")]
             },
-            echoBox: [...moved, ...prev.echoBox]
+            echoBox: [...moved, ...prev.echoBox],
+            reviews: [...kept, ...(prev.reviews || [])]
           };
         });
         setActiveTrackId(null);
@@ -3071,6 +3483,7 @@
           `${nextQuarter}로 넘어갈까요?\n\n` +
           `• 목표 ${tracks.length}개의 미완료 프로젝트 ${pendingCount}개는 메아리 보관함으로 이동\n` +
           `• 완료한 프로젝트는 정리 (목표 이름·빅 에코는 그대로)\n` +
+          `• 목표별 달성 수와 회고 3줄은 📚 회고 기록에 저장\n` +
           `• 1~3달차 마감일을 ${nextQuarter}의 각 월 말일로 재설정`
         )) return;
 
@@ -3084,16 +3497,22 @@
               }
             });
           });
+          // 이번 분기 기록(달성 수 + 회고 3줄)을 회고 기록으로 남김
+          const records = prev.echoTriangle.tracks
+            .filter(t => hasReview(t.review) || MONTH_KEYS.some(k => t[k].title.trim()))
+            .map(t => toReviewRecord(t, prev.echoTriangle.quarter));
           const nextTracks = prev.echoTriangle.tracks.map(t => ({
             ...t,
             m1: { title: "", deadline: ends[0], status: "active" },
             m2: { title: "", deadline: ends[1], status: "active" },
-            m3: { title: "", deadline: ends[2], status: "active" }
+            m3: { title: "", deadline: ends[2], status: "active" },
+            review: { ...EMPTY_REVIEW }
           }));
           return {
             ...prev,
             echoTriangle: { quarter: nextQuarter, tracks: nextTracks },
-            echoBox: [...moved, ...prev.echoBox]
+            echoBox: [...moved, ...prev.echoBox],
+            reviews: [...records, ...(prev.reviews || [])]
           };
         });
       };
@@ -3344,8 +3763,8 @@
         );
       };
 
-      // ---------- 오늘 탭 계산 ----------
-      // 습관과 연결된 행동 칸은 습관 기록으로, 나머지 행동 칸은 만다라트 체크로 셉니다
+      // ---------- 행동 체크 탭 계산 ----------
+      // 습관과 연결된 행동 칸은 습관 시스템에서만 기록하고, 여기서는 연결 안 된 만다라트 행동만 셉니다
       const todayKey = dayKey(new Date());
       const todayChecks = data.dailyChecks[todayKey] || {};
       const filledKeys = [];
@@ -3354,11 +3773,10 @@
       }
       const isCellLinked = (k) => habitsLinked && !!(linkedByRef[k] && linkedByRef[k].length);
       const localKeys = filledKeys.filter(k => !isCellLinked(k));
-      const trackHabits = habitsLinked ? habits : [];
-      const totalTrack = localKeys.length + trackHabits.length;
+      const totalTrack = localKeys.length;
       const doneOn = (k) => {
         const day = data.dailyChecks[k] || {};
-        return localKeys.filter(fk => day[fk]).length + trackHabits.filter(h => habitLogState(h, k) > 0).length;
+        return localKeys.filter(fk => day[fk]).length;
       };
       const todayDone = doneOn(todayKey);
       const last30 = Array.from({ length: 30 }, (_, i) => {
@@ -3808,6 +4226,30 @@
                       })}
                     </div>
                   </div>
+
+                  {/* 이 목표의 분기 회고 3줄 (분기를 넘기면 📚 회고 기록에 저장) */}
+                  <div className="mt-4 bg-white rounded-xl p-4 border-2 border-stone-300">
+                    <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+                      <span className="text-sm font-bold">📓 '{activeTrack.name}' 회고 ({data.echoTriangle.quarter})</span>
+                      <span className="text-[11px] text-stone-500">월말·분기말에 3줄만 적어 두면 다음 계획이 정확해져요</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {REVIEW_FIELDS.map(f => (
+                        <label key={f.key} className="block text-xs">
+                          <span className="font-bold text-stone-700">{f.label}</span>
+                          <textarea
+                            rows="3"
+                            value={(activeTrack.review || EMPTY_REVIEW)[f.key]}
+                            onChange={(e) => updateTrack(activeTrack.id, t => ({
+                              ...t, review: { ...(t.review || EMPTY_REVIEW), [f.key]: e.target.value }
+                            }))}
+                            placeholder={f.placeholder}
+                            className="mt-1 w-full text-xs sm:text-sm p-2 rounded-lg bg-stone-50 border border-stone-300 focus:outline-none focus:border-amber-500"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 다음 분기 준비 보관함 (Echo Box) */}
@@ -3879,52 +4321,59 @@
                     </div>
                   )}
                 </div>
+
+                {/* 📚 지난 분기 회고 기록 */}
+                {(data.reviews || []).length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border">
+                    <h3 className="text-base font-bold flex flex-wrap items-center gap-1.5 mb-1">
+                      <span>📚 지난 분기 회고 기록</span>
+                      <span className="text-xs bg-stone-200 px-2 py-0.5 rounded-full">{data.reviews.length}개</span>
+                    </h3>
+                    <p className="text-xs text-stone-500 mb-3">⏭ 다음 분기로를 누를 때 목표마다 달성 수와 회고 3줄이 여기에 쌓여요. 새 분기 계획을 세우기 전에 한 번 읽어 보세요.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {data.reviews.map(r => (
+                        <div key={r.id} className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-bold bg-stone-200 text-stone-700 px-1.5 py-0.5 rounded">{r.quarter}</span>
+                              <span className="font-bold bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded">{r.trackName}</span>
+                              {r.planned > 0 && (
+                                <span className={`font-bold px-1.5 py-0.5 rounded ${r.done === r.planned ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
+                                  ✅ {r.done}/{r.planned}
+                                </span>
+                              )}
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (!confirm("이 회고 기록을 삭제할까요?")) return;
+                                setData(prev => ({ ...prev, reviews: prev.reviews.filter(x => x.id !== r.id) }));
+                              }}
+                              className="text-stone-400 hover:text-red-600 px-1"
+                              aria-label="회고 기록 삭제"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {r.bigGoal && <p className="text-stone-500">🔔 {r.bigGoal}</p>}
+                          {REVIEW_FIELDS.map(f => r[f.key] && (
+                            <p key={f.key} className="text-stone-700 break-keep">
+                              <span className="font-bold">{f.label}</span> {r[f.key]}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* ==========================================
-                TAB 3: 오늘 (만다라트 행동 + 습관 기록 통합 체크)
-                - 습관과 연결된 칸: ⚡ 2분 실행 / ✔ 완수 → 습관 시스템 기록에 바로 저장
-                - 연결 안 된 칸: 만다라트 체크 (+ 습관으로 키우기)
+                TAB 3: 행동 체크 (습관으로 만들지 않은 만다라트 행동만 체크)
+                - 습관과 연결된 칸은 여기서 체크하지 않음 → 습관 시스템에서만 기록 (중복 없음)
+                - 꾸준히 할 행동은 ⚡ 습관으로 키우기
                ========================================== */}
             {activeTab === "daily" && (() => {
-              const shownHabitIds = new Set();
-              const stateBtn = (active, tone) =>
-                `px-2 py-1 rounded-md text-[11px] font-bold border transition whitespace-nowrap disabled:opacity-40 ${
-                  active
-                    ? tone === "amber" ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-indigo-600 border-indigo-600 text-white"
-                    : "bg-white border-stone-300 text-stone-600 hover:border-stone-500"
-                }`;
-              const renderHabitRow = (h) => {
-                shownHabitIds.add(h.id);
-                const st = habitTodayState(h);
-                const streak = habitStreak(h);
-                return (
-                  <div
-                    key={h.id}
-                    className={`p-2 rounded-lg border transition ${
-                      st === 2 ? "bg-indigo-50 border-indigo-300" : st === 1 ? "bg-amber-50 border-amber-300" : "bg-stone-50/70 border-stone-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 min-w-0 text-xs sm:text-sm font-medium text-stone-800 break-keep">
-                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded px-1 py-0.5 mr-1 align-middle">⚡ 습관</span>
-                        {h.name}
-                      </span>
-                      {streak >= 2 && (
-                        <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">🔥 {streak}일</span>
-                      )}
-                      <button onClick={() => setHabitToday(h.id, 1)} disabled={!habitsLinked} className={stateBtn(st === 1, "amber")}
-                        title="⚡ 2분 최소실행 (다시 누르면 해제)">⚡ 2분</button>
-                      <button onClick={() => setHabitToday(h.id, 2)} disabled={!habitsLinked} className={stateBtn(st === 2, "indigo")}
-                        title="✔ 100% 완수 (다시 누르면 해제)">✔ 완수</button>
-                    </div>
-                    <div className="text-[11px] text-stone-500 mt-1 pl-0.5 break-keep">
-                      ⚡ {h.twoMinRule}{h.cue ? ` · 📍 ${h.cue}` : ""} · 🗳️ {fmtVotes(countHabitVotes(h))}표
-                    </div>
-                  </div>
-                );
-              };
               const growFromAction = (pIdx, aIdx, text) => {
                 if (!bridge) return;
                 setActiveTab("habits");
@@ -3935,25 +4384,25 @@
                   actionRef: `${pIdx}-${aIdx}`
                 }), 60);
               };
-              const unassigned = habitsLinked ? habits.filter(h => !Number.isInteger(h.pillarIdx)) : [];
+              const linkedTotal = filledKeys.length - localKeys.length;
 
               return (
               <div className="space-y-5">
                 <div className="bg-stone-900 text-white rounded-2xl p-5 sketch-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
-                      ☀️ Morning Visual Brainwashing · {todayKey}
+                      ☑️ Mandalart Actions · {todayKey}
                     </span>
                     <h2 className="text-lg sm:text-xl font-bold mt-0.5">
                       {data.coreGoal}
                     </h2>
                     <p className="text-xs text-stone-300 mt-1">
-                      오늘 당장 2분 안에 할 수 있는 것 하나만 찍으세요. ⚡ 2분 실행도 정체성에 0.5표가 쌓입니다.
+                      습관으로 만들지 않은 만다라트 행동을 가볍게 체크하는 곳이에요. 매일 꾸준히 할 행동은 ⚡ 습관으로 옮기세요.
                     </p>
                   </div>
                   <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
                     <div className="text-right">
-                      <div className="text-[11px] text-stone-400">오늘 실행</div>
+                      <div className="text-[11px] text-stone-400">오늘 체크한 행동</div>
                       <div className="text-xl font-extrabold text-amber-300">
                         {todayDone}<span className="text-xs text-stone-400 font-normal"> / {totalTrack}</span>
                       </div>
@@ -3961,39 +4410,29 @@
                     <button
                       onClick={resetTodayChecks}
                       className="px-3 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-200 text-xs font-semibold rounded-lg"
-                      title="연결 안 된 만다라트 행동의 오늘 체크만 지웁니다 (습관 기록은 그대로)"
+                      title="이 화면의 오늘 체크만 지웁니다 (습관 기록은 그대로)"
                     >
-                      만다라트 체크 초기화
+                      오늘 체크 초기화
                     </button>
                   </div>
                 </div>
 
-                {/* 연결 상태 안내 */}
-                {habitsLinked ? (
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
-                    <span>
-                      🔗 <b>⚡ 습관</b> 표시가 있는 항목은 습관 시스템과 같은 기록이에요. 여기서 누르면 주간 보드·히트맵·투표함에 바로 반영돼요.
-                      나머지 행동은 <b>⚡ 습관으로</b>를 눌러 습관으로 키울 수 있어요.
-                    </span>
-                    <button onClick={goHabits}
-                      className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">
-                      습관 시스템 보기 →
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-sky-900">
-                    <span>☁️ 로그인하면 습관 시스템의 기록(⚡ 2분 실행 · ✔ 완수 · 연속 기록)이 이 화면과 하나로 합쳐져요.</span>
-                    <button onClick={goHabits}
-                      className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg">
-                      로그인하러 가기 →
-                    </button>
-                  </div>
-                )}
+                {/* 역할 안내: 습관은 습관 시스템에서만 기록 */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
+                  <span>
+                    🔗 습관과 연결된 행동{linkedTotal ? ` ${linkedTotal}개` : ""}은 <b>⚡ 습관 시스템</b>에서만 기록해요. 여기서는 오늘 상태만 보여드려요.
+                    {!habitsLinked && " (로그인하면 연결된 습관의 오늘 상태가 표시돼요)"}
+                  </span>
+                  <button onClick={goHabits}
+                    className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">
+                    {habitsLinked ? "습관 기록하러 가기 →" : "로그인하러 가기 →"}
+                  </button>
+                </div>
 
-                {/* 최근 30일 히트맵 (만다라트 체크 + 습관 기록) */}
+                {/* 최근 30일 행동 체크 기록 (습관 기록은 습관 시스템의 월간 히트맵에서) */}
                 <div className="bg-white rounded-xl p-4 sketch-border">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-sm">🌿 최근 30일 실행 기록</span>
+                    <span className="font-bold text-sm">🌿 최근 30일 행동 체크</span>
                     <span className="flex items-center gap-1 text-[10px] text-stone-500">
                       적음
                       <span className="w-3 h-3 rounded-sm bg-stone-200 inline-block" />
@@ -4007,7 +4446,7 @@
                     {last30.map(({ k, d, cnt }) => (
                       <div
                         key={k}
-                        title={`${k} · ${cnt}개 실행`}
+                        title={`${k} · 행동 ${cnt}개 체크`}
                         className={`aspect-square rounded-sm ${heatClass(cnt)} ${k === todayKey ? "ring-2 ring-stone-900" : ""}`}
                       >
                         <span className="sr-only">{`${d.getMonth() + 1}월 ${d.getDate()}일 ${cnt}개`}</span>
@@ -4016,59 +4455,12 @@
                   </div>
                 </div>
 
-                {/* 기둥별 오늘 체크리스트 */}
+                {/* 기둥별 행동 체크리스트 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {data.pillars.map((pillar, pIdx) => {
                     const filledActions = (data.actions[pIdx] || [])
                       .map((text, aIdx) => ({ text, aIdx }))
                       .filter(item => item.text && item.text.trim() !== "");
-                    const rows = [];
-                    filledActions.forEach(({ text, aIdx }) => {
-                      const checkKey = `${pIdx}-${aIdx}`;
-                      const linked = isCellLinked(checkKey) ? linkedByRef[checkKey] : null;
-                      if (linked) {
-                        linked.forEach(h => rows.push(renderHabitRow(h)));
-                        return;
-                      }
-                      const isChecked = !!todayChecks[checkKey];
-                      const streak = getStreak(checkKey);
-                      rows.push(
-                        <div
-                          key={checkKey}
-                          className={`flex items-center gap-2 p-2 rounded-lg border transition ${
-                            isChecked ? "bg-amber-50 border-amber-400 text-stone-500" : "bg-stone-50/70 border-stone-200 text-stone-800"
-                          }`}
-                        >
-                          <label className="flex-1 min-w-0 flex items-center gap-2.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleDailyCheck(checkKey)}
-                              className="w-4 h-4 accent-amber-500 rounded shrink-0"
-                            />
-                            <span className={`text-xs sm:text-sm font-medium break-keep ${isChecked ? "line-through" : ""}`}>{text}</span>
-                          </label>
-                          {streak >= 2 && (
-                            <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">🔥 {streak}일</span>
-                          )}
-                          {bridge && habitsLinked && (
-                            <button
-                              onClick={() => growFromAction(pIdx, aIdx, text)}
-                              className="px-1.5 py-1 rounded-md text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 whitespace-nowrap shrink-0"
-                              title="이 행동을 습관 시스템의 습관으로 키우기 (2분 규칙·신호·보상 설계)"
-                            >
-                              ⚡ 습관으로
-                            </button>
-                          )}
-                        </div>
-                      );
-                    });
-                    // 이 기둥에 연결됐지만 칸과는 연결 안 된 습관
-                    if (habitsLinked) {
-                      habits
-                        .filter(h => h.pillarIdx === pIdx && !shownHabitIds.has(h.id))
-                        .forEach(h => rows.push(renderHabitRow(h)));
-                    }
                     const pillarHabitCount = habitsLinked ? habits.filter(h => h.pillarIdx === pIdx).length : 0;
 
                     return (
@@ -4079,60 +4471,86 @@
                           </span>
                           <span className="flex items-center gap-1 shrink-0">
                             {pillarHabitCount > 0 && (
-                              <span className="text-[11px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                              <span className="text-[11px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full" title="이 기둥에 연결된 습관의 실천 투표 수">
                                 🗳️ {fmtVotes(pillarVotes[pIdx])}표
                               </span>
                             )}
                             <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                              행동 {filledActions.length}{pillarHabitCount ? ` · 습관 ${pillarHabitCount}` : ""}
+                              행동 {filledActions.length}
                             </span>
                           </span>
                         </div>
 
-                        {rows.length === 0 ? (
+                        {filledActions.length === 0 ? (
                           <p className="text-xs text-stone-400 py-2">
                             아직 등록된 구체적 행동이 없습니다. 만다라트 탭에서 3칸만 먼저 채워보세요!
                           </p>
                         ) : (
-                          <div className="space-y-2">{rows}</div>
+                          <div className="space-y-2">
+                            {filledActions.map(({ text, aIdx }) => {
+                              const checkKey = `${pIdx}-${aIdx}`;
+
+                              // 습관과 연결된 칸: 체크 버튼 없이 오늘 상태만 (기록은 습관 시스템에서)
+                              if (isCellLinked(checkKey)) {
+                                const st = Math.max(...linkedByRef[checkKey].map(habitTodayState));
+                                return (
+                                  <button
+                                    key={checkKey}
+                                    onClick={goHabits}
+                                    className="w-full flex items-center gap-2 p-2 rounded-lg border border-dashed border-indigo-200 bg-indigo-50/40 text-left hover:bg-indigo-50"
+                                    title="습관 시스템에서 기록하는 행동이에요"
+                                  >
+                                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded px-1 py-0.5 shrink-0">🔗 습관</span>
+                                    <span className="flex-1 min-w-0 text-xs sm:text-sm text-stone-600 break-keep">{text}</span>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                      st === 2 ? "bg-indigo-600 text-white" : st === 1 ? "bg-amber-300 text-stone-900" : "bg-stone-200 text-stone-500"
+                                    }`}>
+                                      오늘 {HABIT_STATE_TEXT[st]}
+                                    </span>
+                                  </button>
+                                );
+                              }
+
+                              // 연결 안 된 칸: 여기서 체크
+                              const isChecked = !!todayChecks[checkKey];
+                              const streak = getStreak(checkKey);
+                              return (
+                                <div
+                                  key={checkKey}
+                                  className={`flex items-center gap-2 p-2 rounded-lg border transition ${
+                                    isChecked ? "bg-amber-50 border-amber-400 text-stone-500" : "bg-stone-50/70 border-stone-200 text-stone-800"
+                                  }`}
+                                >
+                                  <label className="flex-1 min-w-0 flex items-center gap-2.5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => toggleDailyCheck(checkKey)}
+                                      className="w-4 h-4 accent-amber-500 rounded shrink-0"
+                                    />
+                                    <span className={`text-xs sm:text-sm font-medium break-keep ${isChecked ? "line-through" : ""}`}>{text}</span>
+                                  </label>
+                                  {streak >= 2 && (
+                                    <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0">🔥 {streak}일</span>
+                                  )}
+                                  {bridge && habitsLinked && (
+                                    <button
+                                      onClick={() => growFromAction(pIdx, aIdx, text)}
+                                      className="px-1.5 py-1 rounded-md text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 whitespace-nowrap shrink-0"
+                                      title="이 행동을 습관 시스템의 습관으로 옮기기 (이후 기록은 습관 시스템에서)"
+                                    >
+                                      ⚡ 습관으로
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
-
-                {/* 기둥이 정해지지 않은 습관 */}
-                {unassigned.length > 0 && (
-                  <div className="bg-white rounded-xl p-4 sketch-border space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-stone-200">
-                      <span className="font-bold text-sm text-stone-900">🧩 기둥이 정해지지 않은 습관 ({unassigned.length})</span>
-                      <span className="text-[11px] text-stone-500">기둥을 고르면 만다라트 블록에 실천 투표 수가 쌓여요</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {unassigned.map(h => (
-                        <div key={h.id} className="space-y-1">
-                          {renderHabitRow(h)}
-                          <select
-                            value=""
-                            onChange={(e) => {
-                              const idx = Number(e.target.value);
-                              if (e.target.value !== "" && bridge) {
-                                bridge.linkHabit(h.id, { pillarIdx: idx, pillarName: data.pillars[idx] || `기둥 ${idx + 1}` });
-                              }
-                            }}
-                            className="w-full px-2 py-1.5 text-xs bg-amber-50 border border-amber-300 rounded-lg font-semibold text-stone-700"
-                            aria-label={`${h.name} 기둥 지정`}
-                          >
-                            <option value="">🧩 기둥 지정하기…</option>
-                            {data.pillars.map((p, i) => (
-                              <option key={i} value={i}>#{i + 1} {p || `기둥 ${i + 1}`}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               );
             })()}
@@ -4217,15 +4635,11 @@
                                 <span>🔥 {habitStreak(h)}일</span>
                               </div>
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-indigo-800">오늘:</span>
-                                <button onClick={() => setHabitToday(h.id, 1)}
-                                  className={`px-2 py-1 rounded-md font-bold border ${st === 1 ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white border-stone-300 text-stone-600"}`}>
-                                  ⚡ 2분 실행
-                                </button>
-                                <button onClick={() => setHabitToday(h.id, 2)}
-                                  className={`px-2 py-1 rounded-md font-bold border ${st === 2 ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white border-stone-300 text-stone-600"}`}>
-                                  ✔ 완수
-                                </button>
+                                <span className={`px-2 py-0.5 rounded-full font-bold ${
+                                  st === 2 ? "bg-indigo-600 text-white" : st === 1 ? "bg-amber-300 text-stone-900" : "bg-stone-200 text-stone-500"
+                                }`}>
+                                  오늘 {HABIT_STATE_TEXT[st]}
+                                </span>
                                 <button onClick={() => unlinkHabitFromCell(h)} className="ml-auto text-stone-400 hover:text-red-600 underline">
                                   칸 연결 풀기
                                 </button>
@@ -4234,7 +4648,7 @@
                           );
                         })}
                         <button onClick={() => { setEditingCell(null); goHabits(); }} className="font-bold text-indigo-700 underline">
-                          ⚡ 습관 시스템에서 자세히 보기 →
+                          ⚡ 습관 시스템에서 기록하기 →
                         </button>
                       </div>
                     );
