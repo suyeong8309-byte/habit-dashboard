@@ -3763,9 +3763,29 @@
         !s || s.type === "daily" ? "매일" : s.type === "weekly" ? `주 ${s.count}회` : (s.days || []).map(d => SCHEDULE_DAYS[d]).join("·");
       const usageText = (res) => (res && res.used ? ` (오늘 AI ${res.used}/${res.limit}회)` : "");
 
+      // 서버는 50초 안에 답하도록 되어 있음. 그래도 답이 안 오면(앱 전환·네트워크 끊김 등) 60초에서 끊어서
+      // 버튼이 '…하는 중'에 멈춰 있지 않게 함
+      const AI_TIMEOUT_MS = 60000;
       const askAI = async (task, payload) => {
         if (!aiReady) throw new Error("AI 코치는 로그인한 상태에서 쓸 수 있어요. ⚡ 습관 시스템 탭에서 로그인해 주세요.");
-        const { data: res, error } = await getSb().functions.invoke("ai-coach", { body: { task, payload } });
+        const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+        let timer;
+        const timeout = new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error("AI 응답이 1분 넘게 오지 않아 멈췄어요. 인터넷 연결을 확인하고 다시 눌러 주세요."));
+            if (ctrl) ctrl.abort();
+          }, AI_TIMEOUT_MS);
+        });
+        let out;
+        try {
+          out = await Promise.race([
+            getSb().functions.invoke("ai-coach", { body: { task, payload }, ...(ctrl ? { signal: ctrl.signal } : {}) }),
+            timeout
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+        const { data: res, error } = out;
         if (error) {
           let msg = error.message || "AI 호출에 실패했어요.";
           try {
