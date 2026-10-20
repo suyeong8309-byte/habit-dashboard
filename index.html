@@ -105,9 +105,9 @@
     background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px);
     background-size: 10px 10px;
   }
-  /* 로그인 전에는 헤더·로그인·안내·슬라이드 스토리 배너만 보이기 */
-  body[data-auth="out"] #habit-view .max-w-7xl > section:not(#auth-section):not(#store-banner):not(#hero-story-banner) { display: none; }
-  body[data-auth="out"] header [data-action]:not([data-action="logout"]):not([data-action="open-slide-guide"]),
+  /* 로그인 전에는 헤더·로그인·안내만 보이기 */
+  body[data-auth="out"] #habit-view .max-w-7xl > section:not(#auth-section):not(#store-banner) { display: none; }
+  body[data-auth="out"] #habit-view header [data-action]:not([data-action="logout"]),
   body[data-auth="out"] header label { display: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -157,7 +157,6 @@
         <div class="flex flex-wrap items-center gap-2">
           <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">아토믹 해빗 시스템 대시보드</h1>
           <span class="px-2.5 py-0.5 text-[11px] font-extrabold bg-amber-300 text-slate-900 rounded-md pop-badge comic-en">KABOOM! 37.78x</span>
-          <span class="hidden sm:inline-block px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">영웅의 탄생 스토리</span>
         </div>
         <p id="current-date-display" class="text-xs sm:text-sm text-slate-500 mt-1 font-medium"></p>
       </div>
@@ -166,60 +165,18 @@
       <span id="sync-pill" class="px-2.5 py-1.5 text-[11px] font-bold rounded-xl border bg-slate-50 text-slate-500 border-slate-200">
         <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 연결 중
       </span>
-      <button type="button" data-action="open-slide-guide" class="px-3.5 py-2 text-xs font-extrabold text-slate-900 bg-amber-300 hover:bg-amber-400 rounded-xl pop-badge flex items-center gap-1.5">
-        <i class="fa-solid fa-book-open-reader" aria-hidden="true"></i> 슬라이드 바이블 (15장)
-      </button>
       <button type="button" data-action="ics-all" title="알림 시간이 정해진 습관을 캘린더 파일로 저장 (아이폰·애플워치 알림)" class="px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition flex items-center gap-1.5">
         <i class="fa-solid fa-bell" aria-hidden="true"></i> 알림 캘린더
       </button>
       <button type="button" data-action="export-xlsx" class="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-1.5">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i> 엑셀
       </button>
-      <button type="button" data-action="export-json" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
-        <i class="fa-solid fa-download" aria-hidden="true"></i> 백업 저장
-      </button>
-      <label class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-upload" aria-hidden="true"></i> 백업 복원
-        <input type="file" id="import-json-input" accept=".json,application/json" class="sr-only">
-      </label>
-      <button type="button" data-action="reset-week" class="px-3.5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
-        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 이번 주 초기화
-      </button>
-      <button type="button" data-action="load-sample" class="px-3.5 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition flex items-center gap-1.5">
-        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> 샘플 복원
-      </button>
+      <!-- 백업·복원은 상단 바의 '💾 전체 백업 / 📂 복원'으로, 초기화·샘플은 '⚙️ 관리' 메뉴로 옮김 -->
       <button type="button" id="logout-btn" data-action="logout" hidden class="px-3.5 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition flex items-center gap-1.5">
         <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> 로그아웃
       </button>
     </div>
   </header>
-
-  <!-- 슬라이드 핵심 스토리 & 오늘의 영웅 질문 배너 (p.1, p.3, p.13, p.15 반영) -->
-  <section id="hero-story-banner" class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-5 md:p-6 shadow-md border border-indigo-500/30 halftone-bg">
-    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-      <div class="space-y-2 max-w-3xl">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="px-2.5 py-0.5 text-xs font-extrabold bg-rose-500 text-white rounded-md pop-badge comic-en">ORIGIN STORY</span>
-          <span class="px-2.5 py-0.5 text-xs font-extrabold bg-amber-400 text-slate-900 rounded-md pop-badge comic-en">ZAP! 2 MINUTES!</span>
-          <span class="px-2.5 py-0.5 text-[11px] font-bold bg-indigo-500/30 text-indigo-200 rounded-lg border border-indigo-400/40">✈️ LA ➔ NY 3.5도 궤도 수정</span>
-        </div>
-        <h2 class="text-base md:text-lg font-extrabold tracking-tight text-white leading-snug">
-          "만약(What If)...? 오늘 당신이 찍을 단 하나의 도장은 무엇입니까?"
-        </h2>
-        <p id="slide-rotating-quote" class="text-xs sm:text-sm text-indigo-100/90 leading-relaxed font-medium">
-          💡 <b>슬라이드 핵심 (p.2):</b> 실패는 당신의 의지력 문제가 아닙니다. 변화를 가로막는 잘못된 '시스템'의 결과일 뿐입니다. 완벽함 대신 <b>⚡ 2분 규칙</b>으로 오늘의 궤도를 유지하세요!
-        </p>
-      </div>
-      <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
-        <button type="button" data-action="next-quote" class="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-amber-200 border border-white/15 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-wand-sparkles" aria-hidden="true"></i> 다음 슬라이드 명언
-        </button>
-        <button type="button" data-action="open-slide-guide" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold pop-badge flex items-center gap-1.5">
-          <i class="fa-solid fa-bolt" aria-hidden="true"></i> 4대 법칙 & 악당 격퇴법 보기
-        </button>
-      </div>
-    </div>
-  </section>
 
   <!-- 로그인 (Supabase 계정) -->
   <section id="auth-section" hidden class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
@@ -258,8 +215,8 @@
     <div id="today-list" class="space-y-2.5"></div>
   </section>
 
-  <!-- 핵심 지표 (KPI) 카드 5종 -->
-  <section class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4" aria-label="요약 지표">
+  <!-- 핵심 지표 4종: 오늘 유지율 · 누적 성장(투표·복리·잠복기) · 최고 연속 · 두 번 거르기 -->
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" aria-label="요약 지표">
     <div class="col-span-2 lg:col-span-1 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
       <div class="min-w-0">
         <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">오늘의 궤도 유지율</p>
@@ -270,24 +227,28 @@
         <i class="fa-solid fa-compass" aria-hidden="true"></i>
       </div>
     </div>
-    <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white p-4 md:p-5 rounded-2xl shadow-sm flex items-center justify-between gap-2 border border-amber-400/40 halftone-bg">
-      <div class="min-w-0">
-        <p class="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-          <span>1% 복리 마법</span>
-          <span class="px-1.5 py-0.2 text-[9px] bg-rose-500 text-white rounded comic-en">KABOOM!</span>
-        </p>
-        <p id="stat-compound" class="text-2xl font-extrabold text-amber-300 mt-1 tabular">1.00배</p>
-        <p id="stat-compound-sub" class="text-[11px] text-indigo-200 mt-1 truncate">1.01^365 = 37.78배</p>
+    <!-- 누적 성장: 정체성 투표 수 하나로 투표함·1% 복리·잠복기 돌파를 함께 보여줌 -->
+    <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white p-4 md:p-5 rounded-2xl shadow-sm border border-amber-400/40 halftone-bg space-y-2">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-[11px] font-bold text-amber-300 uppercase tracking-wider">🗳️ 누적 성장</p>
+          <p class="mt-1 flex flex-wrap items-baseline gap-x-2">
+            <span id="stat-votes" class="text-2xl font-extrabold text-amber-300 tabular">총 0표</span>
+            <span id="stat-compound" class="text-sm font-bold text-indigo-200 tabular">복리 1.00배</span>
+          </p>
+          <p id="stat-votes-sub" class="text-[11px] text-indigo-200 mt-0.5 truncate">총 0회 실천 · 완수 1표 · ⚡2분 0.5표</p>
+        </div>
+        <i class="fa-solid fa-rocket text-amber-300 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
       </div>
-      <i class="fa-solid fa-rocket text-amber-300 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
-    </div>
-    <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
-      <div class="min-w-0">
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">정체성 투표함</p>
-        <p id="stat-votes" class="text-2xl font-extrabold text-purple-700 mt-1 tabular">총 0표</p>
-        <p id="stat-votes-sub" class="text-xs text-slate-500 mt-1 truncate">총 0회 실천</p>
+      <div>
+        <div class="flex justify-between gap-2 text-[10px] text-indigo-200">
+          <span>🔨 잠복기 돌파 (101번째 타격까지)</span>
+          <span id="valley-count-text" class="tabular font-bold">0/100</span>
+        </div>
+        <div class="w-full h-2 bg-white/15 rounded-full overflow-hidden mt-1" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100">
+          <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-400 to-rose-400 transition-all duration-500" style="width: 0%"></div>
+        </div>
       </div>
-      <i class="fa-solid fa-check-to-slot text-purple-600 text-lg shrink-0 hidden sm:block" aria-hidden="true"></i>
     </div>
     <div class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between gap-2">
       <div class="min-w-0">
@@ -307,46 +268,18 @@
     </div>
   </section>
 
-  <!-- 정체성 투표 보드 (The Hero vs Amateur) & 잠복기 돌파 게이지 (101번째 망치질) -->
-  <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3 min-w-0">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <div class="flex items-center gap-2">
-            <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-shield-halved text-purple-600" aria-hidden="true"></i> 나의 정체성(Identity) 투표함
-            </h2>
-            <span class="px-2 py-0.5 text-[10px] font-extrabold bg-purple-600 text-white rounded comic-en">THE HERO</span>
-          </div>
-          <p class="text-xs text-slate-500 mt-0.5">"목표는 책을 읽는 것이 아니라 <b>'독서가'</b>가 되는 것입니다. 매일의 습관으로 당신의 정체성에 투표하세요!" (슬라이드 7p)</p>
-        </div>
-        <span class="self-start text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · ⚡2분실행 0.5표</span>
-      </div>
-      <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"></div>
-    </div>
-    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between gap-3">
+  <!-- 정체성별 투표 (습관마다 어떤 사람에게 투표하고 있는지) -->
+  <section class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3 min-w-0">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
       <div>
-        <div class="flex items-center justify-between gap-2">
-          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-            <i class="fa-solid fa-hammer text-amber-500" aria-hidden="true"></i> 잠재력 잠복기 (실망의 계곡)
-          </h2>
-          <span id="valley-stage-pill" class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-300 text-slate-900 pop-badge shrink-0">101번째 타격 향해</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
-          100번 망치질에도 안 깨지던 돌이 <b>101번째에 쪼개지고</b>, 영하 10도에서 <b>0°C가 되는 순간</b> 얼음이 폭발적으로 녹아내립니다. (슬라이드 5p)
-        </p>
+        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-purple-600" aria-hidden="true"></i> 정체성별 투표
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">목표는 책을 읽는 것이 아니라 <b>'독서가'</b>가 되는 것. 습관을 할 때마다 그 정체성에 한 표가 쌓여요.</p>
       </div>
-      <div class="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-        <div class="flex justify-between gap-2 text-xs font-bold">
-          <span id="valley-temp-text" class="text-indigo-600">현재 온도: -10.0°C</span>
-          <span id="valley-count-text" class="text-slate-700 tabular">0 / 100회 타격</span>
-        </div>
-        <div class="w-full h-3.5 bg-white rounded-full overflow-hidden p-0.5 border border-slate-300" role="progressbar" aria-label="잠복기 돌파 진행률" aria-valuemin="0" aria-valuemax="100">
-          <div id="valley-progress-bar" class="h-full rounded-full bg-gradient-to-r from-sky-400 via-indigo-500 to-rose-500 transition-all duration-500" style="width: 0%"></div>
-        </div>
-        <p id="valley-quote-text" class="text-[11px] text-slate-500 font-medium pt-0.5">💡 보이지 않는 곳에서 변화가 차곡차곡 쌓이고 있습니다.</p>
-      </div>
+      <span class="self-start text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 shrink-0">완수 1표 · ⚡2분실행 0.5표</span>
     </div>
+    <div id="identity-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1"></div>
   </section>
 
   <!-- 새 아토믹 해빗 추가 폼 -->
@@ -607,77 +540,6 @@
     <div id="proof-modal-body" class="space-y-3"></div>
     <input type="file" id="proof-camera-input" accept="image/*" capture="environment" class="sr-only" tabindex="-1">
     <input type="file" id="proof-file-input" accept="image/*" class="sr-only" tabindex="-1">
-  </div>
-</div>
-
-<!-- 슬라이드 바이블 (15장 스토리북) 모달 -->
-<div id="slide-guide-modal" class="modal-wrap fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="slide-guide-title">
-  <div class="bg-white rounded-2xl max-w-3xl w-full p-5 md:p-6 space-y-4 shadow-2xl border-2 border-slate-900 max-h-full overflow-y-auto">
-    <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
-      <div class="flex items-center gap-2.5">
-        <span class="px-2.5 py-1 rounded-lg bg-amber-300 text-slate-900 font-extrabold text-xs pop-badge comic-en">ATOMIC HABIT BIBLE</span>
-        <div>
-          <h3 id="slide-guide-title" class="font-extrabold text-slate-900 text-base md:text-lg">아주 작은 습관의 힘: 평범한 일상을 37배의 기적으로 바꾸는 시스템</h3>
-          <p class="text-xs text-slate-500">붙임 슬라이드 15장의 핵심 스토리와 대시보드 100% 활용 가이드</p>
-        </div>
-      </div>
-      <button type="button" data-action="close-slide-guide" aria-label="닫기" class="text-slate-400 hover:text-slate-700 p-1.5"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-      <div class="p-3.5 rounded-xl bg-slate-900 text-white space-y-1 border border-slate-800">
-        <div class="flex items-center justify-between">
-          <span class="text-amber-300 font-extrabold">Slide 1~3 · 1%의 개선과 시스템</span>
-          <span class="px-1.5 py-0.5 bg-indigo-600 rounded text-[10px] font-bold">1% MAGIC</span>
-        </div>
-        <p class="text-slate-200 leading-relaxed">작심삼일은 의지력 문제가 아니라 잘못된 시스템 탓입니다. 영국 사이클 팀이 안장 쿠션, 손 씻기 등 모든 영역을 1%씩 개선해 올림픽 금메달 60%를 싹쓸이한 것처럼 시스템을 바꾸세요.</p>
-      </div>
-
-      <div class="p-3.5 rounded-xl bg-indigo-950 text-white space-y-1 border border-indigo-800">
-        <div class="flex items-center justify-between">
-          <span class="text-amber-300 font-extrabold">Slide 4~5 · 37.78배 복리와 잠복기</span>
-          <span class="px-1.5 py-0.5 bg-rose-500 rounded text-[10px] font-bold comic-en">KABOOM!</span>
-        </div>
-        <p class="text-indigo-100 leading-relaxed">매일 1% 성장은 1년 뒤 <b>1.01^365 = 37.78배</b>의 폭발을 만듭니다. 100번의 망치질과 영하의 잠복기(실망의 계곡)를 견디면 0°C가 되는 순간 얼음이 폭발적으로 녹아내립니다.</p>
-      </div>
-
-      <div class="p-3.5 rounded-xl bg-purple-50 border border-purple-200 space-y-1 text-slate-800">
-        <div class="flex items-center justify-between">
-          <span class="text-purple-800 font-extrabold">Slide 6~7 · 목표 대신 정체성(The Hero)</span>
-          <span class="px-1.5 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold">IDENTITY</span>
-        </div>
-        <p class="text-slate-600 leading-relaxed">"담배를 끊는 중"이 아니라 "나는 비흡연자다"라고 정의하세요. 습관을 체크할 때마다 내가 되고자 하는 정체성에 소중한 <b>한 표(🗳️)</b>를 던지는 것입니다.</p>
-      </div>
-
-      <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1 text-slate-800">
-        <div class="flex items-center justify-between">
-          <span class="text-amber-900 font-extrabold">Slide 8~10 · 환경 설계와 2분 규칙</span>
-          <span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 rounded text-[10px] font-extrabold comic-en">2 MINUTES!</span>
-        </div>
-        <p class="text-slate-600 leading-relaxed">현관 앞 운동화처럼 시각적 신호를 배치하고, 시작 문턱을 2분으로 낮추세요. 대시보드에서 <b>1번 클릭(⚡)</b>은 '시작하는 사람'의 정체성을 지키는 필살기입니다.</p>
-      </div>
-
-      <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1 text-slate-800">
-        <div class="flex items-center justify-between">
-          <span class="text-rose-800 font-extrabold">Slide 11~12 · 두 번 거르지 마라 & 악당 격퇴</span>
-          <span class="px-1.5 py-0.5 bg-rose-600 text-white rounded text-[10px] font-bold">NEVER MISS TWICE</span>
-        </div>
-        <p class="text-slate-600 leading-relaxed">한 번은 실수지만 두 번 연속 거르는 건 새로운 나쁜 습관의 시작입니다. 어제 놓친 항목에 뜨는 <b>🚨 경고 배지</b>를 보면 오늘 반드시 2분이라도 실행해 사슬을 지키세요.</p>
-      </div>
-
-      <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1 text-slate-800">
-        <div class="flex items-center justify-between">
-          <span class="text-emerald-900 font-extrabold">Slide 13~15 · 3.5도 궤도 수정과 오늘의 도장</span>
-          <span class="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold">BEGIN!</span>
-        </div>
-        <p class="text-slate-600 leading-relaxed">비행기 기수를 3.5도만 틀어도 목적지가 바뀝니다. 피곤한 날 스쿼트 10개만 했어도 0으로 돌아간 게 아니라 올바른 궤도를 유지한 것입니다. 오늘 당신의 도장을 찍으세요!</p>
-      </div>
-    </div>
-
-    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-      <span class="text-[11px] text-slate-400">💡 주간 보드에서 1번 클릭: ⚡ 2분 최소실행 ➔ 2번 클릭: ✔ 100% 완수 ➔ 📷 타임스탬프 사진 인증</span>
-      <button type="button" data-action="close-slide-guide" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition">대시보드로 돌아가기</button>
-    </div>
   </div>
 </div>
 
@@ -998,6 +860,19 @@
     document.getElementById(`${prefix}-remind`).value = (habit && habit.remindAt) || '';
   }
 
+  // 숫자 기록 적용: 목표값 이상이면 ✔, 미만이면 ⚡ (목표값이 없으면 ✔), 0이면 기록 지움
+  function applyValue(habit, key, v) {
+    if (!habit.values) habit.values = {};
+    if (v > 0) {
+      habit.values[key] = roundValue(v);
+      setLog(habit, key, habit.target ? (v >= habit.target ? 2 : 1) : 2);
+    } else {
+      delete habit.values[key];
+      setLog(habit, key, 0);
+    }
+    if (!Object.keys(habit.values).length) delete habit.values;
+  }
+
   // 숫자 기록 입력 모달
   let valueTarget = null;
   function openValueModal(habitId, dateKey) {
@@ -1021,15 +896,7 @@
     if (!habit) { hideModal('value-modal'); return; }
     const v = raw === '' ? 0 : Number(raw);
     if (!isFinite(v) || v < 0 || v > MAX_VALUE) { showToast('0 이상의 숫자를 입력해 주세요.'); return; }
-    if (!habit.values) habit.values = {};
-    if (v > 0) {
-      habit.values[key] = roundValue(v);
-      setLog(habit, key, habit.target ? (v >= habit.target ? 2 : 1) : 2);
-    } else {
-      delete habit.values[key];
-      setLog(habit, key, 0);
-    }
-    if (!Object.keys(habit.values).length) delete habit.values;
+    applyValue(habit, key, v);
     hideModal('value-modal');
     valueTarget = null;
     saveData();
@@ -1724,7 +1591,8 @@
       r.readAsDataURL(blob);
     });
   }
-  async function exportBackupJson() {
+  // 습관 백업 데이터 만들기 (상단 바의 '💾 전체 백업'이 만다라트와 함께 한 파일로 저장)
+  async function buildHabitBackup() {
     const list = Object.values(photos).filter(p => findHabit(p.habitId));
     const out = [];
     if (list.length) showToast(`사진 ${list.length}장을 백업에 담는 중...`, 10000);
@@ -1736,9 +1604,8 @@
           takenAt: p.takenAt, timeSource: p.timeSource, uploadedAt: p.uploadedAt, verified: p.verified });
       } catch (e) { /* 불러오지 못한 사진은 건너뜀 */ }
     }
-    const payload = { app: 'atomic-habit-dashboard', version: 5, exportedAt: new Date().toISOString(), habits, photos: out };
-    const saved = await saveFile(`아토믹해빗_백업_${todayKey}.json`, JSON.stringify(payload, null, 2));
-    if (saved && out.length < list.length) showToast(`사진 ${list.length - out.length}장은 불러오지 못해 빠졌습니다.`, 4000);
+    if (out.length < list.length) showToast(`사진 ${list.length - out.length}장은 불러오지 못해 백업에서 빠졌습니다.`, 4000);
+    return { app: 'atomic-habit-dashboard', version: 5, exportedAt: new Date().toISOString(), habits: JSON.parse(JSON.stringify(habits)), photos: out };
   }
   function dataUrlToBlob(dataUrl) {
     const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || '');
@@ -1748,20 +1615,14 @@
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return new Blob([bytes], { type: m[1] });
   }
-  async function importBackupJson(event) {
-    const file = event.target.files && event.target.files[0];
-    event.target.value = '';
-    if (!file) return;
-    let parsed = null, list = null;
+  // 습관 백업 적용 (확인은 상단 바의 '📂 복원'에서 이미 받음). 형식이 맞지 않으면 false
+  async function applyHabitBackup(parsed) {
     const remap = {};
-    try { parsed = JSON.parse(await file.text()); list = sanitizeHabitList(parsed, remap); } catch (e) { list = null; }
-    if (!list) { showToast('올바른 백업 파일이 아닙니다.'); return; }
+    let list = null;
+    try { list = sanitizeHabitList(parsed, remap); } catch (e) { list = null; }
+    if (!list) return false;
     const backupPhotos = parsed && Array.isArray(parsed.photos) ? parsed.photos : [];
-    const photoNote = backupPhotos.length
-      ? (photosEnabled() ? `, 인증 사진 ${backupPhotos.length}장` : `\n(인증 사진 ${backupPhotos.length}장은 로그인 상태에서만 옮겨집니다)`)
-      : '';
-    const ok = await askConfirm(`백업에서 습관 ${list.length}개${photoNote}을 불러옵니다.\n지금 기록은 백업 내용으로 바뀝니다.`, '불러오기');
-    if (!ok) return;
+    if (backupPhotos.length && !photosEnabled()) showToast(`인증 사진 ${backupPhotos.length}장은 로그인 상태에서만 옮겨집니다.`, 4500);
 
     habits = list;
     selectedHeatmapHabitId = 'ALL';
@@ -1769,25 +1630,29 @@
     const ids = new Set(list.map(h => h.id));
     await removeProofs(p => !ids.has(p.habitId));
     renderAll();
-    showToast('백업을 불러왔습니다.');
 
-    if (!photosEnabled() || !backupPhotos.length) return;
-    let done = 0, failed = 0;
-    for (const raw of backupPhotos) {
-      const habitId = remap[String(raw && raw.habitId)] || String(raw && raw.habitId);
-      const blob = raw && dataUrlToBlob(raw.dataUrl);
-      const taken = new Date(raw && raw.takenAt);
-      if (!ids.has(habitId) || !isDateKey(raw.dateKey) || !blob || isNaN(taken)) { failed++; continue; }
-      showToast(`인증 사진 옮기는 중... ${done + failed + 1}/${backupPhotos.length}`, 8000);
-      try {
-        const uploaded = new Date(raw.uploadedAt);
-        await saveProofRecord(habitId, raw.dateKey, blob, taken.toISOString(),
-          raw.timeSource === 'exif' ? 'exif' : 'file', isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString());
-        done++;
-      } catch (e) { failed++; }
-      renderAll();
+    // 인증 사진은 뒤에서 하나씩 올림 (습관 기록은 이미 바뀐 상태)
+    if (photosEnabled() && backupPhotos.length) {
+      (async () => {
+        let done = 0, failed = 0;
+        for (const raw of backupPhotos) {
+          const habitId = remap[String(raw && raw.habitId)] || String(raw && raw.habitId);
+          const blob = raw && dataUrlToBlob(raw.dataUrl);
+          const taken = new Date(raw && raw.takenAt);
+          if (!ids.has(habitId) || !isDateKey(raw.dateKey) || !blob || isNaN(taken)) { failed++; continue; }
+          showToast(`인증 사진 옮기는 중... ${done + failed + 1}/${backupPhotos.length}`, 8000);
+          try {
+            const uploaded = new Date(raw.uploadedAt);
+            await saveProofRecord(habitId, raw.dateKey, blob, taken.toISOString(),
+              raw.timeSource === 'exif' ? 'exif' : 'file', isNaN(uploaded) ? taken.toISOString() : uploaded.toISOString());
+            done++;
+          } catch (e) { failed++; }
+          renderAll();
+        }
+        showToast(failed ? `사진 ${done}장을 옮겼고 ${failed}장은 옮기지 못했습니다.` : `인증 사진 ${done}장을 옮겼습니다.`, 4000);
+      })();
     }
-    showToast(failed ? `사진 ${done}장을 옮겼고 ${failed}장은 옮기지 못했습니다.` : `인증 사진 ${done}장을 옮겼습니다.`, 4000);
+    return true;
   }
 
   // ===== 계산 =====
@@ -2327,47 +2192,15 @@
     const valleyPercent = Math.min(100, totalActionsCount);
     document.getElementById('stat-today').textContent = `${todayRate}%`;
     document.getElementById('stat-today-sub').textContent = `완수 ${todayFull} · 2분실행 ${todayMin}`;
-    document.getElementById('stat-compound').textContent = `${compoundMultiplier.toFixed(2)}배`;
-    document.getElementById('stat-compound-sub').textContent = `1.01^${totalWeightedVotes} · +${Math.round((compoundMultiplier - 1) * 100)}%`;
+    // 누적 성장 카드: 투표 수 하나로 투표함 · 1% 복리 · 잠복기 돌파를 함께 표시
     document.getElementById('stat-votes').textContent = `총 ${totalWeightedVotes}표`;
-    document.getElementById('stat-votes-sub').textContent = `총 ${totalActionsCount}회 실천`;
+    document.getElementById('stat-compound').textContent = `복리 ${compoundMultiplier.toFixed(2)}배`;
+    document.getElementById('stat-votes-sub').textContent = `총 ${totalActionsCount}회 실천 · 1.01^${totalWeightedVotes}`;
+    document.getElementById('valley-count-text').textContent = totalActionsCount >= 100 ? '💥 돌파!' : `${totalActionsCount}/100`;
+    document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
     document.getElementById('stat-best-streak').textContent = `${bestStreak}일`;
     document.getElementById('stat-alert-count').textContent = `${riskCount}건`;
     document.getElementById('stat-alert-sub').textContent = riskCount > 0 ? `🚨 2분실행 필요!` : `궤도 순항 중`;
-    const currentTemp = (-10 + (totalActionsCount * 0.1)).toFixed(1);
-    document.getElementById('valley-temp-text').textContent = totalActionsCount >= 100 ? `🔥 KABOOM! 임계점(0°C) 돌파!` : `❄️ 현재 온도: ${currentTemp}°C (0°C에 폭발적 융해)`;
-    document.getElementById('valley-count-text').textContent = `${totalActionsCount} / 100회 타격 (${valleyPercent}%)`;
-    document.getElementById('valley-progress-bar').style.width = `${valleyPercent}%`;
-    const stagePill = document.getElementById('valley-stage-pill');
-    const quoteEl = document.getElementById('valley-quote-text');
-    if (stagePill && quoteEl) {
-      if (totalActionsCount >= 100) {
-        stagePill.textContent = '💥 KABOOM! 101번째 돌파';
-        stagePill.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-rose-500 text-white pop-badge shrink-0 comic-en';
-        quoteEl.textContent = '🎉 101번째 망치질이 돌을 쪼갰습니다! 시스템이 당신의 정체성이 되었습니다.';
-      } else {
-        stagePill.textContent = `잠복기 돌파 ${valleyPercent}%`;
-        stagePill.className = 'text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-amber-300 text-slate-900 pop-badge shrink-0';
-        quoteEl.textContent = `💡 100번의 망치질 중 ${totalActionsCount}번째 타격 완료! 스쿼트 10개라도 3.5도 궤도를 유지하세요.`;
-      }
-    }
-  }
-
-  const SLIDE_QUOTES = [
-    "💡 <b>슬라이드 2p:</b> 실패는 당신의 의지력 문제가 아닙니다. 변화를 가로막는 잘못된 '시스템'의 결과일 뿐입니다.",
-    "🚴 <b>슬라이드 3p (1%의 개선):</b> 안장 쿠션 교체부터 손 씻기까지, 단 1%씩 개선하는 시스템이 5년 뒤 올림픽 금메달 60% 싹쓸이를 만들었습니다.",
-    "💥 <b>슬라이드 4p (복리의 마법):</b> 매일 1% 성장 = 1.01^365 = 37.78배! 원자처럼 작지만 누적되면 핵폭발(KABOOM!) 같은 에너지를 냅니다.",
-    "🔨 <b>슬라이드 5p (잠재력 잠복기):</b> 100번 망치질에도 안 깨지던 돌이 101번째에 쪼개지는 것은 마지막 타격 때문이 아닙니다. 보이지 않는 곳에서 쌓인 힘입니다.",
-    "🦸‍♂️ <b>슬라이드 7p (The Hero):</b> 목표는 책을 읽는 것이 아니라 '독서가'가 되는 것입니다. 습관을 반복할 때마다 당신의 정체성에 한 표를 던지세요!",
-    "⚡ <b>슬라이드 10p (2분 규칙):</b> 매일 5km 러닝 ➔ 운동화 끈 묶기! 습관은 오직 첫 120초 안에 결정됩니다. 2분만 하고 그만둬도 좋습니다.",
-    "🚨 <b>슬라이드 11p (Never Miss Twice):</b> 한 번은 실수할 수 있습니다. 하지만 두 번 연속 거르는 것은 루틴을 파괴하는 새로운 나쁜 습관의 시작입니다.",
-    "✈️ <b>슬라이드 13p (3.5도 궤도 수정):</b> 너무 피곤해서 체육관에 가 스쿼트 10개만 하고 나왔더라도, 당신은 0으로 돌아간 게 아니라 올바른 궤도를 유지한 것입니다."
-  ];
-  let quoteIdx = 0;
-  function cycleSlideQuote() {
-    quoteIdx = (quoteIdx + 1) % SLIDE_QUOTES.length;
-    const el = document.getElementById('slide-rotating-quote');
-    if (el) el.innerHTML = SLIDE_QUOTES[quoteIdx];
   }
 
   // ===== 이벤트 =====
@@ -2389,8 +2222,8 @@
       case 'month-next': changeMonth(1); break;
       case 'month-today': goTodayMonth(); break;
       case 'export-xlsx': exportToExcel(); break;
-      case 'export-json': exportBackupJson(); break;
-      case 'import-open': document.getElementById('import-json-input').click(); break;
+      // 빈 화면의 '백업 파일 불러오기' → 상단 바의 전체 복원 열기
+      case 'import-open': window.dispatchEvent(new CustomEvent('life-dashboard:open-restore')); break;
       case 'reset-week': resetCurrentWeek(); break;
       case 'load-sample': loadDefaultHabits(); break;
       case 'close-edit': hideModal('edit-modal'); break;
@@ -2401,9 +2234,6 @@
       case 'proof-delete': deleteProof(); break;
       case 'logout': logout(); break;
       case 'retry-load': if (sb && userId) startCloud({ id: userId, email: userEmail }); break;
-      case 'open-slide-guide': showModal('slide-guide-modal'); break;
-      case 'close-slide-guide': hideModal('slide-guide-modal'); break;
-      case 'next-quote': cycleSlideQuote(); break;
       case 'value': refreshDates(); openValueModal(id, btn.dataset.date); break;
       case 'close-value': hideModal('value-modal'); valueTarget = null; break;
       case 'value-clear': saveValue(''); break;
@@ -2421,7 +2251,6 @@
       case 'mandalart-cancel': clearMandalartPending(); document.getElementById('habit-pillar').value = ''; showToast('만다라트 칸 연결을 취소했습니다.'); break;
     }
   });
-  document.getElementById('import-json-input').addEventListener('change', importBackupJson);
   document.getElementById('proof-camera-input').addEventListener('change', handleProofFile);
   document.getElementById('proof-file-input').addEventListener('change', handleProofFile);
   document.getElementById('confirm-ok').addEventListener('click', () => settleConfirm(true));
@@ -2429,12 +2258,10 @@
   document.getElementById('confirm-modal').addEventListener('click', e => { if (e.target.id === 'confirm-modal') settleConfirm(false); });
   document.getElementById('edit-modal').addEventListener('click', e => { if (e.target.id === 'edit-modal') hideModal('edit-modal'); });
   document.getElementById('proof-modal').addEventListener('click', e => { if (e.target.id === 'proof-modal' && !proofBusy) closeProofModal(); });
-  document.getElementById('slide-guide-modal').addEventListener('click', e => { if (e.target.id === 'slide-guide-modal') hideModal('slide-guide-modal'); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (confirmResolve) { settleConfirm(false); return; }
     hideModal('edit-modal');
-    hideModal('slide-guide-modal');
     hideModal('value-modal');
     if (!proofBusy) closeProofModal();
   });
@@ -2733,7 +2560,60 @@
       }, 80);
       return true;
     },
-    logout: () => logout()
+    // AI 한 줄 기록용: 상태를 정확히 지정 (누를 때처럼 해제되지 않음). 0 미기록 · 1 ⚡ · 2 ✔
+    setLogState(habitId, dateKey, value) {
+      const habit = findHabit(habitId);
+      const key = dateKey || todayKey;
+      if (!habit || !canWrite() || !isDateKey(key) || isFutureKey(key)) return false;
+      setLog(habit, key, value === 2 ? 2 : value === 1 ? 1 : 0);
+      saveData();
+      renderAll();
+      return true;
+    },
+    // 숫자 기록 (목표값으로 ⚡/✔ 자동 판정)
+    setValue(habitId, dateKey, value) {
+      const habit = findHabit(habitId);
+      const key = dateKey || todayKey;
+      const v = Number(value);
+      if (!habit || !habit.unit || !canWrite() || !isDateKey(key) || isFutureKey(key)) return false;
+      if (!isFinite(v) || v < 0 || v > MAX_VALUE) return false;
+      applyValue(habit, key, v);
+      saveData();
+      renderAll();
+      return true;
+    },
+    // 되돌리기: 기록 전 상태({ state, value })로 정확히 복원
+    restoreRecord(habitId, dateKey, rec) {
+      const habit = findHabit(habitId);
+      if (!habit || !canWrite() || !isDateKey(dateKey)) return false;
+      if (!habit.values) habit.values = {};
+      if (rec && rec.value > 0) habit.values[dateKey] = rec.value; else delete habit.values[dateKey];
+      if (!Object.keys(habit.values).length) delete habit.values;
+      setLog(habit, dateKey, rec ? rec.state : 0);
+      saveData();
+      renderAll();
+      return true;
+    },
+    // 숫자 기록 습관의 목표값 바꾸기 (월말 판정 도우미가 제안한 값 적용)
+    setTarget(habitId, target) {
+      const habit = findHabit(habitId);
+      const t = Number(target);
+      if (!habit || !habit.unit || !canWrite() || !isFinite(t) || t <= 0 || t > MAX_VALUE) return false;
+      habit.target = roundValue(t);
+      saveData();
+      renderAll();
+      return true;
+    },
+    logout: () => logout(),
+    // 💾 전체 백업 / 📂 복원 (상단 바에서 만다라트와 함께 한 파일로)
+    exportBackup: () => buildHabitBackup(),
+    importBackup: (parsed) => applyHabitBackup(parsed),
+    // ⚙️ 관리 메뉴 (각자 확인 창을 띄움)
+    resetWeek: () => resetCurrentWeek(),
+    loadSample: () => loadDefaultHabits(),
+    // 만다라트 화면도 같은 확인 창·알림을 씀 (브라우저 기본 팝업이 막힌 환경 대비)
+    askConfirm: (message, okLabel, danger) => askConfirm(message, okLabel || '확인', !!danger),
+    toast: (message, ms) => showToast(message, ms || 4000)
   };
 
   function init() {
@@ -2798,6 +2678,9 @@
         { id: 1, text: "매일 저녁 30분 독서하기 (지난 분기에서 넘어온 메아리)", fromQuarter: "2026 Q3" }
       ],
       reviews: [], // 지난 분기 회고 기록 [{ quarter, trackName, done, planned, bigGoal, good, blocked, next }]
+      brief: null, // 🌅 오늘의 브리핑 { date, plan, focus[], affirmations[], coreAffirmation }
+      myAffirmation: "", // 📌 고정한 내 확언 (배경화면에 항상 표시)
+      affirmationLog: {}, // 🗣️ 확언을 소리 내어 읽은 날 { "2026-10-21": true }
       dailyChecks: {} // { "2026-10-18": { "0-0": true, "4-0": true } } 형태 (날짜별)
     };
 
@@ -2995,7 +2878,25 @@
             }))
         : [];
 
-      return { coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, reviews, dailyChecks };
+      const strList = (v, max) => (Array.isArray(v) ? v.map(x => str(x)).filter(Boolean).slice(0, max) : []);
+      const brief = raw.brief && typeof raw.brief === "object" && DATE_RE.test(str(raw.brief.date))
+        ? {
+            date: raw.brief.date,
+            plan: str(raw.brief.plan),
+            focus: strList(raw.brief.focus, 5),
+            affirmations: strList(raw.brief.affirmations, 5),
+            coreAffirmation: str(raw.brief.coreAffirmation)
+          }
+        : null;
+      const affirmationLog = {};
+      if (raw.affirmationLog && typeof raw.affirmationLog === "object") {
+        Object.keys(raw.affirmationLog).forEach(k => { if (DATE_RE.test(k) && raw.affirmationLog[k] === true) affirmationLog[k] = true; });
+      }
+
+      return {
+        coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, reviews, dailyChecks,
+        brief, myAffirmation: str(raw.myAffirmation), affirmationLog
+      };
     };
 
     const loadData = () => {
@@ -3076,10 +2977,21 @@
     const TABS = [
       { key: "mandalart", label: "🧩 만다라트" },
       { key: "echo", label: "📐 에코 트라이앵글" },
-      { key: "daily", label: "☑️ 행동 체크" },
+      { key: "daily", label: "☀️ 오늘" },
       { key: "habits", label: "⚡ 습관 시스템" }
     ];
     const HABIT_STATE_TEXT = ["– 미기록", "⚡ 2분 실행", "✔ 완수"];
+
+    // 확인 창·알림: 브라우저 기본 팝업(confirm/alert/prompt)은 앱 안 미리보기나 홈 화면 앱에서 막힐 수 있어
+    // 습관 화면의 확인 창과 토스트를 함께 씀 (둘 다 대시보드 안에 그려짐)
+    const uiConfirm = (message, okLabel = "확인", danger = false) => {
+      if (bridge && bridge.askConfirm) return bridge.askConfirm(message, okLabel, danger);
+      try { return Promise.resolve(window.confirm(message)); } catch (e) { return Promise.resolve(false); }
+    };
+    const uiAlert = (message) => {
+      if (bridge && bridge.toast) { bridge.toast(message, 4500); return; }
+      try { window.alert(message); } catch (e) { console.warn(message); }
+    };
 
     // 습관 기록 읽기 (0 미기록 · 1 ⚡ 2분 실행 · 2 ✔ 완수) — 습관 대시보드와 같은 규칙
     const habitLogState = (habit, key) => {
@@ -3316,9 +3228,9 @@
         });
       };
       // 칸 연결만 풀기 (기둥 연결은 유지)
-      const unlinkHabitFromCell = (habit) => {
+      const unlinkHabitFromCell = async (habit) => {
         if (!bridge) return;
-        if (!confirm(`'${habit.name}' 습관과 이 칸의 연결을 풀까요?\n습관과 기록은 그대로 남고, 기둥 연결도 유지됩니다.`)) return;
+        if (!await uiConfirm(`'${habit.name}' 습관과 이 칸의 연결을 풀까요?\n습관과 기록은 그대로 남고, 기둥 연결도 유지됩니다.`, "연결 풀기")) return;
         bridge.linkHabit(habit.id, { pillarIdx: habit.pillarIdx, pillarName: habit.pillarName });
       };
 
@@ -3373,11 +3285,11 @@
         setActiveTrackId(track.id);
       };
 
-      const deleteTrack = (track) => {
+      const deleteTrack = async (track) => {
         const pending = MONTH_KEYS.filter(k => track[k].title.trim() && track[k].status !== "done");
         const msg = `'${track.name}' 목표를 삭제할까요?` +
           (pending.length ? `\n진행 중인 프로젝트 ${pending.length}개는 메아리 보관함으로 옮겨 둘게요.` : "");
-        if (!confirm(msg)) return;
+        if (!await uiConfirm(msg, "삭제", true)) return;
         setData(prev => {
           const rest = prev.echoTriangle.tracks.filter(t => t.id !== track.id);
           const moved = pending.map((k, i) => ({
@@ -3410,30 +3322,30 @@
       };
 
       // 덮어쓰기 전 확인 (기존 내용은 보관함으로 이동)
-      const confirmOverwrite = (trackId, monthKey) => {
+      const confirmOverwrite = async (trackId, monthKey) => {
         const track = findTrack(data.echoTriangle, trackId);
         const cur = track[monthKey];
         return !cur.title.trim() ||
-          confirm(`'${track.name}'의 ${MONTH_LABEL[monthKey]}에 이미 "${cur.title}"이(가) 있어요.\n기존 내용은 메아리 보관함으로 옮기고 교체할까요?`);
+          await uiConfirm(`'${track.name}'의 ${MONTH_LABEL[monthKey]}에 이미 "${cur.title}"이(가) 있어요.\n기존 내용은 메아리 보관함으로 옮기고 교체할까요?`, "교체");
       };
 
       // 만다라트 행동 칸 → 에코 트라이앵글의 (선택한 목표의) 특정 달로 보내기
-      const sendActionToMonth = (monthKey) => {
+      const sendActionToMonth = async (monthKey) => {
         if (!editingCell) return;
         const cell = editingCell;
         const text = cell.value.trim();
         if (!text) return;
         const trackId = activeTrack.id;
-        if (!confirmOverwrite(trackId, monthKey)) return;
+        if (!await confirmOverwrite(trackId, monthKey)) return;
         setData(prev => placeInMonth(applyCellEdit(prev, cell), trackId, monthKey, text));
         setEditingCell(null);
       };
 
       // 에코 트라이앵글 실패 -> 다음 분기 메아리 보관함으로 이동
-      const sendToEchoBox = (track, monthKey) => {
+      const sendToEchoBox = async (track, monthKey) => {
         const target = track[monthKey];
         if (!target || !target.title.trim()) return;
-        if (!confirm(`"${target.title}"을(를) 메아리 보관함으로 보낼까요?\n보관함에서 언제든 다시 불러올 수 있어요.`)) return;
+        if (!await uiConfirm(`"${target.title}"을(를) 메아리 보관함으로 보낼까요?\n보관함에서 언제든 다시 불러올 수 있어요.`, "보내기")) return;
         setData(prev => ({
           ...mapTrack(prev, track.id, t => ({ ...t, [monthKey]: { ...t[monthKey], title: "", status: "active" } })),
           echoBox: [
@@ -3444,16 +3356,16 @@
       };
 
       // 메아리 보관함에서 지금 보고 있는 목표의 특정 달로 다시 불러오기 (기존 내용은 보관함과 맞교환)
-      const restoreFromEchoBox = (item, monthKey) => {
+      const restoreFromEchoBox = async (item, monthKey) => {
         const trackId = activeTrack.id;
-        if (!confirmOverwrite(trackId, monthKey)) return;
+        if (!await confirmOverwrite(trackId, monthKey)) return;
         setData(prev =>
           placeInMonth({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }, trackId, monthKey, item.text)
         );
       };
 
-      const deleteFromEchoBox = (item) => {
-        if (!confirm(`"${item.text}"을(를) 보관함에서 삭제할까요?`)) return;
+      const deleteFromEchoBox = async (item) => {
+        if (!await uiConfirm(`"${item.text}"을(를) 보관함에서 삭제할까요?`, "삭제", true)) return;
         setData(prev => ({ ...prev, echoBox: prev.echoBox.filter(e => e.id !== item.id) }));
       };
 
@@ -3466,10 +3378,10 @@
       };
 
       // 다음 분기로 넘기기: 모든 목표의 미완료 → 보관함, 마감일 재설정 (목표 이름·빅 에코는 유지)
-      const rollToNextQuarter = () => {
+      const rollToNextQuarter = async () => {
         const match = data.echoTriangle.quarter.match(/(\d{4})\s*Q([1-4])/i);
         if (!match) {
-          alert("분기를 '2026 Q4' 형식으로 입력해야 자동으로 넘길 수 있어요.");
+          uiAlert("분기를 '2026 Q4' 형식으로 입력해야 자동으로 넘길 수 있어요.");
           return;
         }
         let year = Number(match[1]);
@@ -3479,12 +3391,13 @@
         const pendingCount = tracks.reduce(
           (n, t) => n + MONTH_KEYS.filter(k => t[k].title.trim() && t[k].status !== "done").length, 0);
 
-        if (!confirm(
+        if (!await uiConfirm(
           `${nextQuarter}로 넘어갈까요?\n\n` +
           `• 목표 ${tracks.length}개의 미완료 프로젝트 ${pendingCount}개는 메아리 보관함으로 이동\n` +
           `• 완료한 프로젝트는 정리 (목표 이름·빅 에코는 그대로)\n` +
           `• 목표별 달성 수와 회고 3줄은 📚 회고 기록에 저장\n` +
-          `• 1~3달차 마감일을 ${nextQuarter}의 각 월 말일로 재설정`
+          `• 1~3달차 마감일을 ${nextQuarter}의 각 월 말일로 재설정`,
+          "다음 분기로"
         )) return;
 
         const ends = quarterMonthEnds(nextQuarter);
@@ -3552,38 +3465,71 @@
         return n;
       };
 
-      // JSON 백업 내보내기
-      const exportJSON = () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-        downloadBlob(blob, `mandalart_backup_${dayKey(new Date())}.json`);
+      // 💾 전체 백업: 만다라트·에코 트라이앵글 + 습관 기록(인증 사진 포함)을 한 파일로
+      const [backingUp, setBackingUp] = useState(false);
+      const exportJSON = async () => {
+        if (backingUp) return;
+        setBackingUp(true);
+        try {
+          let habitPart = null;
+          try { habitPart = bridge ? await bridge.exportBackup() : null; } catch (err) { console.warn("습관 백업 실패", err); }
+          const payload = { app: "life-dashboard", version: 1, exportedAt: new Date().toISOString(), mandalart: data, habits: habitPart };
+          downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), `라이프대시보드_백업_${dayKey(new Date())}.json`);
+          uiAlert(habitPart ? "💾 만다라트와 습관 기록을 한 파일로 백업했어요." : "💾 만다라트를 백업했어요. (습관 기록은 담지 못했어요)");
+        } finally {
+          setBackingUp(false);
+        }
       };
 
-      // JSON 복원 가져오기
+      // 📂 복원: 전체 백업 파일 · 예전 만다라트 백업 · 예전 습관 백업을 모두 받음
       const importJSON = (e) => {
         const file = e.target.files[0];
         e.target.value = ""; // 같은 파일을 다시 골라도 동작하도록 초기화
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
+          let parsed;
           try {
-            const parsed = JSON.parse(event.target.result);
-            if (!parsed || typeof parsed.coreGoal !== "string" || !Array.isArray(parsed.pillars)) {
-              alert("만다라트 백업 파일 형식이 아닙니다.");
-              return;
-            }
-            if (!confirm("현재 작성 중인 내용을 백업 파일 내용으로 바꿀까요?")) return;
-            setData(normalizeData(parsed));
-            alert("데이터가 성공적으로 복원되었습니다!");
+            parsed = JSON.parse(event.target.result);
           } catch (err) {
-            alert("올바른 JSON 백업 파일이 아닙니다.");
+            uiAlert("올바른 JSON 백업 파일이 아닙니다.");
+            return;
           }
+          const isAll = parsed && parsed.app === "life-dashboard";
+          const isMandalart = !!parsed && typeof parsed.coreGoal === "string" && Array.isArray(parsed.pillars);
+          const isHabit = !isAll && !isMandalart && (Array.isArray(parsed) || (parsed && Array.isArray(parsed.habits)));
+          const mandalartPart = isAll ? parsed.mandalart : isMandalart ? parsed : null;
+          const habitPart = isAll ? parsed.habits : isHabit ? parsed : null;
+          if (!mandalartPart && !habitPart) {
+            uiAlert("대시보드 백업 파일 형식이 아닙니다.");
+            return;
+          }
+          const what = [mandalartPart && "만다라트·에코 트라이앵글", habitPart && "습관 기록"].filter(Boolean).join("과 ");
+          // 받침에 따라 '로/으로' (받침 없음·ㄹ 받침 → 로)
+          const code = what.charCodeAt(what.length - 1) - 0xac00;
+          const jong = code >= 0 && code <= 11171 ? code % 28 : 0;
+          const whatRo = what + (jong === 0 || jong === 8 ? "로" : "으로");
+          if (!await uiConfirm(`백업 파일의 ${whatRo} 지금 내용을 바꿀까요?\n지금 내용은 백업 내용으로 덮어써져요.`, "복원", true)) return;
+          if (mandalartPart) setData(normalizeData(mandalartPart));
+          let habitOk = true;
+          if (habitPart && bridge) habitOk = await bridge.importBackup(habitPart);
+          uiAlert(habitOk ? `📂 ${what}을 복원했어요.` : "만다라트는 복원했지만 습관 기록은 형식이 맞지 않아 불러오지 못했어요.");
         };
         reader.readAsText(file);
       };
+      // 습관 화면 빈 상태의 '백업 파일 불러오기'도 같은 복원으로
+      useEffect(() => {
+        const open = () => fileInputRef.current && fileInputRef.current.click();
+        window.addEventListener("life-dashboard:open-restore", open);
+        return () => window.removeEventListener("life-dashboard:open-restore", open);
+      }, []);
+
+      // ⚙️ 관리 메뉴 (자주 쓰지 않고 실수하면 위험한 동작을 모아 둠)
+      const [manageOpen, setManageOpen] = useState(false);
 
       // 초기 샘플로 리셋
-      const resetData = () => {
-        if (confirm("작성 중인 내용을 초기 예시 상태로 되돌리시겠습니까?\n(필요하면 먼저 '백업'으로 저장해 두세요)")) {
+      const resetData = async () => {
+        if (await uiConfirm("작성 중인 내용을 초기 예시 상태로 되돌리시겠습니까?\n(필요하면 먼저 '백업'으로 저장해 두세요)", "초기화", true)) {
           setData(clone(INITIAL_DATA));
         }
       };
@@ -3592,7 +3538,7 @@
       const downloadWallpaper = async () => {
         const el = wallpaperRef.current;
         if (!el || !window.html2canvas) {
-          alert("이미지 저장 기능을 불러오지 못했어요. 화면을 캡처해서 사용해 주세요.");
+          uiAlert("이미지 저장 기능을 불러오지 못했어요. 화면을 캡처해서 사용해 주세요.");
           return;
         }
         setSavingWallpaper(true);
@@ -3617,7 +3563,7 @@
           );
         } catch (err) {
           console.error(err);
-          alert("이미지 저장에 실패했어요. 화면을 캡처해서 사용해 주세요.");
+          uiAlert("이미지 저장에 실패했어요. 화면을 캡처해서 사용해 주세요.");
         } finally {
           setSavingWallpaper(false);
         }
@@ -3656,6 +3602,16 @@
                     </span>
                   )}
                 </span>
+                {aiReady && filledCount < 8 && (
+                  <button
+                    onClick={() => aiFillPillar(pillarIdx)}
+                    disabled={!!aiBusy}
+                    className="ml-auto mr-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold hover:bg-indigo-100 disabled:opacity-50 shrink-0"
+                    title="AI가 빈칸에 들어갈 행동을 추천해요"
+                  >
+                    {aiBusy === `pillar-${pillarIdx}` ? "🪄 …" : "🪄 추천"}
+                  </button>
+                )}
                 {is60PercentReady ? (
                   <span className="bg-amber-500 text-white px-1.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5">
                     ✨ 충분함 ({filledCount}/8)
@@ -3797,6 +3753,408 @@
       const guide = editingCell ? GUIDES[editingCell.type] : null;
       const onHabits = activeTab === "habits";
 
+      // ---------- AI 코치 (Gemini · Supabase Edge Function 'ai-coach'을 거쳐 호출, API 키는 서버에만 있음) ----------
+      const [aiBusy, setAiBusy] = useState("");     // 진행 중인 AI 작업
+      const [aiNote, setAiNote] = useState(null);   // { kind: 'ok' | 'error', text }
+      const [aiCoach, setAiCoach] = useState(null); // 주간 코칭 결과
+      const aiReady = hb.mode === "cloud" && !!getSb();
+      const SCHEDULE_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+      const scheduleText = (s) =>
+        !s || s.type === "daily" ? "매일" : s.type === "weekly" ? `주 ${s.count}회` : (s.days || []).map(d => SCHEDULE_DAYS[d]).join("·");
+      const usageText = (res) => (res && res.used ? ` (오늘 AI ${res.used}/${res.limit}회)` : "");
+
+      const askAI = async (task, payload) => {
+        if (!aiReady) throw new Error("AI 코치는 로그인한 상태에서 쓸 수 있어요. ⚡ 습관 시스템 탭에서 로그인해 주세요.");
+        const { data: res, error } = await getSb().functions.invoke("ai-coach", { body: { task, payload } });
+        if (error) {
+          let msg = error.message || "AI 호출에 실패했어요.";
+          try {
+            const ctx = error.context;
+            if (ctx && typeof ctx.json === "function") {
+              const b = await ctx.json();
+              if (b && b.error) msg = b.error;
+            }
+          } catch (e) {}
+          throw new Error(msg);
+        }
+        if (!res || !res.result) throw new Error((res && res.error) || "AI 응답이 비어 있어요.");
+        return res;
+      };
+      const runAI = async (name, fn) => {
+        if (aiBusy) return;
+        setAiBusy(name);
+        setAiNote(null);
+        try {
+          await fn();
+        } catch (err) {
+          setAiNote({ kind: "error", text: (err && err.message) || String(err) });
+        } finally {
+          setAiBusy("");
+        }
+      };
+
+      // 🪄 에코 트라이앵글: 선택한 목표의 빅 에코 + 1~3달차를 AI가 채움 (기존 내용은 메아리 보관함으로)
+      // 목표 설명은 화면의 입력칸에서 받음 (브라우저 입력 팝업은 쓰지 않음)
+      const [aiGoalText, setAiGoalText] = useState("");
+      const aiEchoPlan = () => runAI("echo", async () => {
+        const track = activeTrack;
+        const goal = (aiGoalText.trim() || track.bigGoal.trim() || track.name.trim());
+        if (!goal) throw new Error("어떤 목표를 3개월 동안 키우고 싶은지 입력칸에 적어 주세요.");
+        const filled = MONTH_KEYS.filter(k => track[k].title.trim());
+        if (filled.length && !await uiConfirm(`'${track.name}'의 1~3달차에 이미 내용이 ${filled.length}개 있어요.\n기존 내용은 메아리 보관함으로 옮기고 AI 계획으로 채울까요?`, "AI 계획으로 채우기")) return;
+        const res = await askAI("echo_plan", {
+          goal: goal.trim(),
+          today: dayKey(new Date()),
+          quarter: data.echoTriangle.quarter,
+          monthEnds: MONTH_KEYS.map(k => track[k].deadline),
+          pillar: Number.isInteger(track.pillarIdx) ? data.pillars[track.pillarIdx] : null,
+          coreGoal: data.coreGoal
+        });
+        const plan = res.result || {};
+        const months = Array.isArray(plan.months) ? plan.months.slice(0, 3) : [];
+        if (months.length < 3) throw new Error("AI가 3단계를 다 만들지 못했어요. 다시 시도해 주세요.");
+        setData(prev => {
+          const cur = findTrack(prev.echoTriangle, track.id);
+          const moved = MONTH_KEYS.filter(k => cur[k].title.trim()).map((k, i) => ({
+            id: Date.now() + i, text: cur[k].title, fromQuarter: prev.echoTriangle.quarter, trackName: cur.name
+          }));
+          return {
+            ...mapTrack(prev, track.id, t => {
+              const next = { ...t, bigGoal: str(plan.bigGoal).trim() || t.bigGoal };
+              MONTH_KEYS.forEach((k, i) => {
+                const m = months[i] || {};
+                const title = [
+                  str(m.title).trim(),
+                  str(m.criteria).trim() ? `기준: ${str(m.criteria).trim()}` : "",
+                  str(m.habitTarget).trim() ? `습관 목표 ${str(m.habitTarget).trim()}` : ""
+                ].filter(Boolean).join(" · ");
+                next[k] = { ...t[k], title, status: "active" };
+              });
+              return next;
+            }),
+            echoBox: [...moved, ...prev.echoBox]
+          };
+        });
+        setAiGoalText("");
+        setAiNote({ kind: "ok", text: `🪄 '${track.name}' 3단계를 채웠어요. 마음에 안 드는 부분은 바로 고쳐 쓰세요.${plan.tip ? ` 💡 ${plan.tip}` : ""}${usageText(res)}` });
+      });
+
+      // 🪄 만다라트: 한 기둥의 빈칸을 AI 추천 행동으로 채움 (이미 적은 칸은 그대로)
+      const aiFillPillar = (pIdx) => runAI(`pillar-${pIdx}`, async () => {
+        const pillarName = data.pillars[pIdx] || `기둥 ${pIdx + 1}`;
+        const actions = data.actions[pIdx] || [];
+        const empty = actions.map((t, i) => (t && t.trim() ? -1 : i)).filter(i => i >= 0);
+        if (!empty.length) return;
+        if (!await uiConfirm(`'${pillarName}'의 빈칸 ${empty.length}개를 AI 추천으로 채울까요?\n마음에 안 들면 칸을 눌러 고치거나 비우면 돼요.`, "추천받기")) return;
+        const res = await askAI("mandalart_actions", {
+          coreGoal: data.coreGoal,
+          pillar: pillarName,
+          existing: actions.filter(t => t && t.trim()),
+          count: empty.length
+        });
+        const list = (Array.isArray(res.result.actions) ? res.result.actions : [])
+          .map(s => str(s).trim().slice(0, 40))
+          .filter(Boolean);
+        if (!list.length) throw new Error("추천을 받지 못했어요. 다시 시도해 주세요.");
+        setData(prev => {
+          const block = [...(prev.actions[pIdx] || Array(8).fill(""))];
+          let j = 0;
+          for (let i = 0; i < 8 && j < list.length; i++) if (!str(block[i]).trim()) block[i] = list[j++];
+          return { ...prev, actions: { ...prev.actions, [pIdx]: block } };
+        });
+        setAiNote({ kind: "ok", text: `🧩 '${pillarName}'에 행동 ${Math.min(list.length, empty.length)}개를 채웠어요.${usageText(res)}` });
+      });
+
+      // 🤖 주간 코칭: 최근 14일 습관 기록 + 에코 트라이앵글 + 행동 체크를 보고 코칭
+      const aiWeekly = () => runAI("weekly", async () => {
+        const keys = Array.from({ length: 14 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (13 - i));
+          return dayKey(d);
+        });
+        const payload = {
+          today: dayKey(new Date()),
+          coreGoal: data.coreGoal,
+          pillars: data.pillars,
+          habits: habits.slice(0, 30).map(h => ({
+            name: h.name,
+            identity: h.identity,
+            twoMinRule: h.twoMinRule,
+            pillar: Number.isInteger(h.pillarIdx) ? data.pillars[h.pillarIdx] : null,
+            frequency: scheduleText(h.schedule),
+            unit: h.unit || null,
+            target: h.target || null,
+            last14: keys.map(k => {
+              const s = habitLogState(h, k);
+              const v = h.values && h.values[k];
+              return s || v ? { date: k, state: s === 2 ? "완수" : s === 1 ? "2분 실행" : "-", ...(v ? { value: v } : {}) } : null;
+            }).filter(Boolean),
+            recentStreakDays: habitStreak(h)
+          })),
+          echo: {
+            quarter: data.echoTriangle.quarter,
+            goals: tracks.map(t => ({
+              name: t.name,
+              bigGoal: t.bigGoal,
+              months: MONTH_KEYS.map(k => ({ title: t[k].title, status: t[k].status === "done" ? "완료" : "진행 중", deadline: t[k].deadline }))
+            }))
+          },
+          actionChecksLast7Days: keys.slice(7).reduce((s, k) => s + doneOn(k), 0),
+          checkableActions: totalTrack
+        };
+        const res = await askAI("weekly_review", payload);
+        setAiCoach({ ...res.result, at: dayKey(new Date()), usage: usageText(res) });
+      });
+
+      // 코칭의 회고 초안을 선택한 목표의 회고 칸에 넣기 (이미 적은 내용 뒤에 덧붙임)
+      const applyCoachDraft = () => {
+        const draft = aiCoach && aiCoach.reviewDraft;
+        if (!draft) return;
+        updateTrack(activeTrack.id, t => {
+          const review = { ...(t.review || EMPTY_REVIEW) };
+          REVIEW_FIELDS.forEach(f => {
+            const add = str(draft[f.key]).trim();
+            if (add) review[f.key] = review[f.key].trim() ? `${review[f.key].trim()}\n${add}` : add;
+          });
+          return { ...t, review };
+        });
+        setAiNote({ kind: "ok", text: `📓 '${activeTrack.name}' 회고 칸에 초안을 넣었어요. 내 말로 다듬어 주세요.` });
+      };
+
+      // ---------- 습관 빈도 계산 (습관 화면과 같은 규칙) ----------
+      const dayIdxOfKey = (key) => (new Date(...key.split("-").map((n, i) => (i === 1 ? Number(n) - 1 : Number(n)))).getDay() + 6) % 7;
+      const isScheduledR = (h, key) => !h.schedule || h.schedule.type !== "days" || (h.schedule.days || []).includes(dayIdxOfKey(key));
+      const weekDoneR = (h, key) => {
+        const d = new Date(...key.split("-").map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))));
+        d.setDate(d.getDate() - dayIdxOfKey(key));
+        let n = 0;
+        for (let i = 0; i < 7; i++) {
+          if (habitLogState(h, dayKey(d)) > 0) n++;
+          d.setDate(d.getDate() + 1);
+        }
+        return n;
+      };
+      const isDueTodayR = (h, key) =>
+        h.schedule && h.schedule.type === "weekly"
+          ? weekDoneR(h, key) < h.schedule.count || habitLogState(h, key) > 0
+          : isScheduledR(h, key);
+
+      // ---------- 💬 한 줄로 기록하기 ----------
+      const [quickOpen, setQuickOpen] = useState(false);
+      const [quickText, setQuickText] = useState("");
+      const aiQuickLog = () => runAI("quick", async () => {
+        const text = quickText.trim();
+        if (!text) throw new Error("오늘 한 일을 한 줄로 적어 주세요. 예: 러닝 35분, 책 10쪽, 물 5잔");
+        const today = dayKey(new Date());
+        const res = await askAI("quick_log", {
+          text,
+          today,
+          habits: habits.slice(0, 40).map(h => ({ id: h.id, name: h.name, unit: h.unit || null, target: h.target || null, twoMinRule: h.twoMinRule })),
+          actions: localKeys.slice(0, 64).map(k => {
+            const [p, a] = k.split("-").map(Number);
+            return { ref: k, text: data.actions[p][a] };
+          })
+        });
+        const out = res.result || {};
+        const labels = [];
+        const undoOps = [];
+        const seen = new Set();
+        (Array.isArray(out.entries) ? out.entries : []).forEach(e => {
+          const h = habits.find(x => x.id === e.habitId);
+          if (!h || seen.has(h.id)) return;
+          seen.add(h.id);
+          const prev = { state: habitLogState(h, today), value: (h.values && h.values[today]) || 0 };
+          const v = Number(e.value);
+          if (h.unit && isFinite(v) && v > 0) {
+            if (!bridge.setValue(h.id, today, v)) return;
+            labels.push(`${h.name} ${fmtVotes(v)}${h.unit}`);
+          } else {
+            const st = String(e.state || "").includes("2분") ? 1 : 2;
+            if (!bridge.setLogState(h.id, today, st)) return;
+            labels.push(`${h.name} ${st === 2 ? "✔" : "⚡"}`);
+          }
+          undoOps.push(() => bridge.restoreRecord(h.id, today, prev));
+        });
+        const refs = [...new Set(Array.isArray(out.actionRefs) ? out.actionRefs : [])].filter(r => localKeys.includes(r));
+        const prevDay = data.dailyChecks[today] ? { ...data.dailyChecks[today] } : null;
+        if (refs.length) {
+          setData(prev => {
+            const day = { ...(prev.dailyChecks[today] || {}) };
+            refs.forEach(r => { day[r] = true; });
+            return { ...prev, dailyChecks: { ...prev.dailyChecks, [today]: day } };
+          });
+          refs.forEach(r => {
+            const [p, a] = r.split("-").map(Number);
+            labels.push(`☑️ ${data.actions[p][a]}`);
+          });
+        }
+        const unmatched = (Array.isArray(out.unmatched) ? out.unmatched : []).map(s => str(s).trim()).filter(Boolean);
+        if (!labels.length) {
+          throw new Error(`기록할 습관이나 행동을 찾지 못했어요.${unmatched.length ? ` (못 찾은 것: ${unmatched.join(", ")})` : ""} 습관 이름에 가까운 말로 적어 보세요.`);
+        }
+        setQuickText("");
+        setAiNote({
+          kind: "ok",
+          text: `💬 기록했어요: ${labels.join(" · ")}${unmatched.length ? ` | 못 찾은 것: ${unmatched.join(", ")}` : ""}${out.note ? ` | ${str(out.note)}` : ""}${usageText(res)}`,
+          undo: () => {
+            undoOps.forEach(fn => fn());
+            if (refs.length) {
+              setData(prev => {
+                const dailyChecks = { ...prev.dailyChecks };
+                if (prevDay && Object.keys(prevDay).length) dailyChecks[today] = prevDay;
+                else delete dailyChecks[today];
+                return { ...prev, dailyChecks };
+              });
+            }
+            setAiNote({ kind: "ok", text: "↩ 방금 한 줄 기록을 되돌렸어요." });
+          }
+        });
+      });
+
+      // ---------- 🌅 아침 브리핑 + 확언 ----------
+      const aiMorning = () => runAI("brief", async () => {
+        const now = new Date();
+        const today = dayKey(now);
+        const yesterday = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+        const due = habits.filter(h => isDueTodayR(h, today));
+        const res = await askAI("morning_brief", {
+          today,
+          weekday: SCHEDULE_DAYS[dayIdxOfKey(today)],
+          coreGoal: data.coreGoal,
+          pillars: data.pillars,
+          identities: [...new Set(habits.map(h => h.identity).filter(Boolean))].slice(0, 10),
+          myAffirmation: data.myAffirmation || null,
+          dueHabits: due.slice(0, 15).map(h => ({
+            name: h.name,
+            twoMinRule: h.twoMinRule,
+            cue: h.cue || null,
+            frequency: scheduleText(h.schedule),
+            weekProgress: h.schedule && h.schedule.type === "weekly" ? `${weekDoneR(h, today)}/${h.schedule.count}` : null,
+            missedYesterday: isScheduledR(h, yesterday) && habitLogState(h, yesterday) === 0,
+            doneToday: habitLogState(h, today) > 0,
+            target: h.target ? `${h.target}${h.unit || ""}` : null
+          })),
+          echoCurrent: tracks.map(t => {
+            const k = MONTH_KEYS.find(mk => t[mk].title.trim() && t[mk].status !== "done");
+            return k ? { goal: t.name, step: t[k].title, daysLeft: getDaysLeft(t[k].deadline) } : null;
+          }).filter(Boolean),
+          recentAffirmations: data.brief ? data.brief.affirmations : []
+        });
+        const out = res.result || {};
+        const list = (v, max) => (Array.isArray(v) ? v.map(x => str(x).trim()).filter(Boolean).slice(0, max) : []);
+        setData(prev => ({
+          ...prev,
+          brief: {
+            date: today,
+            plan: str(out.plan).trim(),
+            focus: list(out.focus, 3),
+            affirmations: list(out.affirmations, 3),
+            coreAffirmation: str(out.coreAffirmation).trim()
+          }
+        }));
+        setAiNote({ kind: "ok", text: `🌅 오늘의 브리핑이 준비됐어요. 확언은 배경화면 카드에도 들어가요.${usageText(res)}` });
+      });
+      const pinAffirmation = (text) => {
+        setData(prev => ({ ...prev, myAffirmation: text }));
+        setAiNote({ kind: "ok", text: `📌 '${text}'을(를) 내 확언으로 고정했어요. 배경화면 카드에 항상 보여요.` });
+      };
+      const toggleAffirmationRead = () => {
+        const today = dayKey(new Date());
+        setData(prev => {
+          const log = { ...(prev.affirmationLog || {}) };
+          if (log[today]) delete log[today]; else log[today] = true;
+          return { ...prev, affirmationLog: log };
+        });
+      };
+      const affirmationStreak = (() => {
+        const log = data.affirmationLog || {};
+        const d = new Date();
+        if (!log[dayKey(d)]) d.setDate(d.getDate() - 1);
+        let n = 0;
+        while (log[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+        return n;
+      })();
+      const todayBrief = data.brief && data.brief.date === dayKey(new Date()) ? data.brief : null;
+      // 배경화면 확언: 고정한 내 확언 → 오늘 브리핑의 대표 확언 → 기본 문구
+      const wallpaperAffirmation = data.myAffirmation || (todayBrief && todayBrief.coreAffirmation) || "";
+
+      // ---------- 📏 월말 판정 도우미 ----------
+      const [aiJudge, setAiJudge] = useState(null);
+      const aiMonthJudge = () => runAI("judge", async () => {
+        const track = activeTrack;
+        const k = MONTH_KEYS.find(mk => track[mk].title.trim() && track[mk].status !== "done");
+        if (!k) throw new Error("판정할 진행 중 단계가 없어요. 1~3달차에 프로젝트를 먼저 적어 주세요.");
+        const step = track[k];
+        const today = dayKey(new Date());
+        const end = DATE_RE.test(step.deadline) ? step.deadline : today;
+        const [ey, em] = end.split("-").map(Number);
+        const start = dayKey(new Date(ey, em - 1, 1));
+        const until = end < today ? end : today;
+        const keys = [];
+        for (const d = new Date(ey, em - 1, 1); dayKey(d) <= until && keys.length < 62; d.setDate(d.getDate() + 1)) keys.push(dayKey(d));
+        const related = (Number.isInteger(track.pillarIdx) ? habits.filter(h => h.pillarIdx === track.pillarIdx) : habits).slice(0, 12);
+        const res = await askAI("month_judge", {
+          today,
+          goal: { name: track.name, bigGoal: track.bigGoal },
+          step: { month: MONTH_KEYS.indexOf(k) + 1, title: step.title, deadline: step.deadline, daysLeft: getDaysLeft(step.deadline) },
+          period: { start, until, days: keys.length },
+          habits: related.map(h => {
+            const vals = keys.map(key => (h.values && h.values[key]) || 0).filter(v => v > 0);
+            const sum = vals.reduce((a, b) => a + b, 0);
+            return {
+              id: h.id,
+              name: h.name,
+              frequency: scheduleText(h.schedule),
+              unit: h.unit || null,
+              target: h.target || null,
+              full: keys.filter(key => habitLogState(h, key) === 2).length,
+              min: keys.filter(key => habitLogState(h, key) === 1).length,
+              valueSum: vals.length ? Math.round(sum * 100) / 100 : null,
+              valueAvg: vals.length ? Math.round((sum / vals.length) * 100) / 100 : null,
+              valueMax: vals.length ? Math.max(...vals) : null
+            };
+          })
+        });
+        const out = res.result || {};
+        const targets = (Array.isArray(out.habitTargets) ? out.habitTargets : [])
+          .map(t => ({ habit: habits.find(h => h.id === t.habitId), newTarget: Number(t.newTarget), why: str(t.why) }))
+          .filter(t => t.habit && t.habit.unit && isFinite(t.newTarget) && t.newTarget > 0);
+        setAiJudge({
+          trackId: track.id,
+          monthKey: k,
+          stepTitle: step.title,
+          verdict: str(out.verdict).trim(),
+          reason: str(out.reason),
+          nextStepAdvice: str(out.nextStepAdvice),
+          targets,
+          usage: usageText(res)
+        });
+      });
+      // 같은 단계를 다음 달에 다시 도전 (3달차면 메아리 보관함으로)
+      const retryNextMonth = async (trackId, k) => {
+        const track = findTrack(data.echoTriangle, trackId);
+        const idx = MONTH_KEYS.indexOf(k);
+        if (idx === 2) { await sendToEchoBox(track, k); setAiJudge(null); return; }
+        const nk = MONTH_KEYS[idx + 1];
+        const title = track[k].title;
+        if (!await uiConfirm(`'${title}'을(를) ${MONTH_LABEL[nk]}에서 다시 도전할까요?\n${MONTH_LABEL[nk]}에 있던 내용은 메아리 보관함으로 옮겨져요.`, "다시 도전")) return;
+        setData(prev => mapTrack(placeInMonth(prev, trackId, nk, title), trackId, t => ({ ...t, [k]: { ...t[k], title: "", status: "active" } })));
+        setAiJudge(null);
+        setAiNote({ kind: "ok", text: `🔄 '${title}'을(를) ${MONTH_LABEL[nk]}로 옮겨 다시 도전해요. 단계를 무리하게 올리지 않는 게 핵심이에요.` });
+      };
+      const completeStep = (trackId, k) => {
+        const track = findTrack(data.echoTriangle, trackId);
+        if (track[k].status !== "done") toggleMonthDone(trackId, k);
+        setAiJudge(j => (j ? { ...j, completed: true } : j));
+        setAiNote({ kind: "ok", text: `✅ ${MONTH_LABEL[k]} 단계를 완료로 표시했어요. 다음 단계로 넘어가요!` });
+      };
+      const applyJudgeTarget = (t) => {
+        if (bridge && bridge.setTarget(t.habit.id, t.newTarget)) {
+          setAiJudge(j => (j ? { ...j, targets: j.targets.map(x => (x.habit.id === t.habit.id ? { ...x, applied: true } : x)) } : j));
+          setAiNote({ kind: "ok", text: `📏 '${t.habit.name}' 목표값을 ${fmtVotes(t.newTarget)}${t.habit.unit}로 바꿨어요.` });
+        }
+      };
+
       // 로그인·저장 상태 표시 (습관과 만다라트가 같은 계정을 씀)
       const pillBase = "px-2.5 py-1.5 font-bold text-xs rounded-lg border whitespace-nowrap";
       const statusPill = (() => {
@@ -3865,6 +4223,16 @@
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {statusPill}
+                  <button
+                    onClick={() => setQuickOpen(o => !o)}
+                    aria-expanded={quickOpen}
+                    className={`px-2.5 py-1.5 font-bold text-xs rounded-lg border whitespace-nowrap ${
+                      quickOpen ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
+                    }`}
+                    title="오늘 한 일을 한 줄로 적으면 AI가 습관·행동에 기록해요"
+                  >
+                    💬 <span className="hidden sm:inline">한 줄 </span>기록
+                  </button>
                   {!onHabits && (
                     <button
                       onClick={() => setShowWallpaperModal(true)}
@@ -3894,17 +4262,88 @@
                   ))}
                 </nav>
 
-                {/* 만다라트 백업/복원/초기화 (습관 화면은 자체 버튼 사용) */}
-                {!onHabits && (
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
-                    <button onClick={exportJSON} className={utilBtn} title="만다라트·에코 트라이앵글을 JSON 파일로 백업">💾 만다라트 백업</button>
-                    <button onClick={() => fileInputRef.current?.click()} className={utilBtn} title="만다라트 JSON 백업 파일에서 복원">📂 복원</button>
-                    <button onClick={resetData} className="px-2 py-1.5 text-stone-500 hover:text-stone-800 text-xs" title="만다라트를 예시 데이터로 초기화">초기화</button>
-                  </div>
-                )}
+                {/* 백업·복원은 하나로 (모든 탭 공통) + 위험한 동작은 ⚙️ 관리 메뉴 안에 */}
+                <div className="relative flex flex-wrap items-center justify-end gap-1.5">
+                  <button onClick={exportJSON} disabled={backingUp} className={`${utilBtn} disabled:opacity-50`} title="만다라트·에코 트라이앵글·습관 기록(인증 사진 포함)을 한 파일로 백업">
+                    {backingUp ? "💾 백업 중…" : "💾 전체 백업"}
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()} className={utilBtn} title="전체 백업 파일(또는 예전 만다라트·습관 백업)에서 복원">📂 복원</button>
+                  <button
+                    onClick={() => setManageOpen(o => !o)}
+                    aria-expanded={manageOpen}
+                    className="px-2 py-1.5 text-stone-500 hover:text-stone-800 text-xs whitespace-nowrap"
+                    title="초기화·샘플 같은 관리 기능"
+                  >
+                    ⚙️ 관리 {manageOpen ? "▴" : "▾"}
+                  </button>
+                  {manageOpen && (
+                    <div className="absolute right-0 top-full mt-1 z-40 w-64 bg-white rounded-xl border-2 border-stone-800 shadow-lg p-2 space-y-1 text-xs">
+                      <p className="px-2 py-1 text-[11px] text-stone-500">자주 쓰지 않는 기능이에요. 누르기 전에 💾 전체 백업을 권해요.</p>
+                      {[
+                        { label: "🧩 만다라트를 예시 내용으로 초기화", run: resetData },
+                        { label: "⚡ 습관: 이번 주 기록·사진 지우기", run: () => bridge && bridge.resetWeek() },
+                        { label: "⚡ 습관: 샘플 습관으로 바꾸기", run: () => bridge && bridge.loadSample() }
+                      ].map(item => (
+                        <button
+                          key={item.label}
+                          onClick={() => { setManageOpen(false); item.run(); }}
+                          className="w-full text-left px-2 py-1.5 rounded-lg text-rose-700 hover:bg-rose-50 font-semibold"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* 💬 한 줄로 기록하기 */}
+              {quickOpen && (
+                <form
+                  className="flex flex-col sm:flex-row gap-2 p-2 rounded-xl bg-indigo-50 border border-indigo-200"
+                  onSubmit={(e) => { e.preventDefault(); aiQuickLog(); }}
+                >
+                  <input
+                    type="text"
+                    value={quickText}
+                    onChange={(e) => setQuickText(e.target.value)}
+                    autoFocus
+                    aria-label="오늘 한 일 한 줄 기록"
+                    placeholder="예: 오늘 러닝 35분, 책 10쪽 읽고 물 5잔 마심"
+                    className="flex-1 min-w-0 px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!!aiBusy}
+                    className="shrink-0 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold disabled:opacity-50"
+                  >
+                    {aiBusy === "quick" ? "기록하는 중…" : "💬 AI로 기록"}
+                  </button>
+                  <span className="text-[11px] text-indigo-900/70 sm:hidden">
+                    습관은 ⚡/✔·숫자로, 만다라트 행동은 ☑️로 오늘 날짜에 기록돼요{!aiReady && " (로그인 후 사용)"}
+                  </span>
+                </form>
+              )}
             </div>
           </header>
+
+          {/* AI 결과 알림 */}
+          {aiNote && (
+            <div
+              role="status"
+              className={`fixed z-40 left-1/2 -translate-x-1/2 bottom-5 w-[min(92vw,560px)] px-4 py-3 rounded-xl shadow-lg text-sm flex items-start gap-3 ${
+                aiNote.kind === "error" ? "bg-rose-50 text-rose-800 border border-rose-300" : "bg-stone-900 text-stone-50"
+              }`}
+            >
+              <span className="flex-1 leading-relaxed break-keep">{aiNote.text}</span>
+              {aiNote.undo && (
+                <button onClick={aiNote.undo} className="shrink-0 px-2 py-0.5 rounded-md bg-white/15 hover:bg-white/25 font-bold text-xs whitespace-nowrap">
+                  ↩ 되돌리기
+                </button>
+              )}
+              <button onClick={() => setAiNote(null)} aria-label="알림 닫기" className="shrink-0 font-bold opacity-70 hover:opacity-100">✕</button>
+            </div>
+          )}
 
           {/* 메인 콘텐츠 영역 (습관 시스템 화면은 아래 #habit-view가 담당) */}
           {!onHabits && (
@@ -4115,6 +4554,104 @@
                     </span>
                   </div>
 
+                  {/* 🪄 AI로 3단계 만들기: 목표와 지금 수준을 적고 버튼 */}
+                  <form
+                    className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs space-y-2"
+                    onSubmit={(e) => { e.preventDefault(); aiEchoPlan(); }}
+                  >
+                    <label htmlFor="ai-goal" className="block font-bold text-indigo-900">
+                      🪄 AI로 3단계 만들기 <span className="font-normal text-indigo-900/70">— 목표와 지금 수준을 적으면 Gemini가 빅 에코와 1~3달차 단계·완료 기준을 채워요{!aiReady && " (로그인 후 사용)"}</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        id="ai-goal"
+                        type="text"
+                        value={aiGoalText}
+                        onChange={(e) => setAiGoalText(e.target.value)}
+                        placeholder={`예: 하루 1시간 러닝 (지금은 주 2회 20분)${activeTrack.bigGoal ? ` · 비워 두면 '${activeTrack.bigGoal}' 기준` : ""}`}
+                        className="flex-1 min-w-0 px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!!aiBusy}
+                        className="shrink-0 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold disabled:opacity-50"
+                      >
+                        {aiBusy === "echo" ? "🪄 계획 만드는 중…" : "🪄 3단계 만들기"}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* 📏 월말 판정 도우미: 진행 중인 단계를 숫자 기록으로 판정 */}
+                  <div className="mb-4 p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-teal-900">
+                        📏 월말 판정 도우미 <span className="font-normal text-teal-900/70">— 진행 중인 단계를 이번 달 습관 기록(횟수·숫자)과 비교해 완료/메아리를 판정해요{!aiReady && " (로그인 후 사용)"}</span>
+                      </span>
+                      <button
+                        onClick={aiMonthJudge}
+                        disabled={!!aiBusy}
+                        className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold disabled:opacity-50"
+                      >
+                        {aiBusy === "judge" ? "기록 비교하는 중…" : "📏 이번 단계 판정받기"}
+                      </button>
+                    </div>
+                    {aiJudge && aiJudge.trackId === activeTrack.id && (() => {
+                      const v = aiJudge.verdict;
+                      const badge = v.includes("완료") ? "bg-emerald-600 text-white" : v.includes("메아리") ? "bg-amber-500 text-white" : "bg-stone-700 text-white";
+                      const stepNow = activeTrack[aiJudge.monthKey];
+                      return (
+                        <div className="bg-white rounded-lg border border-teal-200 p-3 space-y-2 text-stone-800">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full font-extrabold ${badge}`}>{v || "판정"}</span>
+                            <span className="font-bold">{MONTH_LABEL[aiJudge.monthKey]} · {aiJudge.stepTitle}</span>
+                          </div>
+                          {aiJudge.reason && <p className="leading-relaxed">{aiJudge.reason}</p>}
+                          {aiJudge.nextStepAdvice && <p className="text-teal-800">➡️ {aiJudge.nextStepAdvice}</p>}
+                          {aiJudge.targets.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="font-bold text-stone-600">📏 습관 목표값 제안</div>
+                              {aiJudge.targets.map(t => (
+                                <div key={t.habit.id} className="flex flex-wrap items-center gap-2">
+                                  <span>
+                                    {t.habit.name}: {t.habit.target ? `${fmtVotes(t.habit.target)}${t.habit.unit}` : "목표값 없음"} → <b>{fmtVotes(t.newTarget)}{t.habit.unit}</b>
+                                    {t.why && <span className="text-stone-500"> ({t.why})</span>}
+                                  </span>
+                                  <button
+                                    onClick={() => applyJudgeTarget(t)}
+                                    disabled={t.applied}
+                                    className="px-2 py-0.5 rounded border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold disabled:opacity-50"
+                                  >
+                                    {t.applied ? "적용됨" : "목표값 바꾸기"}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {stepNow && stepNow.title.trim() && stepNow.status !== "done" && (
+                              <>
+                                <button
+                                  onClick={() => completeStep(aiJudge.trackId, aiJudge.monthKey)}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-400 font-bold"
+                                >
+                                  ✅ 완료 처리
+                                </button>
+                                <button
+                                  onClick={() => retryNextMonth(aiJudge.trackId, aiJudge.monthKey)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 font-bold"
+                                >
+                                  {aiJudge.monthKey === "m3" ? "🔄 메아리로 보내기" : "🔄 다음 달에 다시 도전"}
+                                </button>
+                              </>
+                            )}
+                            <button onClick={() => setAiJudge(null)} className="text-stone-400 hover:text-stone-700 underline">닫기</button>
+                            <span className="text-stone-400">{aiJudge.usage}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {/* 에코 트라이앵글 다이어그램 레이아웃 (선택한 목표) */}
                   <div className="relative bg-[#F7F6F2] rounded-2xl p-4 sm:p-8 border-2 border-dashed border-stone-400">
                     {/* 중앙 빅 에코 (이 목표의 분기 핵심 목표) */}
@@ -4233,6 +4770,51 @@
                       <span className="text-sm font-bold">📓 '{activeTrack.name}' 회고 ({data.echoTriangle.quarter})</span>
                       <span className="text-[11px] text-stone-500">월말·분기말에 3줄만 적어 두면 다음 계획이 정확해져요</span>
                     </div>
+                    {/* 🤖 AI 주간 코칭 */}
+                    <div className="mb-3 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-indigo-900">🤖 AI 주간 코칭 (Gemini)</span>
+                        <button
+                          onClick={aiWeekly}
+                          disabled={!!aiBusy}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold disabled:opacity-50"
+                        >
+                          {aiBusy === "weekly" ? "기록 읽는 중…" : aiCoach ? "다시 코칭 받기" : "이번 주 코칭 받기"}
+                        </button>
+                      </div>
+                      {!aiCoach && (
+                        <p className="text-indigo-900/70">
+                          최근 14일 습관 기록, 숫자 기록, 에코 트라이앵글 진행 상황을 읽고 잘한 점·위험 신호·다음 주 조정안과 회고 초안을 만들어 줘요.
+                          {!aiReady && " (로그인 후 사용)"}
+                        </p>
+                      )}
+                      {aiCoach && (
+                        <div className="space-y-2 text-stone-800">
+                          <p className="leading-relaxed">{str(aiCoach.summary)}</p>
+                          {[
+                            { key: "wins", label: "👍 잘한 점", cls: "text-emerald-800" },
+                            { key: "risks", label: "⚠️ 위험 신호", cls: "text-rose-700" },
+                            { key: "adjustments", label: "➡️ 다음 주 조정", cls: "text-indigo-800" }
+                          ].map(sec => Array.isArray(aiCoach[sec.key]) && aiCoach[sec.key].length > 0 && (
+                            <div key={sec.key}>
+                              <div className={`font-bold ${sec.cls}`}>{sec.label}</div>
+                              <ul className="list-disc pl-5 space-y-0.5">
+                                {aiCoach[sec.key].map((t, i) => <li key={i}>{str(t)}</li>)}
+                              </ul>
+                            </div>
+                          ))}
+                          {aiCoach.encouragement && <p className="font-bold text-amber-800">💛 {str(aiCoach.encouragement)}</p>}
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {aiCoach.reviewDraft && (
+                              <button onClick={applyCoachDraft} className="px-2.5 py-1 rounded-lg bg-white border border-indigo-300 text-indigo-700 font-bold hover:bg-indigo-100">
+                                📓 '{activeTrack.name}' 회고 칸에 초안 넣기
+                              </button>
+                            )}
+                            <span className="text-stone-400">{aiCoach.at}{aiCoach.usage}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {REVIEW_FIELDS.map(f => (
                         <label key={f.key} className="block text-xs">
@@ -4344,8 +4926,8 @@
                               )}
                             </span>
                             <button
-                              onClick={() => {
-                                if (!confirm("이 회고 기록을 삭제할까요?")) return;
+                              onClick={async () => {
+                                if (!await uiConfirm("이 회고 기록을 삭제할까요?", "삭제", true)) return;
                                 setData(prev => ({ ...prev, reviews: prev.reviews.filter(x => x.id !== r.id) }));
                               }}
                               className="text-stone-400 hover:text-red-600 px-1"
@@ -4388,6 +4970,86 @@
 
               return (
               <div className="space-y-5">
+                {/* 🌅 오늘의 브리핑 + 확언 */}
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 sketch-border space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">🌅 Morning Brief · {todayKey}</span>
+                      <h2 className="text-base sm:text-lg font-bold text-stone-900">오늘의 브리핑 & 확언</h2>
+                    </div>
+                    <button
+                      onClick={aiMorning}
+                      disabled={!!aiBusy}
+                      className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-bold disabled:opacity-50"
+                    >
+                      {aiBusy === "brief" ? "🌅 준비하는 중…" : todayBrief ? "🔄 다시 받기" : "🌅 오늘 브리핑 받기"}
+                    </button>
+                  </div>
+
+                  {todayBrief ? (
+                    <div className="space-y-3 text-sm text-stone-800">
+                      {todayBrief.plan && <p className="font-bold text-stone-900">🧭 {todayBrief.plan}</p>}
+                      {todayBrief.focus.length > 0 && (
+                        <div>
+                          <div className="text-xs font-bold text-stone-500 mb-1">오늘 꼭 할 것</div>
+                          <ul className="space-y-1">
+                            {todayBrief.focus.map((f, i) => (
+                              <li key={i} className="flex items-start gap-2"><span className="text-amber-600 font-bold">{i + 1}.</span><span className="break-keep">{f}</span></li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="bg-white/80 rounded-xl border border-amber-200 p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-amber-800">💬 오늘의 확언</span>
+                          <span className="flex items-center gap-1.5">
+                            {affirmationStreak >= 2 && (
+                              <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">🔥 {affirmationStreak}일</span>
+                            )}
+                            <button
+                              onClick={toggleAffirmationRead}
+                              className={`px-2 py-1 rounded-md text-[11px] font-bold border ${
+                                (data.affirmationLog || {})[todayKey] ? "bg-amber-400 border-amber-500 text-stone-900" : "bg-white border-amber-300 text-amber-800 hover:bg-amber-50"
+                              }`}
+                            >
+                              {(data.affirmationLog || {})[todayKey] ? "🗣️ 읽었어요 ✔" : "🗣️ 소리 내어 읽었어요"}
+                            </button>
+                          </span>
+                        </div>
+                        {todayBrief.coreAffirmation && (
+                          <p className="text-base sm:text-lg font-extrabold text-stone-900 break-keep">“{todayBrief.coreAffirmation}”</p>
+                        )}
+                        {[todayBrief.coreAffirmation, ...todayBrief.affirmations].filter(Boolean).map((a, i) => (
+                          <div key={i} className="flex items-start justify-between gap-2 text-sm">
+                            <span className="break-keep">{i === 0 ? "⭐" : "•"} {a}</span>
+                            <button
+                              onClick={() => pinAffirmation(a)}
+                              className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                data.myAffirmation === a ? "bg-stone-900 text-amber-300 border-stone-900" : "bg-white text-stone-600 border-stone-300 hover:bg-stone-50"
+                              }`}
+                              title="이 확언을 고정하면 배경화면 카드에 항상 보여요"
+                            >
+                              {data.myAffirmation === a ? "📌 고정됨" : "📌 고정"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      아침에 한 번 누르면 오늘 해야 할 습관·놓친 습관·이번 달 단계를 보고 <b>오늘의 한 줄 계획</b>, <b>꼭 할 것 2~3개</b>, <b>긍정 확언</b>을 만들어 줘요.
+                      확언은 📱 배경화면 카드에도 들어가요.{!aiReady && " (로그인 후 사용)"}
+                      {data.myAffirmation && <><br />📌 고정한 내 확언: “{data.myAffirmation}”</>}
+                    </p>
+                  )}
+                  {data.myAffirmation && todayBrief && (
+                    <p className="text-[11px] text-stone-500">
+                      📌 고정한 내 확언: “{data.myAffirmation}” ·{" "}
+                      <button onClick={() => setData(prev => ({ ...prev, myAffirmation: "" }))} className="underline hover:text-stone-800">고정 풀기</button>
+                    </p>
+                  )}
+                </div>
+
                 <div className="bg-stone-900 text-white rounded-2xl p-5 sketch-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
@@ -4836,9 +5498,11 @@
                     </div>
                   </div>
 
-                  {/* 하단 문구 */}
-                  <div className="text-center text-[10px] text-stone-400 border-t border-stone-800 pt-2">
-                    "쓰레기를 줍는 것은 남이 버린 행운을 줍는 것이다."
+                  {/* 하단 문구: 내 확언(고정 → 오늘 브리핑) 또는 기본 문구 */}
+                  <div className={`text-center border-t border-stone-800 pt-2 break-keep ${
+                    wallpaperAffirmation ? "text-[12px] font-bold text-amber-200" : "text-[10px] text-stone-400"
+                  }`}>
+                    {wallpaperAffirmation ? `💬 “${wallpaperAffirmation}”` : "\"쓰레기를 줍는 것은 남이 버린 행운을 줍는 것이다.\""}
                   </div>
                 </div>
 
