@@ -2699,8 +2699,28 @@
       brief: null, // 오늘의 브리핑 { date, plan, focus[], affirmations[], coreAffirmation }
       myAffirmation: "", // 고정한 내 확언 (배경화면에 항상 표시)
       affirmationLog: {}, // 확언을 소리 내어 읽은 날 { "2026-10-21": true }
-      dailyChecks: {} // { "2026-10-18": { "0-0": true, "4-0": true } } 형태 (날짜별)
+      // 행동 칸 종류 { "기둥-칸": "habit" | "once" | "rule" } — 정하지 않은 칸은 키가 없음
+      actionKinds: {
+        "0-0": "habit", "0-1": "rule", "0-2": "habit",
+        "1-0": "habit", "1-1": "habit", "1-2": "habit",
+        "2-0": "habit", "2-1": "rule", "2-2": "habit",
+        "3-0": "once", "3-1": "once", "3-2": "habit",
+        "4-0": "rule", "4-1": "rule", "4-2": "rule", "4-3": "rule",
+        "5-0": "habit", "5-1": "rule", "5-2": "habit",
+        "6-0": "habit", "6-1": "habit", "6-2": "once",
+        "7-1": "rule"
+      },
+      actionDone: { "3-0": "2026-10-20" }, // '한 번' 행동을 끝낸 날 { "기둥-칸": "YYYY-MM-DD" }
+      dailyChecks: {} // 예전 '매일 체크' 기록 (화면에서는 더 이상 쓰지 않지만 백업 호환을 위해 보관)
     };
+
+    // 만다라트 행동 칸의 종류: 매일 하는 일은 습관으로, 한 번이면 끝나는 일은 완료 표시, 원칙은 자주 보이게만
+    const ACTION_KINDS = {
+      habit: { label: "습관", hint: "매일·주 몇 회", icon: "bolt" },
+      once: { label: "한 번", hint: "하면 끝", icon: "check" },
+      rule: { label: "원칙", hint: "마음에 새기기", icon: "compass" }
+    };
+    const ACTION_KEY_RE = /^[0-7]-[0-7]$/;
 
     // 편집 모달의 칸 종류별 코칭 문구
     const GUIDES = {
@@ -2881,6 +2901,15 @@
         });
       }
 
+      const actionKinds = {};
+      if (raw.actionKinds && typeof raw.actionKinds === "object") {
+        Object.entries(raw.actionKinds).forEach(([k, v]) => { if (ACTION_KEY_RE.test(k) && ACTION_KINDS[v]) actionKinds[k] = v; });
+      }
+      const actionDone = {};
+      if (raw.actionDone && typeof raw.actionDone === "object") {
+        Object.entries(raw.actionDone).forEach(([k, v]) => { if (ACTION_KEY_RE.test(k) && DATE_RE.test(str(v))) actionDone[k] = v; });
+      }
+
       const reviews = Array.isArray(raw.reviews)
         ? raw.reviews
             .filter(r => r && typeof r === "object")
@@ -2913,7 +2942,7 @@
 
       return {
         coreGoal: str(raw.coreGoal, base.coreGoal), pillars, actions, echoTriangle, echoBox, reviews, dailyChecks,
-        brief, myAffirmation: str(raw.myAffirmation), affirmationLog
+        brief, myAffirmation: str(raw.myAffirmation), affirmationLog, actionKinds, actionDone
       };
     };
 
@@ -2941,11 +2970,22 @@
       return next;
     };
 
+    // 행동 칸의 종류·완료 표시 바꾸기 (kind가 없으면 '정하지 않음', '한 번'이 아니면 완료 표시도 지움)
+    const withActionKind = (prev, key, kind, done) => {
+      const actionKinds = { ...prev.actionKinds };
+      if (ACTION_KINDS[kind]) actionKinds[key] = kind;
+      else delete actionKinds[key];
+      const actionDone = { ...prev.actionDone };
+      if (kind === "once" && done) actionDone[key] = actionDone[key] || dayKey(new Date());
+      else delete actionDone[key];
+      return { ...prev, actionKinds, actionDone };
+    };
+
     // 칸 편집 내용을 데이터에 반영 (순수 함수)
     const applyCellEdit = (prev, cell) => {
       const { type, pIdx, aIdx } = cell;
       const value = cell.value.trim();
-      const next = { ...prev };
+      let next = { ...prev };
       if (type === "core") {
         next.coreGoal = value;
       } else if (type === "pillar") {
@@ -2953,13 +2993,19 @@
         newPillars[pIdx] = value;
         next.pillars = newPillars;
       } else if (type === "action") {
+        const key = `${pIdx}-${aIdx}`;
         const newActions = { ...prev.actions };
         const blockActions = [...(newActions[pIdx] || Array(8).fill(""))];
         blockActions[aIdx] = value;
         newActions[pIdx] = blockActions;
         next.actions = newActions;
-        // 칸을 비우면 그 칸의 체크 기록도 정리
-        if (!value) next.dailyChecks = removeChecksFor(prev.dailyChecks, `${pIdx}-${aIdx}`);
+        if (!value) {
+          // 칸을 비우면 종류·완료·예전 체크 기록도 정리
+          next = withActionKind(next, key, null, false);
+          next.dailyChecks = removeChecksFor(prev.dailyChecks, key);
+        } else if (cell.kind !== undefined) {
+          next = withActionKind(next, key, cell.kind, cell.done);
+        }
       }
       return next;
     };
@@ -3248,7 +3294,7 @@
         const cell = editingCell;
         const name = cell.value.trim();
         if (!name) return;
-        setData(prev => applyCellEdit(prev, cell));
+        setData(prev => applyCellEdit(prev, { ...cell, kind: "habit" }));
         const payload = {
           name,
           pillarIdx: cell.pIdx,
@@ -3263,7 +3309,8 @@
       // 행동 칸 ↔ 이미 있는 습관 연결
       const linkExistingHabit = (habitId) => {
         if (!editingCell || !bridge || !habitId) return;
-        const cell = editingCell;
+        const cell = { ...editingCell, kind: "habit" };
+        setEditingCell(cell);
         setData(prev => applyCellEdit(prev, cell));
         bridge.linkHabit(habitId, {
           pillarIdx: cell.pIdx,
@@ -3474,39 +3521,13 @@
         });
       };
 
-      // 데일리 체크 토글 (오늘 날짜에 기록)
-      const toggleDailyCheck = (key) => {
-        const today = dayKey(new Date());
-        setData(prev => {
-          const day = { ...(prev.dailyChecks[today] || {}) };
-          if (day[key]) delete day[key];
-          else day[key] = true;
-          const dailyChecks = { ...prev.dailyChecks };
-          if (Object.keys(day).length) dailyChecks[today] = day;
-          else delete dailyChecks[today];
-          return { ...prev, dailyChecks };
-        });
+      // 행동 칸 종류 정하기 ('오늘' 탭의 빠른 분류)
+      const setActionKind = (key, kind) => {
+        setData(prev => withActionKind(prev, key, kind, false));
       };
-
-      const resetTodayChecks = () => {
-        const today = dayKey(new Date());
-        setData(prev => {
-          const dailyChecks = { ...prev.dailyChecks };
-          delete dailyChecks[today];
-          return { ...prev, dailyChecks };
-        });
-      };
-
-      // 오늘(또는 어제)부터 거꾸로 이어진 연속 체크 일수
-      const getStreak = (checkKey) => {
-        const d = new Date();
-        if (!(data.dailyChecks[dayKey(d)] || {})[checkKey]) d.setDate(d.getDate() - 1);
-        let n = 0;
-        while ((data.dailyChecks[dayKey(d)] || {})[checkKey]) {
-          n++;
-          d.setDate(d.getDate() - 1);
-        }
-        return n;
+      // '한 번' 행동 완료 / 되돌리기
+      const toggleActionDone = (key) => {
+        setData(prev => withActionKind(prev, key, "once", !prev.actionDone[key]));
       };
 
       // 전체 백업: 만다라트·에코 트라이앵글 + 습관 기록(인증 사진 포함)을 한 파일로
@@ -3726,13 +3747,16 @@
                 // 4) 외곽 8개 블록의 주변 8칸 (구체적 행동 64개 / 보물찾기 슬롯)
                 const actionText = (data.actions[pillarIdx] || [])[subIdx] || "";
                 const isEmpty = !actionText.trim();
-                const linked = !isEmpty && habitsLinked ? linkedByRef[`${pillarIdx}-${subIdx}`] : null;
+                const actionKey = `${pillarIdx}-${subIdx}`;
+                const linked = !isEmpty && habitsLinked ? linkedByRef[actionKey] : null;
                 const linkedVotes = linked ? linked.reduce((s, h) => s + countHabitVotes(h), 0) : 0;
+                const kind = isEmpty ? null : kindOf(actionKey);
+                const done = kind === "once" && !!data.actionDone[actionKey];
 
                 return (
                   <button
                     key={cellPos}
-                    onClick={() => setEditingCell({ type: "action", pIdx: pillarIdx, aIdx: subIdx, value: actionText })}
+                    onClick={() => setEditingCell({ type: "action", pIdx: pillarIdx, aIdx: subIdx, value: actionText, kind: kindOf(actionKey), done: !!data.actionDone[actionKey] })}
                     className={`relative aspect-square p-1.5 rounded-lg text-xs flex flex-col items-center justify-center text-center leading-snug transition ${
                       isEmpty
                         ? "border border-dashed border-stone-300 bg-stone-50/60 hover:bg-stone-100 text-stone-400"
@@ -3745,7 +3769,13 @@
                         <span className="text-[10px] leading-tight break-keep">보물찾기 슬롯</span>
                       </div>
                     ) : (
-                      <span className="line-clamp-3 break-keep">{actionText}</span>
+                      <span className={`line-clamp-3 break-keep ${done ? "opacity-50" : ""}`}>{actionText}</span>
+                    )}
+                    {/* 종류 표시: 습관 · 한 번(끝내면 체크) · 원칙 — 습관과 연결된 칸은 오른쪽 위 연결 표시로 대신 */}
+                    {kind && !linked && (
+                      <span className={`absolute top-1 left-1 text-[9px] ${done ? "text-indigo-600" : "text-stone-400"}`} title={done ? "끝낸 행동" : ACTION_KINDS[kind].label}>
+                        <Icon name={done ? "circle-check" : ACTION_KINDS[kind].icon} />
+                      </span>
                     )}
                     {linked && (
                       <span
@@ -3763,35 +3793,34 @@
         );
       };
 
-      // ---------- 행동 체크 탭 계산 ----------
-      // 습관과 연결된 행동 칸은 습관 시스템에서만 기록하고, 여기서는 연결 안 된 만다라트 행동만 셉니다
+      // ---------- 만다라트 행동을 종류별로 묶기 ('오늘' 탭·한 줄 기록·브리핑·배경화면이 함께 씀) ----------
+      // 습관과 연결된 칸은 언제나 '습관' (기록은 습관 탭에서만)
       const todayKey = dayKey(new Date());
-      const todayChecks = data.dailyChecks[todayKey] || {};
-      const filledKeys = [];
-      for (let p = 0; p < 8; p++) {
-        (data.actions[p] || []).forEach((t, a) => { if (t && t.trim()) filledKeys.push(`${p}-${a}`); });
-      }
       const isCellLinked = (k) => habitsLinked && !!(linkedByRef[k] && linkedByRef[k].length);
-      const localKeys = filledKeys.filter(k => !isCellLinked(k));
-      const totalTrack = localKeys.length;
-      const doneOn = (k) => {
-        const day = data.dailyChecks[k] || {};
-        return localKeys.filter(fk => day[fk]).length;
-      };
-      const todayDone = doneOn(todayKey);
-      const last30 = Array.from({ length: 30 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (29 - i));
-        const k = dayKey(d);
-        return { k, d, cnt: doneOn(k) };
-      });
-      const heatClass = (cnt) => {
-        if (!cnt || !totalTrack) return "bg-stone-200";
-        const r = cnt / totalTrack;
-        if (r < 0.34) return "bg-amber-200";
-        if (r < 0.67) return "bg-amber-400";
-        return "bg-amber-600";
-      };
+      const kindOf = (k) => (isCellLinked(k) ? "habit" : data.actionKinds[k] || null);
+      const actionItems = [];
+      for (let p = 0; p < 8; p++) {
+        (data.actions[p] || []).forEach((t, a) => {
+          if (!t || !t.trim()) return;
+          const key = `${p}-${a}`;
+          actionItems.push({ key, p, a, text: t.trim(), kind: kindOf(key), done: !!data.actionDone[key] });
+        });
+      }
+      const onceItems = actionItems.filter(i => i.kind === "once");
+      const onceLeft = onceItems.filter(i => !i.done);
+      const ruleItems = actionItems.filter(i => i.kind === "rule");
+      const unsortedItems = actionItems.filter(i => !i.kind);
+      // '습관'으로 정했지만 아직 습관 탭에 없는 행동 (로그인해야 알 수 있음)
+      const habitTodoItems = habitsLinked ? actionItems.filter(i => i.kind === "habit" && !isCellLinked(i.key)) : [];
+      // 한 줄 기록으로 '끝냈다'고 표시할 수 있는 행동
+      const quickActionItems = [...onceLeft, ...unsortedItems];
+      // 오늘의 원칙: 날짜마다 하나씩 돌아가며 보여 줌 ('다른 원칙'으로 넘겨 볼 수 있음)
+      const [ruleShift, setRuleShift] = useState(0);
+      const [showAllOnce, setShowAllOnce] = useState(false);
+      const [showAllUnsorted, setShowAllUnsorted] = useState(false);
+      const nowDate = new Date();
+      const dayNumber = Math.floor(Date.UTC(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()) / 86400000);
+      const todayRule = ruleItems.length ? ruleItems[(dayNumber + ruleShift) % ruleItems.length] : null;
 
       const guide = editingCell ? GUIDES[editingCell.type] : null;
       const onHabits = activeTab === "habits";
@@ -3962,8 +3991,14 @@
               months: MONTH_KEYS.map(k => ({ title: t[k].title, status: t[k].status === "done" ? "완료" : "진행 중", deadline: t[k].deadline }))
             }))
           },
-          actionChecksLast7Days: keys.slice(7).reduce((s, k) => s + doneOn(k), 0),
-          checkableActions: totalTrack
+          // 만다라트 '한 번' 행동 진행 상황과 원칙
+          onceActions: {
+            total: onceItems.length,
+            done: onceItems.length - onceLeft.length,
+            doneLast7Days: onceItems.filter(i => keys.slice(7).includes(data.actionDone[i.key])).length,
+            pending: onceLeft.slice(0, 5).map(i => i.text)
+          },
+          rules: ruleItems.slice(0, 8).map(i => i.text)
         };
         const res = await askAI("weekly_review", payload);
         setAiCoach({ ...res.result, at: dayKey(new Date()), usage: usageText(res) });
@@ -4013,10 +4048,8 @@
           text,
           today,
           habits: habits.slice(0, 40).map(h => ({ id: h.id, name: h.name, unit: h.unit || null, target: h.target || null, twoMinRule: h.twoMinRule })),
-          actions: localKeys.slice(0, 64).map(k => {
-            const [p, a] = k.split("-").map(Number);
-            return { ref: k, text: data.actions[p][a] };
-          })
+          // 끝냈다고 표시할 수 있는 만다라트 행동: 아직 안 끝낸 '한 번' 행동과 종류를 정하지 않은 행동
+          actions: quickActionItems.slice(0, 64).map(i => ({ ref: i.key, text: i.text }))
         });
         const out = res.result || {};
         const labels = [];
@@ -4038,17 +4071,16 @@
           }
           undoOps.push(() => bridge.restoreRecord(h.id, today, prev));
         });
-        const refs = [...new Set(Array.isArray(out.actionRefs) ? out.actionRefs : [])].filter(r => localKeys.includes(r));
-        const prevDay = data.dailyChecks[today] ? { ...data.dailyChecks[today] } : null;
+        // 찾은 행동은 '한 번' 행동으로 끝냄 표시 (종류를 안 정했던 칸은 '한 번'으로 정해짐)
+        const quickKeys = quickActionItems.map(i => i.key);
+        const refs = [...new Set(Array.isArray(out.actionRefs) ? out.actionRefs : [])].filter(r => quickKeys.includes(r));
+        const prevKinds = data.actionKinds;
+        const prevDone = data.actionDone;
         if (refs.length) {
-          setData(prev => {
-            const day = { ...(prev.dailyChecks[today] || {}) };
-            refs.forEach(r => { day[r] = true; });
-            return { ...prev, dailyChecks: { ...prev.dailyChecks, [today]: day } };
-          });
+          setData(prev => refs.reduce((acc, r) => withActionKind(acc, r, "once", true), prev));
           refs.forEach(r => {
             const [p, a] = r.split("-").map(Number);
-            labels.push(`${data.actions[p][a]}`);
+            labels.push(`${data.actions[p][a]} ✔`);
           });
         }
         const unmatched = (Array.isArray(out.unmatched) ? out.unmatched : []).map(s => str(s).trim()).filter(Boolean);
@@ -4063,10 +4095,13 @@
             undoOps.forEach(fn => fn());
             if (refs.length) {
               setData(prev => {
-                const dailyChecks = { ...prev.dailyChecks };
-                if (prevDay && Object.keys(prevDay).length) dailyChecks[today] = prevDay;
-                else delete dailyChecks[today];
-                return { ...prev, dailyChecks };
+                const actionKinds = { ...prev.actionKinds };
+                const actionDone = { ...prev.actionDone };
+                refs.forEach(r => {
+                  if (prevKinds[r]) actionKinds[r] = prevKinds[r]; else delete actionKinds[r];
+                  if (prevDone[r]) actionDone[r] = prevDone[r]; else delete actionDone[r];
+                });
+                return { ...prev, actionKinds, actionDone };
               });
             }
             setAiNote({ kind: "ok", text: "↩ 방금 한 줄 기록을 되돌렸어요." });
@@ -4101,7 +4136,11 @@
             const k = MONTH_KEYS.find(mk => t[mk].title.trim() && t[mk].status !== "done");
             return k ? { goal: t.name, step: t[k].title, daysLeft: getDaysLeft(t[k].deadline) } : null;
           }).filter(Boolean),
-          recentAffirmations: data.brief ? data.brief.affirmations : []
+          recentAffirmations: data.brief ? data.brief.affirmations : [],
+          // 만다라트 원칙(오늘 보여 줄 원칙)과 아직 안 끝낸 '한 번' 행동
+          todayRule: todayRule ? todayRule.text : null,
+          rules: ruleItems.slice(0, 8).map(i => i.text),
+          onceTodo: onceLeft.slice(0, 3).map(i => i.text)
         });
         const out = res.result || {};
         const list = (v, max) => (Array.isArray(v) ? v.map(x => str(x).trim()).filter(Boolean).slice(0, max) : []);
@@ -5025,13 +5064,14 @@
             )}
 
             {/* ==========================================
-                TAB 3: 행동 체크 (습관으로 만들지 않은 만다라트 행동만 체크)
-                - 습관과 연결된 칸은 여기서 체크하지 않음 → 습관 시스템에서만 기록 (중복 없음)
-                - 꾸준히 할 행동은 ⚡︎ 습관으로 키우기
+                TAB 3: 오늘 (브리핑 · 오늘의 원칙 · 오늘 할 습관 · 한 번 행동 · 종류 정하기)
+                - 습관은 습관 탭에서만 기록하고 여기서는 오늘 상태만 보여 줌 (중복 없음)
+                - 만다라트 행동은 매일 체크하지 않음: 한 번 행동은 끝내면 완료, 원칙은 하루에 하나씩 보여 줌
                ========================================== */}
             {activeTab === "daily" && (() => {
               const growFromAction = (pIdx, aIdx, text) => {
                 if (!bridge) return;
+                setActionKind(`${pIdx}-${aIdx}`, "habit");
                 setActiveTab("habits");
                 setTimeout(() => bridge.prefill({
                   name: text.trim(),
@@ -5040,7 +5080,7 @@
                   actionRef: `${pIdx}-${aIdx}`
                 }), 60);
               };
-              const linkedTotal = filledKeys.length - localKeys.length;
+              const dueToday = habitsLinked ? habits.filter(h => isDueTodayR(h, todayKey)) : [];
 
               return (
               <div className="space-y-5">
@@ -5124,169 +5164,172 @@
                   )}
                 </div>
 
-                <div className="bg-stone-900 text-white rounded-2xl p-5 sketch-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
-                      Mandalart Actions · {todayKey}
-                    </span>
-                    <h2 className="text-lg sm:text-xl font-bold mt-0.5">
-                      {data.coreGoal}
-                    </h2>
-                    <p className="text-xs text-stone-300 mt-1">
-                      습관으로 만들지 않은 만다라트 행동을 가볍게 체크하는 곳이에요. 매일 꾸준히 할 행동은 ⚡︎ 습관으로 옮기세요.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
-                    <div className="text-right">
-                      <div className="text-[11px] text-stone-400">오늘 체크한 행동</div>
-                      <div className="text-xl font-extrabold text-amber-300">
-                        {todayDone}<span className="text-xs text-stone-400 font-normal"> / {totalTrack}</span>
-                      </div>
+                {/* 오늘의 원칙 (만다라트에서 '원칙'으로 정한 행동이 하루에 하나씩) */}
+                {todayRule && (
+                  <div className="bg-white rounded-2xl p-4 sketch-border flex items-start gap-3">
+                    <span className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><Icon name="compass" /></span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-bold text-stone-500">오늘의 원칙 · {data.pillars[todayRule.p] || `기둥 ${todayRule.p + 1}`}</div>
+                      <p className="text-base font-extrabold text-stone-900 break-keep mt-0.5">{todayRule.text}</p>
                     </div>
+                    {ruleItems.length > 1 && (
+                      <button
+                        onClick={() => setRuleShift(s => s + 1)}
+                        className="shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 whitespace-nowrap"
+                      >
+                        다른 원칙
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 오늘 할 습관 (기록은 습관 탭에서만 — 여기서는 오늘 상태만) */}
+                <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-bold text-sm text-stone-900 flex items-center gap-2"><Icon name="bolt" className="text-indigo-600" /> 오늘 할 습관</h2>
                     <button
-                      onClick={resetTodayChecks}
-                      className="px-3 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-200 text-xs font-semibold rounded-lg"
-                      title="이 화면의 오늘 체크만 지웁니다 (습관 기록은 그대로)"
+                      onClick={goHabits}
+                      className="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-ink whitespace-nowrap"
                     >
-                      오늘 체크 초기화
+                      {habitsLinked ? "습관 탭에서 기록 →" : "로그인 →"}
                     </button>
                   </div>
-                </div>
-
-                {/* 역할 안내: 습관은 습관 시스템에서만 기록 */}
-                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
-                  <span>
-                    습관과 연결된 행동{linkedTotal ? ` ${linkedTotal}개` : ""}은 <b>습관</b> 탭에서만 기록해요. 여기서는 오늘 상태만 보여드려요.
-                    {!habitsLinked && " (로그인하면 연결된 습관의 오늘 상태가 표시돼요)"}
-                  </span>
-                  <button onClick={goHabits}
-                    className="shrink-0 self-start sm:self-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-ink font-bold rounded-lg">
-                    {habitsLinked ? "습관 기록하러 가기 →" : "로그인하러 가기 →"}
-                  </button>
-                </div>
-
-                {/* 최근 30일 행동 체크 기록 (습관 기록은 습관 시스템의 월간 히트맵에서) */}
-                <div className="bg-white rounded-xl p-4 sketch-border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-sm">최근 30일 행동 체크</span>
-                    <span className="flex items-center gap-1 text-[10px] text-stone-500">
-                      적음
-                      <span className="w-3 h-3 rounded-sm bg-stone-200 inline-block" />
-                      <span className="w-3 h-3 rounded-sm bg-amber-200 inline-block" />
-                      <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" />
-                      <span className="w-3 h-3 rounded-sm bg-amber-600 inline-block" />
-                      많음
-                    </span>
-                  </div>
-                  <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}>
-                    {last30.map(({ k, d, cnt }) => (
-                      <div
-                        key={k}
-                        title={`${k} · 행동 ${cnt}개 체크`}
-                        className={`aspect-square rounded-sm ${heatClass(cnt)} ${k === todayKey ? "ring-2 ring-stone-900" : ""}`}
-                      >
-                        <span className="sr-only">{`${d.getMonth() + 1}월 ${d.getDate()}일 ${cnt}개`}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 기둥별 행동 체크리스트 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {data.pillars.map((pillar, pIdx) => {
-                    const filledActions = (data.actions[pIdx] || [])
-                      .map((text, aIdx) => ({ text, aIdx }))
-                      .filter(item => item.text && item.text.trim() !== "");
-                    const pillarHabitCount = habitsLinked ? habits.filter(h => h.pillarIdx === pIdx).length : 0;
-
-                    return (
-                      <div key={pIdx} className="bg-white rounded-xl p-4 sketch-border">
-                        <div className="flex items-center justify-between gap-2 pb-2 mb-3 border-b border-stone-200">
-                          <span className="font-bold text-sm text-stone-900">
-                            #{pIdx + 1}. {pillar || `세부 목표 ${pIdx + 1}`}
-                          </span>
-                          <span className="flex items-center gap-1 shrink-0">
-                            {pillarHabitCount > 0 && (
-                              <span className="text-[11px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full" title="이 기둥에 연결된 습관의 실천 투표 수">
-                                {fmtVotes(pillarVotes[pIdx])}표
-                              </span>
-                            )}
-                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                              행동 {filledActions.length}
+                  {!habitsLinked ? (
+                    <p className="text-xs text-stone-500">로그인하면 오늘 할 습관과 기록 상태가 여기에 보여요.</p>
+                  ) : dueToday.length === 0 ? (
+                    <p className="text-xs text-stone-500">오늘 예정된 습관이 없어요.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {dueToday.map(h => {
+                        const st = habitTodayState(h);
+                        return (
+                          <button
+                            key={h.id}
+                            onClick={goHabits}
+                            className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-left"
+                            title="습관 탭에서 기록해요"
+                          >
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-semibold text-stone-800 truncate">{h.name}</span>
+                              {h.twoMinRule && <span className="block text-[11px] text-amber-600 truncate">2분: {h.twoMinRule}</span>}
                             </span>
-                          </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                              st === 2 ? "bg-indigo-600 text-ink" : st === 1 ? "bg-amber-300 text-ink" : "bg-stone-200 text-stone-500"
+                            }`}>
+                              {HABIT_STATE_TEXT[st]}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {habitTodoItems.length > 0 && (
+                    <div className="pt-2 border-t border-stone-200 space-y-1.5">
+                      <div className="text-[11px] font-bold text-stone-500">습관으로 정했지만 아직 만들지 않은 행동</div>
+                      {habitTodoItems.map(i => (
+                        <div key={i.key} className="flex items-center gap-2 text-xs">
+                          <span className="flex-1 min-w-0 truncate text-stone-700">{i.text}</span>
+                          <button
+                            onClick={() => growFromAction(i.p, i.a, i.text)}
+                            className="shrink-0 px-2 py-1 rounded-md text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 whitespace-nowrap"
+                          >
+                            습관 만들기
+                          </button>
                         </div>
-
-                        {filledActions.length === 0 ? (
-                          <p className="text-xs text-stone-400 py-2">
-                            아직 등록된 구체적 행동이 없습니다. 만다라트 탭에서 3칸만 먼저 채워보세요!
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {filledActions.map(({ text, aIdx }) => {
-                              const checkKey = `${pIdx}-${aIdx}`;
-
-                              // 습관과 연결된 칸: 체크 버튼 없이 오늘 상태만 (기록은 습관 시스템에서)
-                              if (isCellLinked(checkKey)) {
-                                const st = Math.max(...linkedByRef[checkKey].map(habitTodayState));
-                                return (
-                                  <button
-                                    key={checkKey}
-                                    onClick={goHabits}
-                                    className="w-full flex items-center gap-2 p-2 rounded-lg border border-dashed border-indigo-200 bg-indigo-50/40 text-left hover:bg-indigo-50"
-                                    title="습관 시스템에서 기록하는 행동이에요"
-                                  >
-                                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 rounded px-1 py-0.5 shrink-0 inline-flex items-center gap-1"><Icon name="link" /> 습관</span>
-                                    <span className="flex-1 min-w-0 text-xs sm:text-sm text-stone-600 break-keep">{text}</span>
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                      st === 2 ? "bg-indigo-600 text-ink" : st === 1 ? "bg-amber-300 text-ink" : "bg-stone-200 text-stone-500"
-                                    }`}>
-                                      오늘 {HABIT_STATE_TEXT[st]}
-                                    </span>
-                                  </button>
-                                );
-                              }
-
-                              // 연결 안 된 칸: 여기서 체크
-                              const isChecked = !!todayChecks[checkKey];
-                              const streak = getStreak(checkKey);
-                              return (
-                                <div
-                                  key={checkKey}
-                                  className={`flex items-center gap-2 p-2 rounded-lg border transition ${
-                                    isChecked ? "bg-amber-50 border-amber-400 text-stone-500" : "bg-stone-50/70 border-stone-200 text-stone-800"
-                                  }`}
-                                >
-                                  <label className="flex-1 min-w-0 flex items-center gap-2.5 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() => toggleDailyCheck(checkKey)}
-                                      className="w-4 h-4 accent-amber-500 rounded shrink-0"
-                                    />
-                                    <span className={`text-xs sm:text-sm font-medium break-keep ${isChecked ? "line-through" : ""}`}>{text}</span>
-                                  </label>
-                                  {streak >= 2 && (
-                                    <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"><Icon name="fire" /> {streak}일</span>
-                                  )}
-                                  {bridge && habitsLinked && (
-                                    <button
-                                      onClick={() => growFromAction(pIdx, aIdx, text)}
-                                      className="px-1.5 py-1 rounded-md text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 whitespace-nowrap shrink-0"
-                                      title="이 행동을 습관 시스템의 습관으로 옮기기 (이후 기록은 습관 시스템에서)"
-                                    >
-                                      ⚡︎ 습관으로
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* 한 번만 하면 되는 행동 (끝내면 완료로 남음) */}
+                {onceItems.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="font-bold text-sm text-stone-900 flex items-center gap-2"><Icon name="check" className="text-indigo-600" /> 한 번만 하면 되는 행동</h2>
+                      <span className="text-xs font-bold text-stone-500 tabular">완료 {onceItems.length - onceLeft.length} / {onceItems.length}</span>
+                    </div>
+                    <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-600 rounded-full transition-all"
+                        style={{ width: `${Math.round(((onceItems.length - onceLeft.length) / onceItems.length) * 100)}%` }}
+                      />
+                    </div>
+                    {onceLeft.length === 0 && !showAllOnce ? (
+                      <p className="text-xs text-stone-500">모두 끝냈어요. 만다라트에서 새 행동을 더해 보세요.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {(showAllOnce ? onceItems : onceLeft.slice(0, 3)).map(i => (
+                          <label
+                            key={i.key}
+                            className={`flex items-center gap-2.5 p-2.5 rounded-xl border border-stone-200 bg-stone-50 cursor-pointer ${
+                              i.done ? "text-stone-500" : "text-stone-800 hover:bg-stone-100"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={i.done}
+                              onChange={() => toggleActionDone(i.key)}
+                              className="w-4 h-4 accent-lime-500 shrink-0"
+                            />
+                            <span className={`flex-1 min-w-0 text-sm break-keep ${i.done ? "line-through" : ""}`}>{i.text}</span>
+                            <span className="text-[10px] text-stone-500 shrink-0">
+                              {i.done ? data.actionDone[i.key].slice(5).replace("-", "/") : data.pillars[i.p] || `기둥 ${i.p + 1}`}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {(onceLeft.length > 3 || onceItems.length > onceLeft.length) && (
+                      <button onClick={() => setShowAllOnce(v => !v)} className="text-xs font-bold text-stone-500 hover:text-stone-800">
+                        {showAllOnce ? "접기" : `모두 보기 (끝낸 것 포함 ${onceItems.length}개)`}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 종류를 아직 정하지 않은 행동 (한 번만 고르면 끝) */}
+                {unsortedItems.length > 0 && (
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border space-y-3">
+                    <div>
+                      <h2 className="font-bold text-sm text-stone-900">
+                        종류를 정해 주세요 <span className="text-stone-500 font-semibold">{unsortedItems.length}개</span>
+                      </h2>
+                      <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">
+                        매일 할 일이면 습관, 한 번 하면 끝나는 일이면 한 번, 마음에 새길 규칙이면 원칙. 한 번만 정하면 돼요.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {(showAllUnsorted ? unsortedItems : unsortedItems.slice(0, 5)).map(i => (
+                        <div key={i.key} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1 min-w-0 text-sm font-medium text-stone-800 break-keep">{i.text}</span>
+                            <span className="text-[10px] text-stone-500 shrink-0">{data.pillars[i.p] || `기둥 ${i.p + 1}`}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {Object.entries(ACTION_KINDS).map(([k, info]) => (
+                              <button
+                                key={k}
+                                onClick={() => setActionKind(i.key, k)}
+                                className="py-1.5 rounded-lg text-[11px] font-bold bg-white border border-stone-200 hover:border-indigo-600 hover:text-indigo-600 text-stone-700 flex items-center justify-center gap-1"
+                              >
+                                <Icon name={info.icon} /> {info.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {unsortedItems.length > 5 && (
+                      <button onClick={() => setShowAllUnsorted(v => !v)} className="text-xs font-bold text-stone-500 hover:text-stone-800">
+                        {showAllUnsorted ? "접기" : `모두 보기 (${unsortedItems.length}개)`}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {actionItems.length === 0 && (
+                  <p className="text-xs text-stone-500 text-center py-4">만다라트 탭에서 행동을 채우면 종류에 맞게 여기에 정리돼요.</p>
+                )}
               </div>
               );
             })()}
@@ -5345,8 +5388,58 @@
                   <div className="text-[10px] text-stone-400 text-right mt-0.5">Ctrl+Enter 저장 · Esc 닫기</div>
                 </div>
 
-                {/* 행동 칸 ↔ 습관 시스템 연결 */}
-                {editingCell.type === "action" && editingCell.value.trim() && bridge && (() => {
+                {/* 행동 칸 종류: 습관 · 한 번 · 원칙 */}
+                {editingCell.type === "action" && editingCell.value.trim() && (() => {
+                  const ref = `${editingCell.pIdx}-${editingCell.aIdx}`;
+                  const lockedHabit = isCellLinked(ref);
+                  return (
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold text-stone-600">이 행동은</div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {Object.entries(ACTION_KINDS).map(([k, info]) => {
+                          const active = editingCell.kind === k;
+                          return (
+                            <button
+                              key={k}
+                              type="button"
+                              disabled={lockedHabit && k !== "habit"}
+                              aria-pressed={active}
+                              onClick={() => setEditingCell({ ...editingCell, kind: active && !lockedHabit ? null : k, done: k === "once" ? editingCell.done : false })}
+                              className={`px-2 py-2 rounded-xl border text-left transition disabled:opacity-40 ${
+                                active ? "bg-indigo-600 border-indigo-600 text-ink" : "bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100"
+                              }`}
+                            >
+                              <span className="flex items-center gap-1.5 text-xs font-bold"><Icon name={info.icon} /> {info.label}</span>
+                              <span className={`block text-[10px] mt-0.5 ${active ? "text-ink/70" : "text-stone-500"}`}>{info.hint}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {lockedHabit && <p className="text-[11px] text-stone-500">습관과 연결된 칸이라 '습관'으로 고정돼요.</p>}
+                      {editingCell.kind === "once" && (
+                        <label className="flex items-center gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs font-semibold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!editingCell.done}
+                            onChange={(e) => setEditingCell({ ...editingCell, done: e.target.checked })}
+                            className="w-4 h-4 accent-lime-500"
+                          />
+                          끝냈어요
+                          {editingCell.done && data.actionDone[ref] && <span className="text-stone-500 font-normal">({data.actionDone[ref]})</span>}
+                        </label>
+                      )}
+                      {editingCell.kind === "rule" && (
+                        <p className="text-[11px] text-stone-500 leading-relaxed">원칙은 체크하지 않아요. '오늘' 탭과 배경화면 카드에 하루에 하나씩 돌아가며 보여요.</p>
+                      )}
+                      {!editingCell.kind && (
+                        <p className="text-[11px] text-stone-500 leading-relaxed">매일 할 일이면 습관, 한 번 하면 끝나는 일이면 한 번, 마음에 새길 규칙이면 원칙을 골라 주세요.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 행동 칸 ↔ 습관 시스템 연결 ('습관'을 고른 칸만) */}
+                {editingCell.type === "action" && editingCell.value.trim() && bridge && editingCell.kind === "habit" && (() => {
                   const ref = `${editingCell.pIdx}-${editingCell.aIdx}`;
                   if (!habitsLinked) {
                     return (
@@ -5540,6 +5633,16 @@
                             <span className="truncate block text-stone-200">• {h.twoMinRule}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* 오늘의 원칙 (만다라트에서 '원칙'으로 정한 행동 중 오늘 것) */}
+                    {todayRule && (
+                      <div className="bg-stone-800 border border-indigo-400/40 rounded-xl p-2.5 text-[11px] space-y-1">
+                        <div className="text-indigo-300 font-bold text-[10px]">오늘의 원칙</div>
+                        <div className="overflow-hidden py-0.5 -my-0.5">
+                          <span className="truncate block text-stone-200 font-semibold">{todayRule.text}</span>
+                        </div>
                       </div>
                     )}
 
