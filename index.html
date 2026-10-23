@@ -3818,6 +3818,7 @@
       const [ruleShift, setRuleShift] = useState(0);
       const [showAllOnce, setShowAllOnce] = useState(false);
       const [showAllUnsorted, setShowAllUnsorted] = useState(false);
+      const [showAllHabitTodo, setShowAllHabitTodo] = useState(false);
       const nowDate = new Date();
       const dayNumber = Math.floor(Date.UTC(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()) / 86400000);
       const todayRule = ruleItems.length ? ruleItems[(dayNumber + ruleShift) % ruleItems.length] : null;
@@ -5225,8 +5226,8 @@
                   )}
                   {habitTodoItems.length > 0 && (
                     <div className="pt-2 border-t border-stone-200 space-y-1.5">
-                      <div className="text-[11px] font-bold text-stone-500">습관으로 정했지만 아직 만들지 않은 행동</div>
-                      {habitTodoItems.map(i => (
+                      <div className="text-[11px] font-bold text-stone-500">습관으로 정했지만 아직 만들지 않은 행동 {habitTodoItems.length}개</div>
+                      {(showAllHabitTodo ? habitTodoItems : habitTodoItems.slice(0, 2)).map(i => (
                         <div key={i.key} className="flex items-center gap-2 text-xs">
                           <span className="flex-1 min-w-0 truncate text-stone-700">{i.text}</span>
                           <button
@@ -5237,6 +5238,11 @@
                           </button>
                         </div>
                       ))}
+                      {habitTodoItems.length > 2 && (
+                        <button onClick={() => setShowAllHabitTodo(v => !v)} className="text-xs font-bold text-stone-500 hover:text-stone-800">
+                          {showAllHabitTodo ? "접기" : `모두 보기 (${habitTodoItems.length}개)`}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -5628,21 +5634,11 @@
                     {habitsLinked && habits.length > 0 && (
                       <div className="bg-stone-800 border border-indigo-400/40 rounded-xl p-2.5 text-[11px] space-y-1">
                         <div className="text-indigo-300 font-bold text-[10px]">⚡︎ TODAY 2-MINUTE RULES</div>
-                        {habits.slice(0, 3).map(h => (
+                        {habits.slice(0, todayRule ? 2 : 3).map(h => (
                           <div key={h.id} className="overflow-hidden py-0.5 -my-0.5">
                             <span className="truncate block text-stone-200">• {h.twoMinRule}</span>
                           </div>
                         ))}
-                      </div>
-                    )}
-
-                    {/* 오늘의 원칙 (만다라트에서 '원칙'으로 정한 행동 중 오늘 것) */}
-                    {todayRule && (
-                      <div className="bg-stone-800 border border-indigo-400/40 rounded-xl p-2.5 text-[11px] space-y-1">
-                        <div className="text-indigo-300 font-bold text-[10px]">오늘의 원칙</div>
-                        <div className="overflow-hidden py-0.5 -my-0.5">
-                          <span className="truncate block text-stone-200 font-semibold">{todayRule.text}</span>
-                        </div>
                       </div>
                     )}
 
@@ -5675,11 +5671,18 @@
                     </div>
                   </div>
 
-                  {/* 하단 문구: 내 확언(고정 → 오늘 브리핑) 또는 기본 문구 */}
-                  <div className={`text-center border-t border-stone-800 pt-2 break-keep ${
-                    wallpaperAffirmation ? "text-[12px] font-bold text-amber-200" : "text-[10px] text-stone-400"
-                  }`}>
-                    {wallpaperAffirmation ? `“${wallpaperAffirmation}”` : "\"쓰레기를 줍는 것은 남이 버린 행운을 줍는 것이다.\""}
+                  {/* 하단 문구: 오늘의 원칙(만다라트 '원칙' 중 오늘 것) + 내 확언(고정 → 오늘 브리핑), 둘 다 없으면 기본 문구 */}
+                  <div className="text-center border-t border-stone-800 pt-2 break-keep space-y-1">
+                    {todayRule && (
+                      <div className="text-[10px] text-stone-300">
+                        <span className="text-indigo-300 font-bold">오늘의 원칙</span> · {todayRule.text}
+                      </div>
+                    )}
+                    {wallpaperAffirmation ? (
+                      <div className="text-[12px] font-bold text-amber-200">“{wallpaperAffirmation}”</div>
+                    ) : !todayRule && (
+                      <div className="text-[10px] text-stone-400">"쓰레기를 줍는 것은 남이 버린 행운을 줍는 것이다."</div>
+                    )}
                   </div>
                 </div>
 
