@@ -120,6 +120,8 @@
   .grass-lv-3 { background-color: #8DB021; border-color: #8DB021; color: #0F1115; }
   .grass-lv-4 { background-color: #C6F432; border-color: #C6F432; color: #0F1115; }
   .grass-future { background-color: #171B21; border-color: #2A3038; border-style: dashed; color: #3A414B; }
+  /* 쉬는 기간: 미기록과 구분 (점선 + 회색 글씨, 통계에서 제외) */
+  .grass-pause { background-color: #171B21; border-color: #4D5560; border-style: dashed; color: #9AA3AD; }
   @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
   .never-miss-badge { animation: pulse-soft 2s infinite; }
   #toast {
@@ -163,6 +165,60 @@
     .ico svg { height: 1em; width: auto; display: block; }
   
 </style>
+
+<style id="refined-dashboard">
+:root{--bg:#101214;--fg:#e8ebed;--surface:#191c20;--muted:#a0a7af;--line:#2c3137}
+body{margin:0;background:var(--bg);line-height:1.6}
+.app-header{padding:20px 24px 14px!important;background:rgba(16,18,20,.96)!important}
+.app-header>div{max-width:1160px!important;gap:20px!important}
+.app-header h1{font-size:18px;letter-spacing:-.04em}
+.app-nav{background:#191c20!important;border:1px solid var(--line);border-radius:14px!important;padding:5px!important;max-width:600px}
+.app-nav button{min-height:44px;border-radius:10px!important;font-weight:600}
+.app-nav button[aria-current="page"]{background:#2b3320!important;color:#d0f57d!important;box-shadow:inset 0 0 0 1px #485a2d}
+#root main{max-width:1160px;padding-top:32px;padding-bottom:64px}
+#root main .sketch-border,#habit-view section{border-color:var(--line);box-shadow:none}
+#root main .border-2{border-width:1px}
+#root main :is(.text-xs,[class~="text-[10px]"],[class~="text-[11px]"]),#habit-view :is(.text-xs,[class~="text-[10px]"],[class~="text-[11px]"]){font-size:12px;line-height:1.6}
+#root main .text-sm,#habit-view .text-sm{font-size:14px;line-height:1.6}
+#root main button:not(.quarter-item),#habit-view button:not(.grass-cell):not(.check-btn){min-height:36px}
+/* 아이폰은 16px보다 작은 입력칸을 누르면 화면을 확대함 → 모든 입력칸 16px (text-sm·text-xs 규칙보다 우선) */
+#root :is(input,textarea,select),#habit-view :is(input,textarea,select),.modal-wrap :is(input,textarea,select){font-size:16px!important}
+button{touch-action:manipulation}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #c6f432;outline-offset:4px}
+.daily-layout{display:flex;flex-direction:column;gap:24px}
+/* 카드 순서는 코드 순서 그대로 (읽어 주기·키보드 이동 순서와 화면 순서를 같게) */
+.daily-layout>div{padding:26px!important;border-radius:20px}
+.daily-layout h2{font-size:18px!important;letter-spacing:-.035em}
+.focus-card{display:grid;grid-template-columns:1fr 240px;gap:32px;align-items:center;padding:40px;border:1px solid #38422a;border-radius:24px;background:radial-gradient(ellipse at 100% 0,rgba(198,244,50,.075),transparent 65%),#191d19}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;color:#a9ba8a;margin:0 0 14px}
+.focus-card h2{font-size:clamp(28px,3vw,40px)!important;font-weight:750;line-height:1.3;letter-spacing:-.055em;margin:0 0 24px;color:#f1f4ec}
+.focus-task{font-size:18px;font-weight:650;margin:0 0 6px;overflow-wrap:anywhere}
+.focus-hint{font-size:13px;color:#a6afa1;margin:0 0 26px}
+.focus-cta{display:inline-flex;align-items:center;gap:28px;background:#c6f432;color:#17200b;font-size:14px;font-weight:750;padding:13px 20px;border-radius:12px;min-height:48px}
+.focus-cta:hover{background:#d6ff60}
+.focus-progress{text-align:center}
+/* 진행 고리: 밝은 라임 = 완수, 중간 라임 = 2분 실행 (둘 다 '실천'으로 셈) */
+.progress-orbit{width:190px;height:190px;margin:auto;border-radius:50%;background:conic-gradient(#c6f432 0 var(--full),#8db021 var(--full) var(--any),#30382a var(--any));padding:7px}
+.progress-orbit>div{height:100%;border-radius:50%;background:#1b201a;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.progress-orbit strong{font-size:46px;line-height:1.2;font-variant-numeric:tabular-nums;font-weight:650;letter-spacing:-.05em}
+.progress-orbit small{font-size:21px;color:#9ba68e;font-weight:500}
+.progress-orbit span{font-size:12px;color:#b4bdaa;margin-top:12px}
+.focus-progress>p{font-size:12px;color:#a0aa98;margin-top:18px}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px;gap:12px}
+.section-title .eyebrow{margin:0 0 5px;color:#8d969f;font-size:10px}
+.section-title h2{font-weight:700}
+.section-title button{font-size:12px;color:#b1b8bf;padding:8px}
+.quarter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.quarter-item{text-align:left;border:1px solid var(--line);border-radius:18px;padding:22px;background:var(--surface);min-width:0;transition:border-color .15s}
+.quarter-item:hover{border-color:#6b7956}
+.quarter-item>span{font-size:11px;color:#929ca6}
+.quarter-item h3{font-size:16px;font-weight:650;margin:9px 0 6px;overflow-wrap:anywhere}
+.quarter-item p{font-size:13px;color:#a0a7af;overflow-wrap:anywhere}
+.step-track{display:flex;gap:5px;margin-top:24px}.step-track i{height:4px;border-radius:4px;background:#32383e;flex:1}.step-track .is-done{background:#c6f432}
+#habit-view{max-width:1208px;margin:auto;padding-top:32px}
+#habit-view section{border-radius:20px}
+@media(max-width:640px){.app-header{padding:14px 16px 12px!important}.app-header>div{gap:14px!important}.app-header h1{font-size:16px}.app-nav{max-width:none}.app-nav button{font-size:12px!important;gap:5px}#root main{padding:20px 16px 40px}.daily-layout{gap:18px}.daily-layout>div{padding:20px!important}.focus-card{grid-template-columns:1fr;padding:26px;gap:22px;border-radius:20px}.focus-card h2{font-size:30px!important}.focus-progress{display:flex;align-items:center;gap:16px;text-align:left;border-top:1px solid #343d2e;padding-top:20px}.progress-orbit{width:84px;height:84px;margin:0;padding:4px;flex-shrink:0}.progress-orbit strong{font-size:25px}.progress-orbit small{font-size:14px}.progress-orbit span{display:none}.focus-progress>p{margin:0;font-size:13px}.focus-cta{width:100%;justify-content:space-between}.quarter-grid{grid-template-columns:1fr}.quarter-item{padding:18px}.step-track{margin-top:16px}.section-title{margin-top:4px}.daily-layout h2{font-size:17px!important}.focus-card h2{font-size:30px!important}}
+</style>
 </head>
 <body>
 
@@ -186,6 +242,9 @@
       <button type="button" data-action="ics-all" title="알림 시간이 정해진 습관을 캘린더 파일로 저장 (아이폰·애플워치 알림)" class="px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5">
         <i class="fa-solid fa-bell" aria-hidden="true"></i> 알림
       </button>
+      <button type="button" data-action="pause-open" title="여행·아픔 등으로 기록을 쉬는 기간 정하기" class="px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-mug-hot" aria-hidden="true"></i> 쉬는 기간
+      </button>
       <button type="button" data-action="export-xlsx" class="px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i> 엑셀
       </button>
@@ -195,6 +254,8 @@
       </button>
     </div>
   </header>
+  <!-- 오늘이 쉬는 기간이면 안내 -->
+  <p id="pause-banner" hidden class="px-4 py-3 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-xs text-slate-600 leading-relaxed"></p>
 
   <!-- 로그인 (Supabase 계정) -->
   <section id="auth-section" hidden class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200/80">
@@ -326,23 +387,29 @@
       <select id="habit-pillar" class="px-3 py-2 bg-amber-50/60 border border-amber-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
       <span class="text-slate-400">기둥에 연결하면 만다라트에 실천 투표 수가 쌓입니다</span>
     </div>
-    <form id="add-habit-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
-      <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
-      <input type="text" id="habit-identity" maxlength="100" aria-label="정체성" placeholder="정체성 (예: 냉철한 투자자)" required
-        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <input type="text" id="habit-name" maxlength="100" aria-label="본래 목표" placeholder="본래 목표 (예: 거시경제 지표 스크랩)" required
-        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <input type="text" id="habit-twomin" maxlength="100" aria-label="2분 최소규칙" placeholder="⚡︎ 2분 최소규칙 (예: 헤드라인 1줄 읽기)" required
-        class="px-3 py-2.5 bg-amber-50/60 border border-amber-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
-      <input type="text" id="habit-cue" maxlength="100" aria-label="환경 신호" placeholder="환경 신호 (예: 출근 직후 아이패드 켜기)"
-        class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <!-- 간편 추가: 이름(+아래 빈도)만으로 추가. 정체성·2분 규칙·신호·보상은 '자세히' 또는 나중에 수정에서 -->
+    <form id="add-habit-form" class="space-y-2.5">
       <div class="flex gap-2">
-        <input type="text" id="habit-reward" maxlength="100" aria-label="즉각 보상" placeholder="즉각 보상 (예: 커피 한 잔)"
+        <input type="text" id="habit-name" maxlength="100" aria-label="습관 이름" placeholder="습관 이름 (예: 러닝 20분, 책 10쪽)" required
           class="flex-1 min-w-0 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
         <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-ink text-xs font-bold rounded-xl shadow-sm transition shrink-0 flex items-center gap-1">
           <i class="fa-solid fa-plus" aria-hidden="true"></i> 추가
         </button>
       </div>
+      <details id="habit-details" class="rounded-xl border border-slate-200/80 bg-slate-50/50">
+        <summary class="cursor-pointer select-none px-3 py-2.5 text-xs font-bold text-slate-600">자세히 설정 <span class="font-normal text-slate-400">· 정체성·2분 규칙·신호·보상 (나중에 수정에서 해도 돼요)</span></summary>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 p-3 pt-0">
+          <select id="habit-category" aria-label="카테고리" class="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm sm:text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+          <input type="text" id="habit-identity" maxlength="100" aria-label="정체성" placeholder="정체성 (예: 냉철한 투자자)"
+            class="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <input type="text" id="habit-twomin" maxlength="100" aria-label="2분 최소규칙" placeholder="⚡︎ 2분 최소규칙 (예: 헤드라인 1줄 읽기)"
+            class="px-3 py-2.5 bg-amber-50/60 border border-amber-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <input type="text" id="habit-cue" maxlength="100" aria-label="환경 신호" placeholder="환경 신호 (예: 출근 직후 아이패드 켜기)"
+            class="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <input type="text" id="habit-reward" maxlength="100" aria-label="즉각 보상" placeholder="즉각 보상 (예: 커피 한 잔)"
+            class="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+      </details>
     </form>
     <!-- 빈도 · 숫자 기록 · 알림 (선택) -->
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs bg-slate-50/70 border border-slate-200/80 rounded-xl px-3 py-2.5">
@@ -526,6 +593,35 @@
   </div>
 </div>
 
+<!-- 쉬는 기간 모달: 여행·아픔 등으로 기록을 쉬는 날 정하기 -->
+<div id="pause-modal" class="modal-wrap fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="pause-modal-title">
+  <div class="bg-white rounded-2xl max-w-md w-full max-h-full overflow-y-auto p-5 space-y-4 shadow-xl border border-slate-200">
+    <div class="flex items-start justify-between gap-3">
+      <h3 id="pause-modal-title" class="font-bold text-slate-900 text-base flex items-center gap-2"><i class="fa-solid fa-mug-hot text-indigo-600" aria-hidden="true"></i> 쉬는 기간</h3>
+      <button type="button" data-action="close-pause" aria-label="닫기" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></button>
+    </div>
+    <p class="text-xs text-slate-500 leading-relaxed">여행·아픔처럼 기록을 쉬는 날을 정해 두면, 그동안은 '해야 할 날'에서 빠지고 연속 기록도 끊기지 않아요. 유지율 통계에서도 빠지고, 달력에는 점선 '쉼'으로 표시돼요.</p>
+    <form id="pause-form" class="space-y-3">
+      <div class="grid grid-cols-2 gap-2">
+        <label class="space-y-1"><span class="block text-xs font-bold text-slate-600">시작</span>
+          <input type="date" id="pause-from" required class="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl"></label>
+        <label class="space-y-1"><span class="block text-xs font-bold text-slate-600">끝</span>
+          <input type="date" id="pause-to" required class="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl"></label>
+      </div>
+      <label class="block space-y-1"><span class="block text-xs font-bold text-slate-600">이유</span>
+        <select id="pause-reason" class="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold">
+          <option>여행</option><option>아픔</option><option>바쁜 일정</option><option>기타</option>
+        </select></label>
+      <fieldset class="space-y-1.5">
+        <legend class="text-xs font-bold text-slate-600 mb-1">쉬는 습관</legend>
+        <div id="pause-habits" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
+      </fieldset>
+      <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-ink text-sm font-bold rounded-xl transition">쉬는 기간 정하기</button>
+    </form>
+    <div id="pause-list" class="space-y-1.5"></div>
+  </div>
+</div>
+
 <!-- 숫자 기록 입력 모달 -->
 <div id="value-modal" class="modal-wrap fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="value-modal-title">
   <form id="value-form" class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200">
@@ -704,6 +800,7 @@
   let viewYear = today.getFullYear();
   let viewMonth = today.getMonth();
   let selectedHeatmapHabitId = 'ALL';
+  let showRestHabits = false; // 이번 주 집중 습관이 있을 때 나머지 습관을 펼쳐 보는지
   let habits = [];
   const isFutureKey = key => key > todayKey;
 
@@ -766,9 +863,35 @@
       createdAt,
       logs
     };
-    Object.assign(habit, sanitizeMandalartLink(h), sanitizeHabitExtras(h));
+    Object.assign(habit, sanitizeMandalartLink(h), sanitizeHabitExtras(h), sanitizeHabitPlan(h));
     return habit;
   }
+
+  // ===== 쉬는 기간 · 이번 주 집중 · 놓친 이유 =====
+  // pauses: [{ from, to, reason }] 이 기간엔 '해야 할 날'에서 빠지고, 연속 기록을 끊지 않고, 유지율 통계에서도 빠짐
+  // focusWeek: 집중 습관으로 고른 주의 월요일 (이번 주 월요일과 같을 때만 '이번 주 집중')
+  // missReasons: { 놓친 날: 'time' | 'hard' | 'forgot' } (원할 때만 고름)
+  const MISS_REASONS = { time: '시간 부족', hard: '너무 어려움', forgot: '잊음' };
+  const FOCUS_MAX = 3;
+  function sanitizeHabitPlan(h) {
+    const out = {};
+    if (Array.isArray(h.pauses)) {
+      const pauses = h.pauses
+        .filter(p => p && isDateKey(p.from) && isDateKey(p.to) && p.from <= p.to)
+        .map(p => ({ from: p.from, to: p.to, reason: cleanText(p.reason, '쉬는 기간').slice(0, 20) }))
+        .slice(-20);
+      if (pauses.length) out.pauses = pauses;
+    }
+    if (isDateKey(h.focusWeek)) out.focusWeek = h.focusWeek;
+    if (h.missReasons && typeof h.missReasons === 'object') {
+      const keys = Object.keys(h.missReasons).filter(k => isDateKey(k) && MISS_REASONS[h.missReasons[k]]).sort().slice(-60);
+      if (keys.length) out.missReasons = Object.fromEntries(keys.map(k => [k, h.missReasons[k]]));
+    }
+    return out;
+  }
+  const pauseOn = (habit, key) => (habit.pauses || []).find(p => p.from <= key && key <= p.to) || null;
+  const isPausedDay = (habit, key) => !!pauseOn(habit, key);
+  const isFocus = habit => habit.focusWeek === currentWeekKeys[0];
 
   // ===== 빈도 · 숫자 기록 · 알림 =====
   // schedule: { type: 'daily' } | { type: 'weekly', count: 1~6 } | { type: 'days', days: [0~6] (0=월) }
@@ -816,6 +939,7 @@
   const dayIdxOf = key => (parseDateKey(key).getDay() + 6) % 7; // 0=월 … 6=일
   const isWeekly = h => !!h.schedule && h.schedule.type === 'weekly';
   function isScheduledDay(habit, key) {
+    if (isPausedDay(habit, key)) return false;
     const s = habit.schedule || DAILY;
     return s.type !== 'days' || s.days.includes(dayIdxOf(key));
   }
@@ -837,6 +961,7 @@
   const weekDone = (habit, key) => weekKeysFor(key).filter(k => getLogState(habit.logs, k) > 0).length;
   // 오늘 해야 하는 습관인지 (주 n회는 이번 주 목표를 아직 못 채웠거나 오늘 이미 했으면 포함)
   function isDueToday(habit) {
+    if (isPausedDay(habit, todayKey)) return false;
     const s = habit.schedule || DAILY;
     if (s.type === 'weekly') return weekDone(habit, todayKey) < s.count || getLogState(habit.logs, todayKey) > 0;
     return isScheduledDay(habit, todayKey);
@@ -1048,9 +1173,9 @@
       delete habit.logs[dateKey];
     }
   }
-  // 기간 안에서 해야 했던 횟수 (빈도 반영: 요일 지정은 그 요일만, 주 n회는 일수 × n/7)
+  // 기간 안에서 해야 했던 횟수 (빈도 반영: 요일 지정은 그 요일만, 주 n회는 일수 × n/7, 쉬는 기간은 제외)
   function countEligibleDays(habit, keys) {
-    const valid = keys.filter(k => k <= todayKey && k >= habit.createdAt);
+    const valid = keys.filter(k => k <= todayKey && k >= habit.createdAt && !isPausedDay(habit, k));
     const s = habit.schedule || DAILY;
     if (s.type === 'days') return valid.filter(k => isScheduledDay(habit, k)).length;
     if (s.type === 'weekly') return valid.length ? Math.max(1, Math.round(valid.length * s.count / 7)) : 0;
@@ -1689,11 +1814,17 @@
     let streak = 0;
     const cursor = new Date(today);
     if (s.type === 'weekly') {
+      // 쉬는 기간이 낀 주는 목표를 못 채워도 끊지 않고 건너뜀
+      const pausedWeek = k => weekKeysFor(k).some(d => isPausedDay(habit, d));
       if (weekDone(habit, formatDateKey(cursor)) < s.count) cursor.setDate(cursor.getDate() - 7);
       for (let guard = 0; guard < 530; guard++) {
         const k = formatDateKey(cursor);
-        if (weekDone(habit, k) < s.count) break;
-        streak++;
+        if (k < habit.createdAt && weekDone(habit, k) === 0) break;
+        if (weekDone(habit, k) < s.count) {
+          if (!pausedWeek(k)) break;
+        } else {
+          streak++;
+        }
         cursor.setDate(cursor.getDate() - 7);
       }
       return streak;
@@ -1712,7 +1843,7 @@
   // 두 번 거르기 경고: 매일·요일 지정은 '직전 예정일 + 오늘' 연속 미실행, 주 n회는 남은 날이 모자랄 때
   function isNeverMissTwiceRisk(habit) {
     const s = habit.schedule || DAILY;
-    if (getLogState(habit.logs, todayKey) > 0) return false;
+    if (getLogState(habit.logs, todayKey) > 0 || isPausedDay(habit, todayKey)) return false;
     if (s.type === 'weekly') {
       const week = weekKeysFor(todayKey);
       if (habit.createdAt > week[0]) return false;
@@ -1770,6 +1901,14 @@
     const s = currentWeekDates[0], e = currentWeekDates[6];
     document.getElementById('week-range-label').textContent =
       `이번 주 범위: ${s.getMonth() + 1}.${s.getDate()}(월) ~ ${e.getMonth() + 1}.${e.getDate()}(일)`;
+    // 오늘이 쉬는 기간인 습관이 있으면 안내
+    const pausedNow = habits.map(h => pauseOn(h, todayKey)).filter(Boolean);
+    const banner = document.getElementById('pause-banner');
+    banner.hidden = !pausedNow.length;
+    if (pausedNow.length) {
+      const p = pausedNow[0];
+      banner.textContent = `오늘은 쉬는 기간이에요 (${p.reason} · ~${shortDate(p.to)}). 습관 ${pausedNow.length}개가 쉬는 중이라 기록하지 않아도 연속 기록이 끊기지 않아요.`;
+    }
     const pill = document.getElementById('sync-pill');
     document.body.dataset.auth = storeMode === 'auth' ? 'out' : 'in';
     document.getElementById('auth-section').hidden = storeMode !== 'auth';
@@ -1845,7 +1984,8 @@
       return;
     }
     const withPhoto = photosEnabled();
-    el.innerHTML = habits.map(h => {
+    const { visible, restToggle } = habitsForDisplay();
+    el.innerHTML = visible.map(h => {
       const id = escapeHtml(h.id);
       const st = getLogState(h.logs, todayKey);
       const proof = getProof(h.id, todayKey);
@@ -1871,7 +2011,7 @@
           <div class="min-w-0">
             ${risk ? `<span class="never-miss-badge inline-block mb-1 px-1.5 py-0.5 text-[10px] font-extrabold rounded bg-rose-100 text-rose-700 border border-rose-300">${isWeekly(h) ? escapeHtml(riskText(h)) : '지난번에 놓쳤어요 · 2분만 해도 OK'}</span>` : ''}
             <p class="font-bold text-sm text-slate-900 break-words">${escapeHtml(h.name)}</p>
-            <p class="text-[11px] text-slate-500 mt-0.5">${escapeHtml(scheduleLabel(h))}${weekly}${!due && !st ? ' · 오늘은 쉬는 날' : ''}${h.target ? ` · 목표 ${fmtNum(h.target)}${escapeHtml(h.unit)}` : ''}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">${escapeHtml(scheduleLabel(h))}${weekly}${!due && !st ? (isPausedDay(h, todayKey) ? ' · 쉬는 기간' : ' · 오늘은 쉬는 날') : ''}${h.target ? ` · 목표 ${fmtNum(h.target)}${escapeHtml(h.unit)}` : ''}</p>
             <p class="text-[11px] text-amber-700 mt-0.5 break-words">⚡︎ ${escapeHtml(h.twoMinRule)}</p>
           </div>
           <div class="grid ${withPhoto ? 'grid-cols-3' : 'grid-cols-2'} gap-2">
@@ -1879,7 +2019,34 @@
             ${camBtn}
           </div>
         </div>`;
-    }).join('');
+    }).join('') + (restToggle ? `<button type="button" data-action="toggle-rest" class="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800">${restToggle}</button>` : '');
+  }
+
+  // 이번 주 집중 습관이 있으면 집중 습관을 위로, 나머지는 접어 둠 ('나머지 펼치기'로 보기)
+  function habitsForDisplay() {
+    const focused = habits.filter(isFocus);
+    if (!focused.length) return { visible: habits, restToggle: '' };
+    const rest = habits.filter(h => !isFocus(h));
+    if (!rest.length) return { visible: focused, restToggle: '' };
+    return showRestHabits
+      ? { visible: [...focused, ...rest], restToggle: '나머지 습관 접기' }
+      : { visible: focused, restToggle: `나머지 습관 ${rest.length}개 펼치기` };
+  }
+  function toggleFocus(habitId) {
+    const habit = findHabit(habitId);
+    if (!habit || !canWrite()) return;
+    if (isFocus(habit)) delete habit.focusWeek;
+    else {
+      if (habits.filter(isFocus).length >= FOCUS_MAX) {
+        showToast(`이번 주 집중 습관은 ${FOCUS_MAX}개까지예요. 다른 하나의 별표를 먼저 풀어 주세요.`);
+        return;
+      }
+      habit.focusWeek = currentWeekKeys[0];
+    }
+    // 고르는 중에는 나머지를 펼쳐 둠 (3개를 다 고르면 접힘, 다음에 열 때는 접힌 상태로 시작)
+    showRestHabits = habits.filter(isFocus).length < FOCUS_MAX;
+    saveData();
+    renderAll();
   }
 
   function renderIdentityCards() {
@@ -1929,7 +2096,13 @@
       return;
     }
     const withPhoto = photosEnabled();
-    tbody.innerHTML = habits.map((habit, index) => {
+    const { visible, restToggle } = habitsForDisplay();
+    const focusHint = !habits.some(isFocus) && habits.length > FOCUS_MAX
+      ? `<tr><td colspan="11" class="px-5 py-2.5 text-[11px] text-slate-500"><i class="fa-regular fa-star" aria-hidden="true"></i> 별표로 이번 주 집중할 습관을 ${FOCUS_MAX}개까지 고르면 위로 올라오고 나머지는 접혀요.</td></tr>`
+      : '';
+    tbody.innerHTML = focusHint + visible.map(habit => {
+      const index = habits.indexOf(habit);
+      const focus = isFocus(habit);
       const id = escapeHtml(habit.id);
       const safeName = escapeHtml(habit.name);
       const weekStates = currentWeekKeys.map(k => getLogState(habit.logs, k));
@@ -2010,7 +2183,14 @@
               ${habit.pillarIdx !== undefined ? `<span class="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-amber-50 text-amber-800 border border-amber-300" title="만다라트 기둥 #${habit.pillarIdx + 1}${habit.actionRef ? ' · 행동 칸과 연결됨' : ''}">${escapeHtml(pillarLabel(habit.pillarIdx))}${habit.actionRef ? ' <i class="fa-solid fa-link" aria-hidden="true"></i>' : ''}</span>` : ''}
               ${riskBadgeHtml}
             </div>
-            <p class="font-bold text-slate-900 leading-snug break-words">${safeName}</p>
+            <div class="flex items-start gap-1.5">
+              <button type="button" data-action="focus" data-id="${id}" aria-pressed="${focus}" aria-label="${safeName} 이번 주 집중 ${focus ? '해제' : '지정'}"
+                title="${focus ? '이번 주 집중 해제' : `이번 주 집중 습관으로 (최대 ${FOCUS_MAX}개)`}"
+                class="shrink-0 leading-none pt-0.5 ${focus ? 'text-indigo-600' : 'text-slate-300 hover:text-indigo-600'}">
+                <i class="fa-${focus ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i>
+              </button>
+              <p class="font-bold text-slate-900 leading-snug break-words">${safeName}${focus ? ' <span class="text-[10px] font-bold text-indigo-600 align-middle">이번 주 집중</span>' : ''}</p>
+            </div>
             <p class="text-xs font-semibold text-amber-700 flex items-center gap-1">
               <span class="bg-amber-100 text-amber-800 px-1.5 rounded text-[10px] font-bold shrink-0">⚡︎ 2분 규칙</span>
               <span>${escapeHtml(habit.twoMinRule)}</span>
@@ -2045,7 +2225,9 @@
             <button type="button" data-action="delete" data-id="${id}" class="icon-btn text-slate-300 hover:text-rose-500 transition p-1.5" title="삭제" aria-label="${safeName} 삭제"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
           </td>
         </tr>`;
-    }).join('');
+    }).join('') + (restToggle
+      ? `<tr><td colspan="11" class="py-2 text-center"><button type="button" data-action="toggle-rest" class="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800">${restToggle}</button></td></tr>`
+      : '');
   }
 
   function renderHeatmapSection() {
@@ -2084,7 +2266,9 @@
         levelClass = 'grass-future';
         bottomLabel = '';
       } else if (isAll) {
-        const pool = habits.filter(h => h.createdAt <= dKey);
+        // 쉬는 기간인 습관은 그날 분모에서 뺌 (모두 쉬는 날이면 '쉼')
+        const started = habits.filter(h => h.createdAt <= dKey);
+        const pool = started.filter(h => !isPausedDay(h, dKey) || getLogState(h.logs, dKey) > 0);
         let fullCnt = 0, minCnt = 0;
         pool.forEach(h => {
           const st = getLogState(h.logs, dKey);
@@ -2100,10 +2284,12 @@
         else if (ratio > 0.67 && ratio < 1) levelClass = 'grass-lv-3';
         else if (ratio === 1 && total > 0) levelClass = 'grass-lv-4';
         bottomLabel = total > 0 ? `${activeCnt}/${total}` : '-';
+        if (total === 0 && started.length > 0) { levelClass = 'grass-pause'; bottomLabel = '쉼'; }
       } else {
         const st = targetHabit ? getLogState(targetHabit.logs, dKey) : 0;
         if (st === 2) { levelClass = 'grass-lv-4'; bottomLabel = '✔'; }
         else if (st === 1) { levelClass = 'grass-lv-min'; bottomLabel = '⚡︎'; }
+        else if (targetHabit && isPausedDay(targetHabit, dKey)) { levelClass = 'grass-pause'; bottomLabel = '쉼'; }
       }
       gridHtml += `
         <button type="button" data-action="cell" data-date="${dKey}" ${future ? 'disabled' : ''}
@@ -2120,17 +2306,22 @@
       return;
     }
     barsEl.innerHTML = habits.map(h => {
-      let monthFull = 0, monthMin = 0, squares = '';
+      let monthFull = 0, monthMin = 0, pausedDays = 0, squares = '';
       keys.forEach(dKey => {
         const st = getLogState(h.logs, dKey);
+        const paused = !isFutureKey(dKey) && dKey >= h.createdAt && isPausedDay(h, dKey);
+        if (paused) pausedDays++;
         let sq = 'bg-slate-200';
         if (isFutureKey(dKey) || dKey < h.createdAt || !isScheduledDay(h, dKey)) sq = 'bg-slate-100';
+        if (paused) sq = 'grass-pause border';
         if (st === 2) { monthFull++; sq = 'bg-emerald-500'; }
         else if (st === 1) { monthMin++; sq = 'bg-amber-400'; }
         squares += `<span class="w-2.5 h-2.5 rounded-[2px] inline-block ${sq}"></span>`;
       });
       const eligible = countEligibleDays(h, keys);
-      const rateText = eligible ? `${Math.min(100, Math.round(((monthFull + monthMin) / eligible) * 100))}%` : '-';
+      // 유지율 = 실천한 날 ÷ 해야 했던 날 (쉬는 기간은 해야 했던 날에서 뺌)
+      const rateText = (eligible ? `${Math.min(100, Math.round(((monthFull + monthMin) / eligible) * 100))}%` : '-')
+        + (pausedDays ? ` · 쉼 ${pausedDays}일 제외` : '');
       // 숫자 기록 습관: 이번 달 합계·기록한 날 평균·최고값
       let valueLine = '';
       if (h.unit) {
@@ -2241,6 +2432,11 @@
       case 'cell': refreshDates(); handleHeatmapCellClick(btn.dataset.date); break;
       case 'proof': refreshDates(); openProofModal(id, btn.dataset.date); break;
       case 'filter': selectHeatmapFilter(id); break;
+      case 'focus': refreshDates(); toggleFocus(id); break;
+      case 'toggle-rest': showRestHabits = !showRestHabits; renderAll(); break;
+      case 'pause-open': openPauseModal(); break;
+      case 'close-pause': hideModal('pause-modal'); break;
+      case 'pause-remove': removePause(btn.dataset.from, btn.dataset.to, btn.dataset.reason); break;
       case 'up': moveHabit(id, -1); break;
       case 'down': moveHabit(id, 1); break;
       case 'edit': openEditModal(id); break;
@@ -2320,6 +2516,81 @@
     showToast('수정되었습니다.');
   });
 
+  // ===== 쉬는 기간 (여행·아픔 등) =====
+  function shortDate(key) {
+    const d = parseDateKey(key);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
+  // 같은 기간·이유로 여러 습관에 넣은 쉬는 기간을 하나로 묶어 보여 줌 (이미 끝난 기간은 뺌)
+  function pauseGroups() {
+    const map = new Map();
+    habits.forEach(h => (h.pauses || []).forEach(p => {
+      if (p.to < todayKey) return;
+      const k = `${p.from}|${p.to}|${p.reason}`;
+      if (!map.has(k)) map.set(k, { ...p, count: 0 });
+      map.get(k).count++;
+    }));
+    return [...map.values()].sort((a, b) => a.from.localeCompare(b.from));
+  }
+  function renderPauseModal() {
+    document.getElementById('pause-habits').innerHTML = habits.length
+      ? habits.map(h => `
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" value="${escapeHtml(h.id)}" checked class="w-4 h-4 accent-lime-500 shrink-0">
+          <span class="truncate">${escapeHtml(h.name)}</span>
+        </label>`).join('')
+      : '<p class="text-xs text-slate-400">등록된 습관이 없어요.</p>';
+    const groups = pauseGroups();
+    document.getElementById('pause-list').innerHTML = groups.length
+      ? '<p class="text-xs font-bold text-slate-600">정해 둔 쉬는 기간</p>' + groups.map(g => `
+        <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-xs">
+          <span class="min-w-0 text-slate-700"><b>${shortDate(g.from)}~${shortDate(g.to)}</b> · ${escapeHtml(g.reason)} <span class="text-slate-500">· 습관 ${g.count}개</span></span>
+          <button type="button" data-action="pause-remove" data-from="${g.from}" data-to="${g.to}" data-reason="${escapeHtml(g.reason)}"
+            class="shrink-0 px-2 py-1 rounded-lg text-rose-700 hover:bg-rose-50 font-bold">취소</button>
+        </div>`).join('')
+      : '';
+  }
+  function openPauseModal() {
+    refreshDates();
+    const end = parseDateKey(todayKey);
+    end.setDate(end.getDate() + 2);
+    document.getElementById('pause-from').value = todayKey;
+    document.getElementById('pause-to').value = formatDateKey(end);
+    renderPauseModal();
+    showModal('pause-modal');
+  }
+  function removePause(from, to, reason) {
+    if (!canWrite()) return;
+    habits.forEach(h => {
+      if (!h.pauses) return;
+      h.pauses = h.pauses.filter(p => !(p.from === from && p.to === to && p.reason === reason));
+      if (!h.pauses.length) delete h.pauses;
+    });
+    saveData();
+    renderAll();
+    renderPauseModal();
+    showToast('쉬는 기간을 취소했어요.');
+  }
+  document.getElementById('pause-form').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!canWrite()) return;
+    const from = document.getElementById('pause-from').value;
+    const to = document.getElementById('pause-to').value;
+    const reason = cleanText(document.getElementById('pause-reason').value, '쉬는 기간').slice(0, 20);
+    if (!isDateKey(from) || !isDateKey(to) || from > to) { showToast('끝나는 날이 시작일보다 빨라요. 날짜를 확인해 주세요.'); return; }
+    const ids = [...document.querySelectorAll('#pause-habits input:checked')].map(i => i.value);
+    const targets = habits.filter(h => ids.includes(h.id));
+    if (!targets.length) { showToast('쉬는 기간을 적용할 습관을 하나 이상 골라 주세요.'); return; }
+    targets.forEach(h => {
+      const others = (h.pauses || []).filter(p => !(p.from === from && p.to === to && p.reason === reason));
+      h.pauses = [...others, { from, to, reason }].slice(-20);
+    });
+    saveData();
+    renderAll();
+    renderPauseModal();
+    showToast(`${shortDate(from)}~${shortDate(to)} 쉬는 기간을 정했어요 (습관 ${targets.length}개). 그동안은 기록하지 않아도 연속 기록이 끊기지 않아요.`, 4500);
+  });
+
   // ===== AI 코치 호출 (Supabase Edge Function 'ai-coach' — Gemini 키는 서버에만 있음) =====
   // 서버는 50초 안에 답하도록 되어 있음. 그래도 답이 안 오면(앱 전환·네트워크 끊김 등) 60초에서 끊어서
   // 버튼이 '…하는 중'에 멈춰 있지 않게 함. 만다라트 화면도 bridge.callCoach로 같은 함수를 씀
@@ -2389,6 +2660,8 @@
       target: unit && isFinite(target) && target > 0 ? roundValue(target) : '',
       remindAt: document.getElementById('habit-remind').value
     });
+    // AI가 채운 정체성·2분 규칙 등이 보이도록 '자세히 설정'을 펼침
+    document.getElementById('habit-details').open = true;
     const tip = cleanText(d.tip, '');
     const tipEl = document.getElementById('ai-design-tip');
     tipEl.textContent = tip ? `요령: ${tip}` : '';
@@ -2456,6 +2729,8 @@
     ['habit-identity', 'habit-name', 'habit-twomin', 'habit-cue', 'habit-reward']
       .forEach(fid => { document.getElementById(fid).value = ''; });
     document.getElementById('habit-pillar').value = '';
+    document.getElementById('habit-category').value = '생활습관';
+    document.getElementById('habit-details').open = false;
     fillExtras('habit', null);
     clearMandalartPending();
     clearDesign();
@@ -2751,7 +3026,23 @@
     askConfirm: (message, okLabel, danger) => askConfirm(message, okLabel || '확인', !!danger),
     toast: (message, ms) => showToast(message, ms || 4000),
     // AI 코치 호출 (만다라트·에코·오늘 화면의 AI 기능도 이 함수를 씀)
-    callCoach: (task, payload) => callCoach(task, payload)
+    callCoach: (task, payload) => callCoach(task, payload),
+    // 놓친 이유 기록 (원할 때만, 같은 이유를 다시 누르면 지움): 'time' | 'hard' | 'forgot'
+    setMissReason(habitId, dateKey, reason) {
+      const habit = findHabit(habitId);
+      if (!habit || !canWrite() || !isDateKey(dateKey)) return false;
+      const map = { ...(habit.missReasons || {}) };
+      if (MISS_REASONS[reason] && map[dateKey] !== reason) map[dateKey] = reason;
+      else delete map[dateKey];
+      if (Object.keys(map).length) habit.missReasons = map;
+      else delete habit.missReasons;
+      saveData();
+      renderAll();
+      return true;
+    },
+    // '오늘' 화면에서 습관 수정 창·쉬는 기간 창 열기
+    openEdit: (habitId) => openEditModal(habitId),
+    openPause: () => openPauseModal()
   };
 
   function init() {
@@ -2761,6 +3052,7 @@
     fillExtras('habit', null);
     const options = renderCategoryOptions();
     document.getElementById('habit-category').innerHTML = options;
+    document.getElementById('habit-category').value = '생활습관'; // 간편 추가 때는 카테고리 칸이 접혀 있으므로 가장 무난한 값
     document.getElementById('edit-category').innerHTML = options;
     renderAll();
     connectStore();
@@ -3220,12 +3512,16 @@
       return votes;
     };
     // 오늘(또는 어제)부터 이어진 연속 실천 일수 (2분 실행 포함)
+    // 쉬는 기간(여행·아픔 등)인 날인지 — 습관 화면과 같은 규칙
+    const isPausedR = (habit, key) => (habit.pauses || []).some(p => p.from <= key && key <= p.to);
     const habitStreak = (habit) => {
       const d = new Date();
       if (!habitLogState(habit, dayKey(d))) d.setDate(d.getDate() - 1);
       let n = 0;
-      while (habitLogState(habit, dayKey(d))) {
-        n++;
+      for (let guard = 0; guard < 3660; guard++) {
+        const k = dayKey(d);
+        if (habitLogState(habit, k)) n++;
+        else if (!isPausedR(habit, k) || (habit.createdAt && k < habit.createdAt)) break; // 쉬는 기간은 끊지 않고 건너뜀
         d.setDate(d.getDate() - 1);
       }
       return n;
@@ -3238,9 +3534,9 @@
       const [activeTab, setActiveTab] = useState(() => {
         try {
           const saved = localStorage.getItem(TAB_KEY);
-          return TABS.some(t => t.key === saved) ? saved : "mandalart";
+          return TABS.some(t => t.key === saved) ? saved : "daily";
         } catch (e) {
-          return "mandalart";
+          return "daily";
         }
       });
       const [mobileZoomBlock, setMobileZoomBlock] = useState(null); // 모바일에서 특정 블록 확대용 (null이면 전체)
@@ -3939,6 +4235,102 @@
       const [showAllOnce, setShowAllOnce] = useState(false);
       const [showAllUnsorted, setShowAllUnsorted] = useState(false);
       const [showAllHabitTodo, setShowAllHabitTodo] = useState(false);
+
+      // ---------- '오늘' 화면에서 바로 기록 · 2분 타이머 · 놓친 이유 ----------
+      const [valueDrafts, setValueDrafts] = useState({});     // 숫자 습관 입력 칸 { 습관 id: 값 }
+      const [timer, setTimer] = useState(null);               // { habitId, endsAt, finished }
+      const [timerNow, setTimerNow] = useState(Date.now());
+      const [showRestToday, setShowRestToday] = useState(false);
+      const [hiddenSuggest, setHiddenSuggest] = useState({});  // '괜찮아요'로 닫은 조정 제안
+      useEffect(() => {
+        if (!timer || timer.finished) return;
+        const tick = setInterval(() => {
+          const now = Date.now();
+          setTimerNow(now);
+          if (now >= timer.endsAt) {
+            setTimer(t => (t && t.habitId === timer.habitId ? { ...t, finished: true } : t));
+            // 진동은 되는 기기(안드로이드)에서만, 화면을 한 번이라도 누른 뒤에만
+            try {
+              if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([200, 100, 200]);
+            } catch (e) {}
+          }
+        }, 250);
+        return () => clearInterval(tick);
+      }, [timer]);
+      const startTimer = (h) => {
+        const now = Date.now();
+        setTimerNow(now);
+        setTimer({ habitId: h.id, endsAt: now + 2 * 60 * 1000, finished: false });
+      };
+
+      // 기록하고 바로 되돌릴 수 있게 (기록 전 상태로 정확히 복원)
+      const recordToday = (h, apply, doneText) => {
+        const prev = { state: habitLogState(h, todayKey), value: (h.values && h.values[todayKey]) || 0 };
+        if (!bridge || !apply()) {
+          setAiNote({ kind: "error", text: "지금은 기록할 수 없어요. 로그인 상태를 확인해 주세요." });
+          return;
+        }
+        setAiNote({
+          kind: "ok",
+          text: `'${h.name}' ${doneText}`,
+          undo: () => {
+            bridge.restoreRecord(h.id, todayKey, prev);
+            setAiNote({ kind: "ok", text: "↩ 방금 기록을 되돌렸어요." });
+          }
+        });
+      };
+      // 같은 상태를 다시 누르면 해제
+      const quickState = (h, st) => {
+        const next = habitLogState(h, todayKey) === st ? 0 : st;
+        recordToday(h, () => bridge.setLogState(h.id, todayKey, next),
+          next === 2 ? "✔ 완수로 기록했어요." : next === 1 ? "⚡︎ 2분 실행으로 기록했어요." : "오늘 기록을 지웠어요.");
+      };
+      const quickValue = (h) => {
+        const raw = String(valueDrafts[h.id] ?? "").trim();
+        const v = Number(raw);
+        if (!raw || !isFinite(v) || v < 0) {
+          setAiNote({ kind: "error", text: `오늘 한 만큼을 숫자(${h.unit})로 적어 주세요. 0을 적으면 기록을 지워요.` });
+          return;
+        }
+        recordToday(h, () => bridge.setValue(h.id, todayKey, v), v > 0 ? `${fmtVotes(v)}${h.unit} 기록했어요.` : "오늘 기록을 지웠어요.");
+        setValueDrafts(d => ({ ...d, [h.id]: "" }));
+      };
+      const finishTimer = (h, st) => {
+        setTimer(null);
+        recordToday(h, () => bridge.setLogState(h.id, todayKey, st), st === 2 ? "✔ 완수로 기록했어요." : "⚡︎ 2분 실행으로 기록했어요.");
+      };
+
+      const MISS_LABEL = { time: "시간 부족", hard: "너무 어려움", forgot: "잊음" };
+      // 가장 최근 '해야 했던 날'(쉬는 기간 제외)을 놓쳤으면 그 날짜 — 주 n회 습관은 묻지 않음
+      const lastMissedKey = (h) => {
+        if (h.schedule && h.schedule.type === "weekly") return null;
+        const d = new Date();
+        for (let i = 0; i < 7; i++) {
+          d.setDate(d.getDate() - 1);
+          const k = dayKey(d);
+          if (h.createdAt && k < h.createdAt) return null;
+          if (!isScheduledR(h, k)) continue;
+          return habitLogState(h, k) === 0 ? k : null;
+        }
+        return null;
+      };
+      // 최근 3주 안에 같은 이유가 두 번 이상이면 그 이유 (조정 제안용)
+      const repeatedReason = (h) => {
+        const since = new Date();
+        since.setDate(since.getDate() - 21);
+        const sinceKey = dayKey(since);
+        const counts = {};
+        Object.entries(h.missReasons || {}).forEach(([k, r]) => { if (k >= sinceKey) counts[r] = (counts[r] || 0) + 1; });
+        const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+        return top && top[1] >= 2 ? top[0] : null;
+      };
+      const lowerTarget = (h) => {
+        const next = Math.max(1, Math.round(h.target * 0.7));
+        if (bridge && bridge.setTarget(h.id, next)) {
+          setHiddenSuggest(s => ({ ...s, [h.id]: true }));
+          setAiNote({ kind: "ok", text: `'${h.name}' 목표를 ${fmtVotes(h.target)} → ${fmtVotes(next)}${h.unit}로 줄였어요. 작게 이어가는 게 이기는 길이에요.` });
+        }
+      };
       const nowDate = new Date();
       const dayNumber = Math.floor(Date.UTC(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()) / 86400000);
       const todayRule = ruleItems.length ? ruleItems[(dayNumber + ruleShift) % ruleItems.length] : null;
@@ -4110,7 +4502,8 @@
 
       // ---------- 습관 빈도 계산 (습관 화면과 같은 규칙) ----------
       const dayIdxOfKey = (key) => (new Date(...key.split("-").map((n, i) => (i === 1 ? Number(n) - 1 : Number(n)))).getDay() + 6) % 7;
-      const isScheduledR = (h, key) => !h.schedule || h.schedule.type !== "days" || (h.schedule.days || []).includes(dayIdxOfKey(key));
+      const isScheduledR = (h, key) =>
+        !isPausedR(h, key) && (!h.schedule || h.schedule.type !== "days" || (h.schedule.days || []).includes(dayIdxOfKey(key)));
       const weekDoneR = (h, key) => {
         const d = new Date(...key.split("-").map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))));
         d.setDate(d.getDate() - dayIdxOfKey(key));
@@ -4122,9 +4515,10 @@
         return n;
       };
       const isDueTodayR = (h, key) =>
-        h.schedule && h.schedule.type === "weekly"
+        !isPausedR(h, key) &&
+        (h.schedule && h.schedule.type === "weekly"
           ? weekDoneR(h, key) < h.schedule.count || habitLogState(h, key) > 0
-          : isScheduledR(h, key);
+          : isScheduledR(h, key));
 
       // ---------- 한 줄로 기록하기 ----------
       const [quickOpen, setQuickOpen] = useState(false);
@@ -4405,7 +4799,7 @@
           />
 
           {/* 공용 상단 바: 앱 이름 + 아이콘 버튼(로그인·한 줄 기록·카드·메뉴) + 4개 화면 탭 */}
-          <header className="sm:sticky top-0 z-30 bg-ink/90 backdrop-blur border-b border-slate-200 px-4 pt-3 pb-2.5">
+          <header className="app-header sm:sticky top-0 z-30 bg-ink/90 backdrop-blur border-b border-slate-200 px-4 pt-3 pb-2.5">
             <div className="max-w-7xl mx-auto flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -4484,8 +4878,8 @@
               </div>
 
               {/* 화면 전환 탭 */}
-              <nav className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-full lg:max-w-xl">
-                {TABS.map(tab => (
+              <nav aria-label="주요 화면" className="app-nav grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-full lg:max-w-xl">
+                {[...TABS].sort((a, b) => (a.key === "daily" ? -1 : b.key === "daily" ? 1 : 0)).map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
@@ -5170,11 +5564,90 @@
                 }), 60);
               };
               const dueToday = habitsLinked ? habits.filter(h => isDueTodayR(h, todayKey)) : [];
+              // 오늘 실천 = 2분 실행도 포함 (앱 원칙: 2분만 해도 해낸 것). 고리는 완수(밝은 라임)와 2분(중간 라임)을 나눠 그림
+              const fullToday = dueToday.filter(h => habitTodayState(h) === 2).length;
+              const minToday = dueToday.filter(h => habitTodayState(h) === 1).length;
+              const pct = (n) => (dueToday.length ? Math.round((n / dueToday.length) * 100) : 0);
+              const mondayKey = (() => { const d = new Date(); d.setDate(d.getDate() - dayIdxOfKey(todayKey)); return dayKey(d); })();
+              const yesterdayKey = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return dayKey(d); })();
+              const pausedToday = habitsLinked ? habits.filter(h => isPausedR(h, todayKey)) : [];
+              const pauseNow = pausedToday.length ? (pausedToday[0].pauses || []).find(p => p.from <= todayKey && todayKey <= p.to) : null;
+              // 이번 주 집중 습관이 있으면 위로, 나머지는 접어 둠
+              const focusedDue = dueToday.filter(h => h.focusWeek === mondayKey);
+              const restDue = focusedDue.length ? dueToday.filter(h => h.focusWeek !== mondayKey) : [];
+              const shownDue = focusedDue.length ? (showRestToday ? [...focusedDue, ...restDue] : focusedDue) : dueToday;
+              const nextHabit = [...focusedDue, ...dueToday].find(h => habitTodayState(h) === 0);
+              // 집중 카드 버튼: 다음 습관을 2분 타이머로 바로 시작 (타이머가 돌고 있으면 남은 시간)
+              const scrollToHabit = (id) => setTimeout(() => {
+                const el = document.getElementById(`today-${id}`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 60);
+              const running = timer && !timer.finished ? habits.find(h => h.id === timer.habitId) : null;
+              const runLeft = running ? Math.max(0, Math.ceil((timer.endsAt - timerNow) / 1000)) : 0;
+              const hero = !habitsLinked
+                ? { label: "로그인하고 시작하기", onClick: goHabits }
+                : running
+                ? { label: `2분 타이머 ${Math.floor(runLeft / 60)}:${String(runLeft % 60).padStart(2, "0")} · ${running.name}`, onClick: () => scrollToHabit(running.id) }
+                : nextHabit
+                ? {
+                    label: "2분 타이머로 바로 시작",
+                    onClick: () => {
+                      if (!shownDue.includes(nextHabit)) setShowRestToday(true);
+                      startTimer(nextHabit);
+                      scrollToHabit(nextHabit.id);
+                    }
+                  }
+                : { label: "습관 탭에서 자세히 보기", onClick: goHabits };
 
               return (
-              <div className="space-y-5">
+              <div className="daily-layout">
+                <section className="focus-card" aria-labelledby="focus-heading">
+                  <div className="focus-copy">
+                    <p className="eyebrow">TODAY / 오늘의 집중</p>
+                    <h2 id="focus-heading">작은 실천으로,<br />원하는 나에 가까이.</h2>
+                    <p className="focus-task">
+                      {!habitsLinked
+                        ? "오늘의 작은 시작을 기록해 보세요."
+                        : nextHabit
+                        ? nextHabit.name
+                        : dueToday.length
+                        ? "오늘 예정된 습관을 모두 실천했어요."
+                        : "오늘은 어떤 작은 실천을 해볼까요?"}
+                    </p>
+                    <p className="focus-hint">
+                      {nextHabit && nextHabit.twoMinRule
+                        ? `2분만 시작하기 · ${nextHabit.twoMinRule}`
+                        : minToday
+                        ? "여유가 있으면 2분만 한 습관을 완수로 올려 보세요."
+                        : "완벽한 하루보다, 이어가는 하루."}
+                    </p>
+                    <button className="focus-cta" onClick={hero.onClick}>{hero.label}<span aria-hidden="true">↗</span></button>
+                  </div>
+                  <div className="focus-progress" aria-label={`오늘 습관 실천 ${fullToday + minToday} / ${dueToday.length} (완수 ${fullToday}, 2분 ${minToday})`}>
+                    <div className="progress-orbit" style={{ "--full": `${pct(fullToday)}%`, "--any": `${pct(fullToday + minToday)}%` }}>
+                      <div><strong>{habitsLinked ? fullToday + minToday : "—"}<small> / {habitsLinked ? dueToday.length : "—"}</small></strong><span>오늘의 습관 실천</span></div>
+                    </div>
+                    <p>
+                      {!habitsLinked
+                        ? "로그인하면 기록이 이어져요"
+                        : dueToday.length
+                        ? `완수 ${fullToday} · 2분 ${minToday} · 하나씩, 나의 속도로`
+                        : "예정된 습관이 없는 날"}
+                    </p>
+                  </div>
+                </section>
+                {/* 오늘이 쉬는 기간이면 안내 (기록 안 해도 연속 기록이 안 끊김) */}
+                {pauseNow && (
+                  <div className="bg-white rounded-2xl p-4 sketch-border border-dashed flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-stone-600 leading-relaxed flex-1 min-w-0">
+                      오늘은 쉬는 기간이에요 ({pauseNow.reason} · ~{pauseNow.to.slice(5).replace("-", "/")}). 습관 {pausedToday.length}개가 쉬는 중이라 기록하지 않아도 연속 기록이 끊기지 않아요.
+                    </p>
+                    <button onClick={() => bridge.openPause()} className="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700">쉬는 기간 관리</button>
+                  </div>
+                )}
+
                 {/* 오늘의 브리핑 + 확언 */}
-                <div className="bg-white rounded-2xl p-5 sketch-border space-y-3">
+                <div className="daily-brief bg-white rounded-2xl p-5 sketch-border space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Morning Brief · {todayKey}</span>
@@ -5253,64 +5726,173 @@
                   )}
                 </div>
 
-                {/* 오늘의 원칙 (만다라트에서 '원칙'으로 정한 행동이 하루에 하나씩) */}
-                {todayRule && (
-                  <div className="bg-white rounded-2xl p-4 sketch-border flex items-start gap-3">
-                    <span className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><Icon name="compass" /></span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold text-stone-500">오늘의 원칙 · {data.pillars[todayRule.p] || `기둥 ${todayRule.p + 1}`}</div>
-                      <p className="text-base font-extrabold text-stone-900 break-keep mt-0.5">{todayRule.text}</p>
-                    </div>
-                    {ruleItems.length > 1 && (
-                      <button
-                        onClick={() => setRuleShift(s => s + 1)}
-                        className="shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 whitespace-nowrap"
-                      >
-                        다른 원칙
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* 오늘 할 습관 (기록은 습관 탭에서만 — 여기서는 오늘 상태만) */}
-                <div className="bg-white rounded-2xl p-4 sm:p-5 sketch-border space-y-3">
+                {/* 오늘 할 습관: 여기서 바로 ⚡︎ 2분 / ✔ 완수 / 숫자 기록 (습관 탭과 같은 기록, 되돌리기 가능) */}
+                <div id="today-habits" className="daily-habits bg-white rounded-2xl p-4 sm:p-5 sketch-border space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="font-bold text-sm text-stone-900 flex items-center gap-2"><Icon name="bolt" className="text-indigo-600" /> 오늘 할 습관</h2>
-                    <button
-                      onClick={goHabits}
-                      className="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-ink whitespace-nowrap"
-                    >
-                      {habitsLinked ? "습관 탭에서 기록 →" : "로그인 →"}
-                    </button>
+                    {habitsLinked && (
+                      <button onClick={goHabits} className="shrink-0 text-xs font-bold text-stone-500 hover:text-stone-800 whitespace-nowrap">습관 탭 →</button>
+                    )}
                   </div>
                   {!habitsLinked ? (
-                    <p className="text-xs text-stone-500">로그인하면 오늘 할 습관과 기록 상태가 여기에 보여요.</p>
+                    <p className="text-xs text-stone-500">로그인하면 오늘 할 습관을 여기서 바로 체크할 수 있어요.</p>
                   ) : dueToday.length === 0 ? (
-                    <p className="text-xs text-stone-500">오늘 예정된 습관이 없어요.</p>
+                    <p className="text-xs text-stone-500">{pausedToday.length ? "오늘은 모든 습관이 쉬는 기간이에요." : "오늘 예정된 습관이 없어요."}</p>
                   ) : (
-                    <div className="space-y-1.5">
-                      {dueToday.map(h => {
+                    <div className="space-y-2">
+                      {shownDue.map(h => {
                         const st = habitTodayState(h);
+                        const val = (h.values && h.values[todayKey]) || 0;
+                        const focus = h.focusWeek === mondayKey;
+                        const missKey = lastMissedKey(h);
+                        const missReason = missKey ? (h.missReasons || {})[missKey] : null;
+                        const repeat = repeatedReason(h);
+                        const timing = timer && timer.habitId === h.id ? timer : null;
+                        const left = timing ? Math.max(0, Math.ceil((timing.endsAt - timerNow) / 1000)) : 0;
                         return (
-                          <button
-                            key={h.id}
-                            onClick={goHabits}
-                            className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-left"
-                            title="습관 탭에서 기록해요"
-                          >
-                            <span className="flex-1 min-w-0">
-                              <span className="block text-sm font-semibold text-stone-800 truncate">{h.name}</span>
-                              {h.twoMinRule && <span className="block text-[11px] text-amber-600 truncate">2분: {h.twoMinRule}</span>}
-                            </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                              st === 2 ? "bg-indigo-600 text-ink" : st === 1 ? "bg-amber-300 text-ink" : "bg-stone-200 text-stone-500"
-                            }`}>
-                              {HABIT_STATE_TEXT[st]}
-                            </span>
-                          </button>
+                          <div key={h.id} id={`today-${h.id}`} className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-stone-900 break-keep">
+                                  {focus && <span className="text-[10px] font-bold text-indigo-600 mr-1.5">이번 주 집중</span>}
+                                  {h.name}
+                                </p>
+                                {/* 간편 추가로 만든 습관(2분 규칙이 기본값)은 나중에 정하도록 안내 */}
+                                {h.twoMinRule && h.twoMinRule !== "2분만 시작하기" ? (
+                                  <p className="text-[11px] text-amber-600 break-keep mt-0.5">2분: {h.twoMinRule}</p>
+                                ) : (
+                                  <button onClick={() => bridge.openEdit(h.id)} className="text-[11px] font-bold text-stone-500 hover:text-stone-800 mt-0.5">
+                                    2분 규칙·신호 정하기 →
+                                  </button>
+                                )}
+                              </div>
+                              {!timing && (
+                                <button
+                                  onClick={() => startTimer(h)}
+                                  className="shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 inline-flex items-center gap-1 whitespace-nowrap"
+                                  title="2분 타이머를 켜고 2분 규칙부터 시작해요"
+                                >
+                                  <Icon name="stopwatch" /> 2분 타이머
+                                </button>
+                              )}
+                            </div>
+
+                            {/* 2분 타이머: 끝나면 실제로 했는지 묻고 기록 */}
+                            {timing && !timing.finished && (
+                              <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                                <span className="text-xs text-indigo-900">2분 규칙부터 시작하세요</span>
+                                <span className="text-lg font-extrabold text-indigo-600 tabular-nums">{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</span>
+                                <button onClick={() => setTimer(null)} className="text-xs font-bold text-stone-500 hover:text-stone-800">그만</button>
+                              </div>
+                            )}
+                            {timing && timing.finished && (
+                              <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 space-y-2">
+                                <p className="text-xs font-bold text-indigo-900">2분 끝! 실제로 해냈나요?</p>
+                                {h.unit ? (
+                                  <p className="text-[11px] text-indigo-900/80">아래에 한 만큼 숫자로 적어 주세요.</p>
+                                ) : (
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    <button onClick={() => finishTimer(h, 1)} className="py-2 rounded-lg text-[11px] font-bold bg-amber-400 text-ink">⚡︎ 2분 했어요</button>
+                                    <button onClick={() => finishTimer(h, 2)} className="py-2 rounded-lg text-[11px] font-bold bg-indigo-600 text-ink">✔ 완수까지</button>
+                                    <button onClick={() => setTimer(null)} className="py-2 rounded-lg text-[11px] font-bold bg-white border border-stone-200 text-stone-600">못 했어요</button>
+                                  </div>
+                                )}
+                                {h.unit && <button onClick={() => setTimer(null)} className="text-[11px] font-bold text-stone-500">닫기</button>}
+                              </div>
+                            )}
+
+                            {/* 바로 기록: 숫자 습관은 값 입력(목표 이상 ✔ · 미만 ⚡︎), 나머지는 2분/완수 버튼 */}
+                            {h.unit ? (
+                              <form onSubmit={(e) => { e.preventDefault(); quickValue(h); }} className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min="0"
+                                  step="any"
+                                  value={valueDrafts[h.id] ?? ""}
+                                  onChange={(e) => setValueDrafts(d => ({ ...d, [h.id]: e.target.value }))}
+                                  placeholder={val ? `${fmtVotes(val)} 기록됨` : "오늘 한 만큼"}
+                                  aria-label={`${h.name} 오늘 기록 (${h.unit})`}
+                                  className="flex-1 min-w-0 px-3 py-2 bg-white border border-stone-200 rounded-xl"
+                                />
+                                <span className="text-xs text-stone-500 whitespace-nowrap">{h.unit}{h.target ? ` / 목표 ${fmtVotes(h.target)}` : ""}</span>
+                                <button type="submit" className="shrink-0 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-ink">기록</button>
+                                {st > 0 && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${st === 2 ? "bg-indigo-600 text-ink" : "bg-amber-300 text-ink"}`}>
+                                    {st === 2 ? "✔" : "⚡︎"}
+                                  </span>
+                                )}
+                              </form>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => quickState(h, 1)}
+                                  aria-pressed={st === 1}
+                                  className={`py-2.5 rounded-xl border text-xs font-bold ${st === 1 ? "bg-amber-400 border-amber-500 text-ink" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100"}`}
+                                >
+                                  ⚡︎ 2분 실행
+                                </button>
+                                <button
+                                  onClick={() => quickState(h, 2)}
+                                  aria-pressed={st === 2}
+                                  className={`py-2.5 rounded-xl border text-xs font-bold ${st === 2 ? "bg-indigo-600 border-indigo-600 text-ink" : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100"}`}
+                                >
+                                  ✔ 완수
+                                </button>
+                              </div>
+                            )}
+
+                            {/* 지난번에 놓쳤다면 이유를 고를 수 있음 (선택) */}
+                            {missKey && (
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                <span className="text-stone-500">{missKey === yesterdayKey ? "어제" : missKey.slice(5).replace("-", "/")} 놓친 이유 (선택):</span>
+                                {Object.entries(MISS_LABEL).map(([k, label]) => (
+                                  <button
+                                    key={k}
+                                    onClick={() => bridge.setMissReason(h.id, missKey, k)}
+                                    aria-pressed={missReason === k}
+                                    className={`px-2 py-1 rounded-full border ${missReason === k ? "bg-stone-900 border-stone-900 text-white" : "bg-white border-stone-200 text-stone-600 hover:border-indigo-600"}`}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {/* 같은 이유가 3주 안에 두 번 이상이면 조정 제안 */}
+                            {repeat && !hiddenSuggest[h.id] && (
+                              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800 space-y-2">
+                                <p className="leading-relaxed">
+                                  {repeat === "hard" && "최근 '너무 어려움'이 반복됐어요. 목표나 2분 규칙을 조금 줄여 볼까요?"}
+                                  {repeat === "time" && "최근 '시간 부족'이 반복됐어요. 하는 시간이나 신호를 바꿔 볼까요?"}
+                                  {repeat === "forgot" && "최근 '잊음'이 반복됐어요. 알림 시간을 정해 볼까요?"}
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {repeat === "hard" && h.unit && h.target > 1 && (
+                                    <button onClick={() => lowerTarget(h)} className="px-2.5 py-1 rounded-lg font-bold bg-white border border-rose-200 hover:bg-rose-100">
+                                      목표 {fmtVotes(h.target)} → {fmtVotes(Math.max(1, Math.round(h.target * 0.7)))}{h.unit}
+                                    </button>
+                                  )}
+                                  <button onClick={() => bridge.openEdit(h.id)} className="px-2.5 py-1 rounded-lg font-bold bg-white border border-rose-200 hover:bg-rose-100">
+                                    {repeat === "hard" ? "2분 규칙 고치기" : repeat === "time" ? "신호·알림 바꾸기" : "알림 정하기"}
+                                  </button>
+                                  <button onClick={() => setHiddenSuggest(s => ({ ...s, [h.id]: true }))} className="px-2.5 py-1 rounded-lg font-bold text-rose-700/80">괜찮아요</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
+                      {restDue.length > 0 && (
+                        <button onClick={() => setShowRestToday(v => !v)} className="w-full py-2 text-xs font-bold text-stone-500 hover:text-stone-800">
+                          {showRestToday ? "나머지 습관 접기" : `나머지 습관 ${restDue.length}개 펼치기`}
+                        </button>
+                      )}
                     </div>
+                  )}
+                  {habitsLinked && (
+                    <button onClick={() => bridge.openPause()} className="text-[11px] font-bold text-stone-500 hover:text-stone-800 inline-flex items-center gap-1">
+                      <Icon name="mug-hot" /> 여행·아픔으로 쉬는 기간 정하기
+                    </button>
                   )}
                   {habitTodoItems.length > 0 && (
                     <div className="pt-2 border-t border-stone-200 space-y-1.5">
@@ -5334,6 +5916,25 @@
                     </div>
                   )}
                 </div>
+
+                {/* 오늘의 원칙 (만다라트에서 '원칙'으로 정한 행동이 하루에 하나씩) */}
+                {todayRule && (
+                  <div className="daily-rule bg-white rounded-2xl p-4 sketch-border flex items-start gap-3">
+                    <span className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><Icon name="compass" /></span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-bold text-stone-500">오늘의 원칙 · {data.pillars[todayRule.p] || `기둥 ${todayRule.p + 1}`}</div>
+                      <p className="text-base font-extrabold text-stone-900 break-keep mt-0.5">{todayRule.text}</p>
+                    </div>
+                    {ruleItems.length > 1 && (
+                      <button
+                        onClick={() => setRuleShift(s => s + 1)}
+                        className="shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 whitespace-nowrap"
+                      >
+                        다른 원칙
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* 한 번만 하면 되는 행동 (끝내면 완료로 남음) */}
                 {onceItems.length > 0 && (
@@ -5380,6 +5981,16 @@
                     )}
                   </div>
                 )}
+
+                {/* 이번 분기의 방향 (에코 트라이앵글 요약 — 자세한 건 에코 탭에서) */}
+                <section className="quarter-overview" aria-labelledby="quarter-heading">
+                  <div className="section-title"><div><p className="eyebrow">NEXT STEP</p><h2 id="quarter-heading">이번 분기의 방향</h2></div><button onClick={() => setActiveTab("echo")}>전체 보기 ↗</button></div>
+                  <div className="quarter-grid">{tracks.slice(0, 3).map(t => {
+                    const next = MONTH_KEYS.find(k => t[k].title.trim() && t[k].status !== "done");
+                    const count = MONTH_KEYS.filter(k => t[k].status === "done").length;
+                    return <button key={t.id} className="quarter-item" onClick={() => {setActiveTrackId(t.id); setActiveTab("echo");}}><span>{data.echoTriangle.quarter}</span><h3>{t.name || "나의 목표"}</h3><p>{next ? t[next].title : "다음 단계를 확인해 보세요"}</p><div className="step-track" aria-label={`${count}개 단계 완료`}>{MONTH_KEYS.map(k => <i key={k} className={t[k].status === "done" ? "is-done" : ""} />)}</div></button>;
+                  })}</div>
+                </section>
 
                 {/* 종류를 아직 정하지 않은 행동 (한 번만 고르면 끝) */}
                 {unsortedItems.length > 0 && (
